@@ -7,6 +7,8 @@ export interface TeamCloudPayload {
   drivers: Driver[]
   missions: Mission[]
   updatedAt: string
+  storage?: string
+  warning?: string
 }
 
 export interface MissionPack {
@@ -84,18 +86,37 @@ export function missionWhatsappText(pack: MissionPack, shopName: string): string
 
 export async function pushTeamCloud(
   payload: TeamCloudPayload,
-): Promise<{ ok: boolean; message?: string }> {
+): Promise<{
+  ok: boolean
+  message?: string
+  data?: TeamCloudPayload
+  storage?: string
+}> {
   try {
     const res = await fetch('/api/team', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'push', ...payload }),
     })
-    if (!res.ok) {
-      const err = (await res.json().catch(() => ({}))) as { message?: string }
-      return { ok: false, message: err.message || `HTTP ${res.status}` }
+    const body = (await res.json().catch(() => ({}))) as {
+      message?: string
+      data?: TeamCloudPayload
+      storage?: string
+      warning?: string
     }
-    return { ok: true }
+    if (!res.ok) {
+      return {
+        ok: false,
+        message: body.message || `HTTP ${res.status}`,
+        storage: body.storage,
+      }
+    }
+    return {
+      ok: true,
+      data: body.data,
+      storage: body.storage,
+      message: body.warning,
+    }
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : 'offline' }
   }
@@ -105,7 +126,7 @@ export async function pullTeamCloud(
   companyCode: string,
   syncSecret: string,
   driverId?: string,
-): Promise<{ ok: boolean; data?: TeamCloudPayload; message?: string }> {
+): Promise<{ ok: boolean; data?: TeamCloudPayload; message?: string; storage?: string }> {
   try {
     const q = new URLSearchParams({
       companyCode,
@@ -113,12 +134,17 @@ export async function pullTeamCloud(
     })
     if (driverId) q.set('driverId', driverId)
     const res = await fetch(`/api/team?${q.toString()}`)
-    if (!res.ok) {
-      const err = (await res.json().catch(() => ({}))) as { message?: string }
-      return { ok: false, message: err.message || `HTTP ${res.status}` }
+    const body = (await res.json().catch(() => ({}))) as TeamCloudPayload & {
+      message?: string
     }
-    const data = (await res.json()) as TeamCloudPayload
-    return { ok: true, data }
+    if (!res.ok) {
+      return {
+        ok: false,
+        message: body.message || `HTTP ${res.status}`,
+        storage: body.storage,
+      }
+    }
+    return { ok: true, data: body, storage: body.storage }
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : 'offline' }
   }
@@ -157,9 +183,12 @@ export async function patchMissionStop(input: {
   syncSecret: string
   missionId: string
   stopId: string
+  driverId?: string
   status?: 'todo' | 'done' | 'skipped'
   collectedDa?: number
   note?: string
+  cashPostedAt?: string
+  cashPostedDa?: number
 }): Promise<{ ok: boolean; data?: TeamCloudPayload; message?: string }> {
   try {
     const res = await fetch('/api/team', {

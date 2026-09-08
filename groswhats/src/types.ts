@@ -99,6 +99,8 @@ export interface CashEntry {
   amountDa: number
   clientId?: string
   orderId?: string
+  /** Stop de tournée (évite double encaissement) */
+  missionStopId?: string
   note: string
   createdAt: string
 }
@@ -235,6 +237,10 @@ export interface MissionStop {
   collectDa?: number
   /** Cash réellement pris par le livreur (DA) */
   collectedDa?: number
+  /** Versement déjà passé en caisse / solde (idempotent) */
+  cashPostedAt?: string
+  /** Montant posté en caisse pour ce stop */
+  cashPostedDa?: number
 }
 
 export interface Mission {

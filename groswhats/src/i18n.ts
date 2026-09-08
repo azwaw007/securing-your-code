@@ -201,6 +201,9 @@ const fr: Dict = {
   companyCode: 'Code magasin',
   syncSecret: 'Mot secret',
   teamSynced: 'Envoyé OK',
+  teamPulled: 'Mis à jour depuis le cloud',
+  teamBlobHint:
+    'Cloud durable : crée un Blob Store dans Vercel (projet grossiste-dz) — variable BLOB_READ_WRITE_TOKEN.',
   missionCreated: 'Tournée créée',
   switchToDriver: 'Mode livreur',
   addDriver: 'Ajouter livreur',
@@ -675,6 +678,9 @@ const ar: Dict = {
   syncPush: 'نشر إلى السحابة',
   syncPull: 'تحديث من السحابة',
   teamSynced: 'تمت مزامنة الفريق',
+  teamPulled: 'تم التحديث من السحابة',
+  teamBlobHint:
+    'تخزين دائم: أنشئ Blob Store في Vercel (مشروع grossiste-dz) — المتغير BLOB_READ_WRITE_TOKEN.',
   teamSyncFail: 'فشلت المزامنة (دون اتصال أو رمز خاطئ)',
   switchToDriver: 'وضع السائق',
   switchToOwner: 'وضع صاحب المتجر',

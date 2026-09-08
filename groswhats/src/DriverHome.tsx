@@ -12,6 +12,7 @@ import {
   pullTeamCloud,
 } from './sync/teamApi'
 import {
+  applyMissionStopCash,
   mergeCloudDrivers,
   mergeCloudMissions,
   missionCollectTotal,
@@ -166,7 +167,22 @@ export function DriverHome({
     stopId: string,
     patch: Partial<MissionStop>,
   ) {
-    onState((s) => updateMissionStop(s, missionId, stopId, patch))
+    let postedAt: string | undefined
+    let postedDa: number | undefined
+
+    onState((s) => {
+      let next = updateMissionStop(s, missionId, stopId, patch)
+      if (patch.status === 'done' && (patch.collectedDa || 0) > 0) {
+        next = applyMissionStopCash(next, missionId, stopId)
+        const stop = next.missions
+          .find((m) => m.id === missionId)
+          ?.stops.find((x) => x.id === stopId)
+        postedAt = stop?.cashPostedAt
+        postedDa = stop?.cashPostedDa
+      }
+      return next
+    })
+
     const current = state.missions
       .find((m) => m.id === missionId)
       ?.stops.find((s) => s.id === stopId)
@@ -176,9 +192,12 @@ export function DriverHome({
       syncSecret: state.team.syncSecret,
       missionId,
       stopId,
+      driverId: state.team.currentDriverId || undefined,
       status,
       collectedDa: patch.collectedDa,
       note: patch.note,
+      cashPostedAt: postedAt,
+      cashPostedDa: postedDa,
     })
     if (cloud.ok && cloud.data) {
       onState((s) => {
@@ -539,6 +558,7 @@ function DriverMissionDetail({
                 {s.collectedDa && s.collectedDa > 0 ? (
                   <div className="muted">
                     ✅ {t(lang, 'takenCash')} : {formatDa(s.collectedDa)}
+                    {s.cashPostedAt ? ` · ${t(lang, 'cashIn')}` : ''}
                   </div>
                 ) : null}
 

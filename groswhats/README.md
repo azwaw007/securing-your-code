@@ -10,6 +10,15 @@
 | Générateur licences (page) | `seller/license-generator.html` |
 | Générateur licences (CLI) | `tools/generate-license.mjs` |
 
+## Multi-poste (livreurs)
+
+1. Dans Vercel → projet **grossiste-dz** → Storage → crée un **Blob Store**
+2. La variable `BLOB_READ_WRITE_TOKEN` est injectée automatiquement
+3. Sans ce token, `/api/team` refuse d’écrire (stockage durable obligatoire)
+
+Sync : push patron = pull+merge puis écriture Blob (le progrès livreur n’est pas écrasé).
+Cash livré → caisse + solde client (idempotent via `missionStopId`).
+
 ## Lancer en local
 
 ```bash

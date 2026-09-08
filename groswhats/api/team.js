@@ -1,47 +1,11 @@
 /**
  * Sync équipe multi-poste (patron ↔ livreurs).
- * Stockage mémoire processus + miroir /tmp (warm instances Vercel).
- * Secours WhatsApp toujours disponible côté app.
+ * Stockage durable : Vercel Blob (BLOB_READ_WRITE_TOKEN).
+ * Push = merge (ne pas écraser le progrès livreur).
  */
 
-const fs = require('fs')
-const path = require('path')
-
-const TMP_DIR = '/tmp/gdz-team'
-const TMP_FILE = path.join(TMP_DIR, 'store.json')
-
-/** @type {Map<string, any>} */
-const g = globalThis
-
-function store() {
-  if (!g.__gdzTeamStore) {
-    g.__gdzTeamStore = new Map()
-    tryLoadTmp(g.__gdzTeamStore)
-  }
-  return g.__gdzTeamStore
-}
-
-function tryLoadTmp(map) {
-  try {
-    if (!fs.existsSync(TMP_FILE)) return
-    const raw = JSON.parse(fs.readFileSync(TMP_FILE, 'utf8'))
-    if (raw && typeof raw === 'object') {
-      for (const [k, v] of Object.entries(raw)) map.set(k, v)
-    }
-  } catch {
-    /* ignore */
-  }
-}
-
-function persistTmp(map) {
-  try {
-    if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true })
-    const obj = Object.fromEntries(map.entries())
-    fs.writeFileSync(TMP_FILE, JSON.stringify(obj))
-  } catch {
-    /* ignore — serverless may block fs */
-  }
-}
+const { loadTeam, saveTeam, hasBlob } = require('./team-store')
+const { mergeTeamPayload, recomputeMissionStatus } = require('./team-merge')
 
 function keyOf(companyCode, syncSecret) {
   return `${String(companyCode || '')
@@ -63,6 +27,26 @@ function filterMissions(data, driverId) {
   }
 }
 
+function publicDrivers(drivers) {
+  return (drivers || []).map((d) => ({
+    id: d.id,
+    name: d.name,
+    phone: d.phone,
+    active: d.active !== false,
+    createdAt: d.createdAt,
+    // PIN volontairement omis hors join
+  }))
+}
+
+function sanitizeForDriver(data, driverId) {
+  if (!data) return data
+  const filtered = filterMissions(data, driverId)
+  return {
+    ...filtered,
+    drivers: publicDrivers(filtered.drivers),
+  }
+}
+
 module.exports = async function handler(req, res) {
   cors(res)
   if (req.method === 'OPTIONS') {
@@ -80,12 +64,20 @@ module.exports = async function handler(req, res) {
         res.status(400).json({ message: 'companyCode et syncSecret requis' })
         return
       }
-      const data = store().get(k)
+      const { data, storage, warning } = await loadTeam(k)
       if (!data) {
-        res.status(404).json({ message: 'Aucune donnée équipe pour ce code' })
+        res.status(404).json({
+          message: warning || 'Aucune donnée équipe pour ce code',
+          storage: storage || (hasBlob() ? 'blob' : 'memory'),
+        })
         return
       }
-      res.status(200).json(filterMissions(data, driverId))
+      const payload = driverId ? sanitizeForDriver(data, driverId) : data
+      res.status(200).json({
+        ...payload,
+        storage,
+        ...(warning ? { warning } : {}),
+      })
       return
     }
 
@@ -102,7 +94,9 @@ module.exports = async function handler(req, res) {
           res.status(400).json({ message: 'companyCode et syncSecret requis' })
           return
         }
-        const payload = {
+        const k = keyOf(companyCode, syncSecret)
+        const loaded = await loadTeam(k)
+        const incoming = {
           companyCode,
           syncSecret,
           shopName: body.shopName || 'Grossiste DZ',
@@ -110,10 +104,25 @@ module.exports = async function handler(req, res) {
           missions: Array.isArray(body.missions) ? body.missions : [],
           updatedAt: new Date().toISOString(),
         }
-        const map = store()
-        map.set(keyOf(companyCode, syncSecret), payload)
-        persistTmp(map)
-        res.status(200).json({ ok: true, updatedAt: payload.updatedAt })
+        const payload = mergeTeamPayload(loaded.data, incoming)
+        const saved = await saveTeam(k, payload)
+        if (!saved.ok && saved.storage === 'memory') {
+          res.status(503).json({
+            ok: false,
+            message:
+              saved.warning ||
+              'Stockage durable indisponible — configure BLOB_READ_WRITE_TOKEN',
+            storage: saved.storage,
+          })
+          return
+        }
+        res.status(200).json({
+          ok: true,
+          updatedAt: payload.updatedAt,
+          storage: saved.storage,
+          data: payload,
+          ...(saved.warning ? { warning: saved.warning } : {}),
+        })
         return
       }
 
@@ -125,9 +134,14 @@ module.exports = async function handler(req, res) {
         const pin = String(body.pin || '')
           .replace(/\D/g, '')
           .slice(0, 4)
-        const data = store().get(keyOf(companyCode, syncSecret))
+        const { data, storage, warning } = await loadTeam(
+          keyOf(companyCode, syncSecret),
+        )
         if (!data) {
-          res.status(404).json({ message: 'Code société / secret invalide' })
+          res.status(404).json({
+            message: warning || 'Code société / secret invalide',
+            storage,
+          })
           return
         }
         const driver = (data.drivers || []).find(
@@ -139,8 +153,16 @@ module.exports = async function handler(req, res) {
         }
         res.status(200).json({
           ok: true,
-          driver,
-          data: filterMissions(data, driver.id),
+          driver: {
+            id: driver.id,
+            name: driver.name,
+            phone: driver.phone,
+            active: driver.active !== false,
+            createdAt: driver.createdAt,
+            pin: driver.pin,
+          },
+          data: sanitizeForDriver(data, driver.id),
+          storage,
         })
         return
       }
@@ -156,9 +178,13 @@ module.exports = async function handler(req, res) {
         const collectedDa =
           typeof body.collectedDa === 'number' ? body.collectedDa : undefined
         const note = typeof body.note === 'string' ? body.note : undefined
+        const cashPostedAt =
+          typeof body.cashPostedAt === 'string' ? body.cashPostedAt : undefined
+        const cashPostedDa =
+          typeof body.cashPostedDa === 'number' ? body.cashPostedDa : undefined
         const k = keyOf(companyCode, syncSecret)
-        const map = store()
-        const data = map.get(k)
+        const loaded = await loadTeam(k)
+        const data = loaded.data
         if (!data) {
           res.status(404).json({ message: 'Équipe introuvable' })
           return
@@ -167,31 +193,50 @@ module.exports = async function handler(req, res) {
           if (m.id !== missionId) return m
           const stops = (m.stops || []).map((s) => {
             if (s.id !== stopId) return s
+            const nextStatus = status || s.status
+            const nextCollected =
+              collectedDa !== undefined
+                ? Math.max(s.collectedDa || 0, collectedDa)
+                : s.collectedDa
             return {
               ...s,
-              ...(status ? { status } : {}),
-              ...(collectedDa !== undefined ? { collectedDa } : {}),
+              status: nextStatus,
+              collectedDa: nextCollected,
               ...(note !== undefined ? { note } : {}),
+              ...(cashPostedAt
+                ? {
+                    cashPostedAt: s.cashPostedAt || cashPostedAt,
+                    cashPostedDa: Math.max(
+                      s.cashPostedDa || 0,
+                      cashPostedDa ?? nextCollected ?? 0,
+                    ),
+                  }
+                : {}),
             }
           })
-          const allDone = stops.every(
-            (s) => s.status === 'done' || s.status === 'skipped',
-          )
-          const anyProgress = stops.some((s) => s.status !== 'todo')
-          let mStatus = m.status
-          if (allDone && stops.length) mStatus = 'done'
-          else if (anyProgress) mStatus = 'in_progress'
           return {
             ...m,
             stops,
-            status: mStatus,
+            status: recomputeMissionStatus(m, stops),
             updatedAt: new Date().toISOString(),
           }
         })
         data.updatedAt = new Date().toISOString()
-        map.set(k, data)
-        persistTmp(map)
-        res.status(200).json({ ok: true, data })
+        const saved = await saveTeam(k, data)
+        if (!saved.ok && saved.storage === 'memory') {
+          res.status(503).json({
+            ok: false,
+            message: saved.warning || 'Stockage durable indisponible',
+            storage: saved.storage,
+          })
+          return
+        }
+        const driverId = String(body.driverId || '')
+        res.status(200).json({
+          ok: true,
+          data: driverId ? sanitizeForDriver(data, driverId) : data,
+          storage: saved.storage,
+        })
         return
       }
 

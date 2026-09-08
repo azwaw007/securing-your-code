@@ -5,6 +5,7 @@ import { WILAYAS, matchWilayaCode, wilayaByCode } from './data/wilayas'
 import { openWhatsappText } from './utils/whatsapp'
 import {
   missionWhatsappText,
+  pullTeamCloud,
   pushTeamCloud,
   type MissionPack,
 } from './sync/teamApi'
@@ -15,6 +16,8 @@ import {
   deleteDriver,
   deleteMission,
   ensureCompanyCode,
+  mergeCloudDrivers,
+  mergeCloudMissions,
   missionCollectTotal,
   reorderMissionStops,
   updateDriver,
@@ -105,9 +108,47 @@ function OwnerMissionsView({
     })
   }, [state.clients, wilayaCode])
 
+  async function syncPull() {
+    setBusy(true)
+    const s = ensureCompanyCode(state)
+    const res = await pullTeamCloud(s.team.companyCode, s.team.syncSecret)
+    setBusy(false)
+    if (!res.ok || !res.data) {
+      onFlash('teamSyncFail')
+      return false
+    }
+    onState((prev) => {
+      let next = mergeCloudDrivers(prev, res.data!.drivers || [])
+      next = mergeCloudMissions(next, res.data!.missions || [])
+      return next
+    })
+    onFlash('teamPulled')
+    return true
+  }
+
   async function syncPush(override?: AppState) {
     setBusy(true)
-    const s = ensureCompanyCode(override ?? state)
+    let s = ensureCompanyCode(override ?? state)
+
+    // 1) Pull + merge local avant push → ne pas écraser le livreur
+    const pulled = await pullTeamCloud(s.team.companyCode, s.team.syncSecret)
+    if (pulled.ok && pulled.data) {
+      onState((prev) => {
+        let next = mergeCloudDrivers(prev, pulled.data!.drivers || [])
+        next = mergeCloudMissions(next, pulled.data!.missions || [])
+        s = ensureCompanyCode(next)
+        return next
+      })
+      // laisser React appliquer ; utiliser l’état mergé pour le push
+      s = ensureCompanyCode(
+        (() => {
+          let next = mergeCloudDrivers(s, pulled.data!.drivers || [])
+          next = mergeCloudMissions(next, pulled.data!.missions || [])
+          return next
+        })(),
+      )
+    }
+
     const res = await pushTeamCloud({
       companyCode: s.team.companyCode,
       syncSecret: s.team.syncSecret,
@@ -116,6 +157,15 @@ function OwnerMissionsView({
       missions: s.missions,
       updatedAt: new Date().toISOString(),
     })
+
+    if (res.ok && res.data) {
+      onState((prev) => {
+        let next = mergeCloudDrivers(prev, res.data!.drivers || [])
+        next = mergeCloudMissions(next, res.data!.missions || [])
+        return next
+      })
+    }
+
     setBusy(false)
     onFlash(res.ok ? 'teamSynced' : 'teamSyncFail')
     return res.ok
@@ -183,6 +233,7 @@ function OwnerMissionsView({
             </div>
           </div>
           <p className="muted">{t(lang, 'teamSetupHint')}</p>
+          <div className="notice">{t(lang, 'teamBlobHint')}</div>
           <div className="btn-row">
             <button
               type="button"
@@ -191,6 +242,14 @@ function OwnerMissionsView({
               onClick={() => void syncPush()}
             >
               ☁️ {t(lang, 'syncPush')}
+            </button>
+            <button
+              type="button"
+              className="btn secondary"
+              disabled={busy}
+              onClick={() => void syncPull()}
+            >
+              ⬇️ {t(lang, 'syncPull')}
             </button>
             <button
               type="button"
@@ -583,6 +642,9 @@ function MissionCard({
           {cash.dueDa > 0 ? (
             <div className="cash-line">
               💵 {t(lang, 'toCollectToday')} : {formatDa(cash.dueDa)}
+              {cash.takenDa > 0
+                ? ` · ${t(lang, 'alreadyCollected')} ${formatDa(cash.takenDa)}`
+                : ''}
             </div>
           ) : null}
         </div>

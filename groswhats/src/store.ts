@@ -215,6 +215,8 @@ function migrate(raw: unknown): AppState {
       amountDa: typeof e.amountDa === 'number' ? e.amountDa : 0,
       note: typeof e.note === 'string' ? e.note : '',
       createdAt: e.createdAt || new Date().toISOString(),
+      missionStopId:
+        typeof e.missionStopId === 'string' ? e.missionStopId : undefined,
     })),
     drivers: (data.drivers ?? []).map((d) => ({
       ...d,
@@ -238,6 +240,12 @@ function migrate(raw: unknown): AppState {
           typeof s.collectedDa === 'number' && s.collectedDa >= 0
             ? s.collectedDa
             : 0,
+        cashPostedAt:
+          typeof s.cashPostedAt === 'string' ? s.cashPostedAt : undefined,
+        cashPostedDa:
+          typeof s.cashPostedDa === 'number' && s.cashPostedDa >= 0
+            ? s.cashPostedDa
+            : undefined,
       })),
       status: (m.status as MissionStatus) || 'draft',
       updatedAt: m.updatedAt || m.createdAt || new Date().toISOString(),
@@ -598,10 +606,18 @@ export function applyClientPayment(
   state: AppState,
   clientId: string,
   amountDa: number,
+  opts?: { note?: string; missionStopId?: string; createdAt?: string },
 ): AppState {
   let left = Math.max(0, +amountDa.toFixed(2))
   if (left <= 0) return state
   const received = left
+
+  if (opts?.missionStopId) {
+    const already = (state.cashEntries ?? []).some(
+      (e) => e.missionStopId === opts.missionStopId,
+    )
+    if (already) return state
+  }
 
   const orders = state.orders.map((o) => {
     if (o.clientId !== clientId || left <= 0) return o
@@ -635,8 +651,9 @@ export function applyClientPayment(
     id: uid('cash'),
     amountDa: received,
     clientId,
-    note: 'Versement client',
-    createdAt: new Date().toISOString(),
+    missionStopId: opts?.missionStopId,
+    note: opts?.note || 'Versement client',
+    createdAt: opts?.createdAt || new Date().toISOString(),
   }
 
   return {
@@ -1070,29 +1087,173 @@ export function missionCollectTotal(m: Mission): {
   return { dueDa: +dueDa.toFixed(2), takenDa: +takenDa.toFixed(2) }
 }
 
+const STOP_STATUS_RANK: Record<string, number> = {
+  todo: 0,
+  skipped: 1,
+  done: 2,
+}
+
+function mergeMissionStop(local: MissionStop, incoming: MissionStop): MissionStop {
+  const lRank = STOP_STATUS_RANK[local.status] ?? 0
+  const iRank = STOP_STATUS_RANK[incoming.status] ?? 0
+  const status =
+    lRank >= iRank ? local.status : incoming.status
+  const collectedDa = Math.max(local.collectedDa || 0, incoming.collectedDa || 0)
+  const cashPostedAt = local.cashPostedAt || incoming.cashPostedAt
+  const cashPostedDa = Math.max(
+    local.cashPostedDa || 0,
+    incoming.cashPostedDa || 0,
+  )
+  return {
+    ...incoming,
+    status,
+    collectedDa,
+    ...(cashPostedAt
+      ? { cashPostedAt, cashPostedDa: cashPostedDa || collectedDa }
+      : cashPostedDa
+        ? { cashPostedDa }
+        : {}),
+    note:
+      (local.note && local.note.length >= (incoming.note || '').length
+        ? local.note
+        : incoming.note) ||
+      local.note ||
+      '',
+  }
+}
+
+function mergeMissionDeep(local: Mission | undefined, incoming: Mission): Mission {
+  if (!local) return incoming
+  const byId = new Map(local.stops.map((s) => [s.id, s]))
+  for (const s of incoming.stops) {
+    const prev = byId.get(s.id)
+    byId.set(s.id, prev ? mergeMissionStop(prev, s) : s)
+  }
+  for (const s of local.stops) {
+    if (!incoming.stops.some((x) => x.id === s.id)) {
+      if (
+        s.status !== 'todo' ||
+        (s.collectedDa || 0) > 0 ||
+        s.cashPostedAt
+      ) {
+        byId.set(s.id, s)
+      }
+    }
+  }
+  const stops = [...byId.values()].sort(
+    (a, b) => (a.sortOrder || 0) - (b.sortOrder || 0),
+  )
+  const newer =
+    (incoming.updatedAt || '') >= (local.updatedAt || '') ? incoming : local
+  const allDone =
+    stops.length > 0 &&
+    stops.every((s) => s.status === 'done' || s.status === 'skipped')
+  const anyProgress = stops.some((s) => s.status !== 'todo')
+  let status: MissionStatus = newer.status
+  if (allDone) status = 'done'
+  else if (anyProgress) status = 'in_progress'
+  return {
+    ...newer,
+    stops,
+    status,
+    updatedAt:
+      (incoming.updatedAt || '') >= (local.updatedAt || '')
+        ? incoming.updatedAt || local.updatedAt
+        : local.updatedAt || incoming.updatedAt,
+    createdAt: local.createdAt || incoming.createdAt,
+  }
+}
+
+/**
+ * Encaissement livreur → caisse + réduction solde client (idempotent via missionStopId).
+ */
+export function applyMissionStopCash(
+  state: AppState,
+  missionId: string,
+  stopId: string,
+): AppState {
+  const mission = state.missions.find((m) => m.id === missionId)
+  const stop = mission?.stops.find((s) => s.id === stopId)
+  if (!stop) return state
+
+  const alreadyCash = (state.cashEntries ?? []).some(
+    (e) => e.missionStopId === stopId,
+  )
+  if (stop.cashPostedAt && alreadyCash) return state
+
+  const amount = Math.max(0, +(stop.collectedDa || 0).toFixed(2))
+  const postedAt = stop.cashPostedAt || new Date().toISOString()
+
+  let next = state
+  if (amount > 0 && !alreadyCash && stop.clientId) {
+    next = applyClientPayment(next, stop.clientId, amount, {
+      note: `Livreur — ${mission?.title || 'tournée'}`,
+      missionStopId: stopId,
+      createdAt: postedAt,
+    })
+  }
+
+  return updateMissionStop(next, missionId, stopId, {
+    cashPostedAt: postedAt,
+    cashPostedDa: amount,
+  })
+}
+
+/** Après merge cloud : poster en caisse tout stop déjà cashPosted côté cloud. */
+export function settlePostedMissionCash(state: AppState): AppState {
+  let next = state
+  for (const m of state.missions) {
+    for (const s of m.stops) {
+      if (!s.cashPostedAt) continue
+      const already = (next.cashEntries ?? []).some(
+        (e) => e.missionStopId === s.id,
+      )
+      if (already) continue
+      const amount = Math.max(
+        0,
+        +((s.cashPostedDa ?? s.collectedDa) || 0).toFixed(2),
+      )
+      if (amount > 0 && s.clientId) {
+        next = applyClientPayment(next, s.clientId, amount, {
+          note: `Livreur — ${m.title}`,
+          missionStopId: s.id,
+          createdAt: s.cashPostedAt,
+        })
+      }
+      next = updateMissionStop(next, m.id, s.id, {
+        cashPostedAt: s.cashPostedAt,
+        cashPostedDa: amount,
+      })
+    }
+  }
+  return next
+}
+
 export function mergeCloudMissions(
   state: AppState,
   incoming: Mission[],
 ): AppState {
   const map = new Map(state.missions.map((m) => [m.id, m]))
   for (const m of incoming) {
-    const prev = map.get(m.id)
-    if (!prev || (m.updatedAt || '') >= (prev.updatedAt || '')) {
-      map.set(m.id, m)
-    }
+    map.set(m.id, mergeMissionDeep(map.get(m.id), m))
   }
-  return {
+  const merged: AppState = {
     ...state,
     missions: [...map.values()].sort((a, b) =>
       (b.updatedAt || b.createdAt).localeCompare(a.updatedAt || a.createdAt),
     ),
   }
+  return settlePostedMissionCash(merged)
 }
 
 export function mergeCloudDrivers(state: AppState, incoming: Driver[]): AppState {
   if (state.team.role === 'owner') {
-    // Owner keeps local drivers as source of truth unless empty
-    if (state.drivers.length > 0) return state
+    if (state.drivers.length > 0) {
+      // Patron : fusionner (ne pas perdre les drivers cloud), garder PIN local prioritaire
+      const map = new Map(incoming.map((d) => [d.id, d]))
+      for (const d of state.drivers) map.set(d.id, d)
+      return { ...state, drivers: [...map.values()] }
+    }
   }
   const map = new Map(state.drivers.map((d) => [d.id, d]))
   for (const d of incoming) map.set(d.id, d)
