@@ -859,6 +859,31 @@ button {
   padding: 4px 8px;
 }
 
+.smart-cal-btn {
+  border: none;
+  background: transparent;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 10px;
+}
+
+.smart-cal-btn.active {
+  background: color-mix(in srgb, var(--brand) 16%, transparent);
+}
+
+.smart-date-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.smart-date-presets .chip {
+  margin: 0;
+}
+
 .smart-suggest {
   position: absolute;
   left: 0;

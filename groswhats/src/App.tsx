@@ -162,6 +162,10 @@ export default function App() {
   const [aliveScreens, setAliveScreens] = useState<Screen[]>(['home'])
   const [toast, setToast] = useState('')
   const [focusClientId, setFocusClientId] = useState<string | null>(null)
+  const [historySeed, setHistorySeed] = useState<{
+    from: string
+    to: string
+  } | null>(null)
   const [muteAsk, setMuteAsk] = useState<{
     text: string
     lang: Language
@@ -555,6 +559,10 @@ export default function App() {
           low={low}
           onGo={goTo}
           onFocusClient={(id) => setFocusClientId(id)}
+          onOpenHistoryDates={(from, to) => {
+            setHistorySeed({ from, to })
+            goTo('history', t(lang, 'appHistory'))
+          }}
           onEnableAlerts={async () => {
             const result = await enableStockAlerts()
             if (result === 'granted') {
@@ -826,6 +834,9 @@ export default function App() {
         <HistoryPage
           state={state}
           lang={lang}
+          seedFrom={historySeed?.from}
+          seedTo={historySeed?.to}
+          onSeedConsumed={() => setHistorySeed(null)}
           onOpenClient={(id) => {
             setFocusClientId(id)
             goTo('clients')
@@ -1402,6 +1413,7 @@ function HomePage({
   low,
   onGo,
   onFocusClient,
+  onOpenHistoryDates,
   onEnableAlerts,
   onWhatsapp,
   onPrint,
@@ -1428,6 +1440,7 @@ function HomePage({
   low: Product[]
   onGo: (s: Screen, spokenLabel?: string) => void
   onFocusClient: (id: string) => void
+  onOpenHistoryDates: (from: string, to: string) => void
   onEnableAlerts: () => void
   onWhatsapp: (order: Order) => void
   onPrint: (order: Order) => Promise<void>
@@ -1516,7 +1529,12 @@ function HomePage({
           <div className="muted">{t(lang, 'todayStrip')}</div>
           <h2 className="home-shop">{state.settings.shopName || 'Grossiste DZ'}</h2>
         </div>
-        <GlobalSmartSearch state={state} lang={lang} onHit={handleHit} />
+        <GlobalSmartSearch
+          state={state}
+          lang={lang}
+          onHit={handleHit}
+          onOpenHistory={onOpenHistoryDates}
+        />
         <button type="button" className="sell-cta" onClick={() => onGo('order', t(lang, 'sellNow'))}>
           <span className="sell-cta-emoji">🛒</span>
           <span>
@@ -1647,6 +1665,9 @@ function HomePage({
 function HistoryPage({
   state,
   lang,
+  seedFrom,
+  seedTo,
+  onSeedConsumed,
   onWhatsapp,
   onPrint,
   onBoth,
@@ -1655,6 +1676,9 @@ function HistoryPage({
 }: {
   state: AppState
   lang: Language
+  seedFrom?: string
+  seedTo?: string
+  onSeedConsumed?: () => void
   onWhatsapp: (order: Order) => void
   onPrint: (order: Order) => Promise<void>
   onBoth: (order: Order) => Promise<void>
@@ -1668,6 +1692,14 @@ function HistoryPage({
   >('today')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+
+  useEffect(() => {
+    if (!seedFrom && !seedTo) return
+    setDateFrom(seedFrom || '')
+    setDateTo(seedTo || '')
+    setDayPreset('all')
+    onSeedConsumed?.()
+  }, [seedFrom, seedTo, onSeedConsumed])
 
   const locale = lang === 'ar' ? 'ar-DZ' : 'fr-DZ'
   const allItems = useMemo(() => buildActivityLog(state, lang), [state, lang])
@@ -3388,6 +3420,10 @@ function OrderPage({
   const [lastOrder, setLastOrder] = useState<Order | null>(null)
   const [productQuery, setProductQuery] = useState('')
   const [clientQuery, setClientQuery] = useState('')
+  const [clientDateFrom, setClientDateFrom] = useState('')
+  const [clientDateTo, setClientDateTo] = useState('')
+  const [productDateFrom, setProductDateFrom] = useState('')
+  const [productDateTo, setProductDateTo] = useState('')
   /** Après le panier : choisir Payé / Versé */
   const [payStep, setPayStep] = useState(false)
   const [verseInput, setVerseInput] = useState('')
@@ -3409,22 +3445,27 @@ function OrderPage({
   }, [state.clients, clientQuery])
   const orderClients = useMemo(() => {
     const q = clientQuery.trim().toLowerCase()
-    if (!q) return state.clients
-    return state.clients.filter(
-      (c) =>
+    return state.clients.filter((c) => {
+      if (!inDateRange(c.createdAt, clientDateFrom, clientDateTo)) return false
+      if (!q) return true
+      return (
         c.name.toLowerCase().includes(q) ||
         c.phone.toLowerCase().includes(q) ||
-        c.city.toLowerCase().includes(q),
-    )
-  }, [state.clients, clientQuery])
-  const filteredProducts = state.products.filter((p) => {
+        c.city.toLowerCase().includes(q)
+      )
+    })
+  }, [state.clients, clientQuery, clientDateFrom, clientDateTo])
+  const filteredProducts = useMemo(() => {
     const q = productQuery.trim().toLowerCase()
-    if (!q) return true
-    return (
-      p.name.toLowerCase().includes(q) ||
-      t(lang, `cat_${p.category}`).toLowerCase().includes(q)
-    )
-  })
+    return state.products.filter((p) => {
+      if (!inDateRange(p.createdAt, productDateFrom, productDateTo)) return false
+      if (!q) return true
+      return (
+        p.name.toLowerCase().includes(q) ||
+        t(lang, `cat_${p.category}`).toLowerCase().includes(q)
+      )
+    })
+  }, [state.products, productQuery, productDateFrom, productDateTo, lang])
 
   function lineKey(productId: string, tier: PriceTier) {
     return `${productId}::${tier}`
@@ -3559,6 +3600,11 @@ function OrderPage({
               onChange={setClientQuery}
               placeholder={t(lang, 'searchClientsHint')}
               suggestions={clientSuggestions}
+              showCalendar
+              dateFrom={clientDateFrom}
+              dateTo={clientDateTo}
+              onDateFrom={setClientDateFrom}
+              onDateTo={setClientDateTo}
             />
             {orderClients.length === 0 ? (
               <div className="empty">{t(lang, 'noClientsYet')}</div>
@@ -3609,6 +3655,11 @@ function OrderPage({
           onChange={setProductQuery}
           placeholder={t(lang, 'searchProductsSmartHint')}
           suggestions={productSuggestions}
+          showCalendar
+          dateFrom={productDateFrom}
+          dateTo={productDateTo}
+          onDateFrom={setProductDateFrom}
+          onDateTo={setProductDateTo}
         />
         {filteredProducts.length === 0 ? (
           <div className="empty">{t(lang, 'noProductFound')}</div>
