@@ -464,7 +464,7 @@ function DriverMissionDetail({
       <div className="driver-stops">
         {stops.map((s, i) => {
           const nav =
-            typeof s.lat === 'number' && typeof s.lng === 'number'
+            (typeof s.lat === 'number' && typeof s.lng === 'number'
               ? myPos
                 ? mapsDirectionsUrl(myPos, { lat: s.lat, lng: s.lng })
                 : clientMapsUrl({
@@ -478,7 +478,7 @@ function DriverMissionDetail({
                   name: s.clientName,
                   address: s.address,
                   city: s.city,
-                })
+                })) ?? undefined
           const tel = phoneTelHref(s.clientPhone)
           const due = s.collectDa || 0
           return (
