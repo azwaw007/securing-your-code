@@ -1928,11 +1928,23 @@ function GalleryPage({
   onEditStock: () => void
 }) {
   const [query, setQuery] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [previewId, setPreviewId] = useState<string | null>(null)
+
+  const productSuggestions = useMemo(() => {
+    const names = [
+      ...state.products.map((p) => p.name),
+      ...CATEGORIES.map((c) => t(lang, `cat_${c}`)),
+    ]
+    return suggestNames(names, query, 10)
+  }, [state.products, query, lang])
 
   const products = useMemo(() => {
     const q = query.trim().toLowerCase()
-    const list = [...state.products].sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+    const list = [...state.products]
+      .filter((p) => inDateRange(p.createdAt, dateFrom, dateTo))
+      .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
     if (!q) return list
     return list.filter(
       (p) =>
@@ -1940,7 +1952,7 @@ function GalleryPage({
         p.category.toLowerCase().includes(q) ||
         t(lang, `cat_${p.category}`).toLowerCase().includes(q),
     )
-  }, [state.products, query, lang])
+  }, [state.products, query, dateFrom, dateTo, lang])
 
   const preview = products.find((p) => p.id === previewId) ?? null
 
@@ -1957,14 +1969,18 @@ function GalleryPage({
             📦 {t(lang, 'viewStock')}
           </button>
         </div>
-        <div className="field">
-          <label>{t(lang, 'searchProduct')}</label>
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={t(lang, 'searchProductHint')}
-          />
-        </div>
+        <SmartSearchBar
+          lang={lang}
+          value={query}
+          onChange={setQuery}
+          placeholder={t(lang, 'searchProductsSmartHint')}
+          suggestions={productSuggestions}
+          showCalendar
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          onDateFrom={setDateFrom}
+          onDateTo={setDateTo}
+        />
       </div>
 
       {products.length === 0 ? (
@@ -2264,6 +2280,15 @@ function ProductPricingFields({
   )
 }
 
+function inDateRange(iso: string | undefined, from: string, to: string): boolean {
+  if (!from && !to) return true
+  if (!iso) return false
+  const day = iso.slice(0, 10)
+  if (from && day < from) return false
+  if (to && day > to) return false
+  return true
+}
+
 function ProductsPage({
   state,
   lang,
@@ -2294,8 +2319,34 @@ function ProductsPage({
   const [imageDataUrl, setImageDataUrl] = useState<string | undefined>()
   const [photoBusy, setPhotoBusy] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
 
   const editing = state.products.find((p) => p.id === editId) ?? null
+
+  const productSuggestions = useMemo(() => {
+    const names = [
+      ...state.products.map((p) => p.name),
+      ...CATEGORIES.map((c) => t(lang, `cat_${c}`)),
+    ]
+    return suggestNames(names, query, 10)
+  }, [state.products, query, lang])
+
+  const filteredProducts = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return [...state.products]
+      .filter((p) => inDateRange(p.createdAt, dateFrom, dateTo))
+      .filter((p) => {
+        if (!q) return true
+        return (
+          p.name.toLowerCase().includes(q) ||
+          p.category.toLowerCase().includes(q) ||
+          t(lang, `cat_${p.category}`).toLowerCase().includes(q)
+        )
+      })
+      .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+  }, [state.products, query, dateFrom, dateTo, lang])
 
   async function pickPhoto(
     file: File | null | undefined,
@@ -2453,16 +2504,31 @@ function ProductsPage({
 
       <div className="card">
         <h2>
-          {t(lang, 'productsCount')} ({state.products.length})
+          {t(lang, 'productsCount')} ({filteredProducts.length}/{state.products.length})
         </h2>
+        <SmartSearchBar
+          lang={lang}
+          value={query}
+          onChange={setQuery}
+          placeholder={t(lang, 'searchProductsSmartHint')}
+          suggestions={productSuggestions}
+          showCalendar
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          onDateFrom={setDateFrom}
+          onDateTo={setDateTo}
+        />
         <button
           className="btn secondary block"
-          style={{ marginBottom: 12 }}
+          style={{ marginBottom: 12, marginTop: 10 }}
           onClick={onOpenGallery}
         >
           🖼️ {t(lang, 'gallery')}
         </button>
-        {state.products.map((p) => {
+        {filteredProducts.length === 0 ? (
+          <div className="empty">{t(lang, 'noProductFound')}</div>
+        ) : (
+          filteredProducts.map((p) => {
           return (
             <div className="list-item with-thumb" key={p.id}>
               {p.imageDataUrl ? (
@@ -2529,7 +2595,8 @@ function ProductsPage({
               <strong>{formatDa(p.priceDa * p.stock)}</strong>
             </div>
           )
-        })}
+          })
+        )}
       </div>
     </>
   )
@@ -2722,12 +2789,37 @@ function ClientsPage({
   const [editing, setEditing] = useState(false)
   const [payAmount, setPayAmount] = useState('')
   const [balanceEdit, setBalanceEdit] = useState('')
+  const [query, setQuery] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
 
   useEffect(() => {
     if (initialClientId) setSelectedId(initialClientId)
   }, [initialClientId])
 
   const selected = state.clients.find((c) => c.id === selectedId) ?? null
+
+  const clientSuggestions = useMemo(() => {
+    const names = state.clients.flatMap((c) =>
+      [c.name, c.phone, c.city, c.address].filter(Boolean),
+    )
+    return suggestNames(names, query, 10)
+  }, [state.clients, query])
+
+  const filteredClients = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return state.clients.filter((c) => {
+      if (!inDateRange(c.createdAt, dateFrom, dateTo)) return false
+      if (!q) return true
+      return (
+        c.name.toLowerCase().includes(q) ||
+        c.phone.toLowerCase().includes(q) ||
+        c.city.toLowerCase().includes(q) ||
+        (c.address || '').toLowerCase().includes(q) ||
+        (c.notes || '').toLowerCase().includes(q)
+      )
+    })
+  }, [state.clients, query, dateFrom, dateTo])
 
   useEffect(() => {
     if (!selectedId) return
@@ -3083,12 +3175,24 @@ function ClientsPage({
 
       <div className="card">
         <h2>
-          {t(lang, 'clientsCount')} ({state.clients.length})
+          {t(lang, 'clientsCount')} ({filteredClients.length}/{state.clients.length})
         </h2>
-        {state.clients.length === 0 ? (
+        <SmartSearchBar
+          lang={lang}
+          value={query}
+          onChange={setQuery}
+          placeholder={t(lang, 'searchClientsHint')}
+          suggestions={clientSuggestions}
+          showCalendar
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          onDateFrom={setDateFrom}
+          onDateTo={setDateTo}
+        />
+        {filteredClients.length === 0 ? (
           <div className="empty">{t(lang, 'noClientsYet')}</div>
         ) : (
-          state.clients.map((c) => {
+          filteredClients.map((c) => {
             const hasLoc =
               !!c.address ||
               (typeof c.lat === 'number' && typeof c.lng === 'number')
@@ -3283,12 +3387,36 @@ function OrderPage({
   const [tierMap, setTierMap] = useState<Record<string, PriceTier>>({})
   const [lastOrder, setLastOrder] = useState<Order | null>(null)
   const [productQuery, setProductQuery] = useState('')
+  const [clientQuery, setClientQuery] = useState('')
   /** Après le panier : choisir Payé / Versé */
   const [payStep, setPayStep] = useState(false)
   const [verseInput, setVerseInput] = useState('')
   const [invoiceDraft, setInvoiceDraft] = useState('')
 
   const isQuick = clientId === QUICK
+  const productSuggestions = useMemo(() => {
+    const names = [
+      ...state.products.map((p) => p.name),
+      ...CATEGORIES.map((c) => t(lang, `cat_${c}`)),
+    ]
+    return suggestNames(names, productQuery, 10)
+  }, [state.products, productQuery, lang])
+  const clientSuggestions = useMemo(() => {
+    const names = state.clients.flatMap((c) =>
+      [c.name, c.phone, c.city].filter(Boolean),
+    )
+    return suggestNames(names, clientQuery, 10)
+  }, [state.clients, clientQuery])
+  const orderClients = useMemo(() => {
+    const q = clientQuery.trim().toLowerCase()
+    if (!q) return state.clients
+    return state.clients.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.phone.toLowerCase().includes(q) ||
+        c.city.toLowerCase().includes(q),
+    )
+  }, [state.clients, clientQuery])
   const filteredProducts = state.products.filter((p) => {
     const q = productQuery.trim().toLowerCase()
     if (!q) return true
@@ -3425,10 +3553,17 @@ function OrderPage({
 
         {!isQuick ? (
           <div className="client-pick-grid">
-            {state.clients.length === 0 ? (
+            <SmartSearchBar
+              lang={lang}
+              value={clientQuery}
+              onChange={setClientQuery}
+              placeholder={t(lang, 'searchClientsHint')}
+              suggestions={clientSuggestions}
+            />
+            {orderClients.length === 0 ? (
               <div className="empty">{t(lang, 'noClientsYet')}</div>
             ) : (
-              state.clients.map((c) => {
+              orderClients.map((c) => {
                 const debt = clientCreditDa(state, c.id)
                 return (
                   <button
@@ -3468,14 +3603,13 @@ function OrderPage({
             {t(lang, 'catalogForClient')} : <strong>{client.name}</strong>
           </div>
         ) : null}
-        <div className="field">
-          <label>{t(lang, 'searchProduct')}</label>
-          <input
-            value={productQuery}
-            onChange={(e) => setProductQuery(e.target.value)}
-            placeholder={t(lang, 'searchProductHint')}
-          />
-        </div>
+        <SmartSearchBar
+          lang={lang}
+          value={productQuery}
+          onChange={setProductQuery}
+          placeholder={t(lang, 'searchProductsSmartHint')}
+          suggestions={productSuggestions}
+        />
         {filteredProducts.length === 0 ? (
           <div className="empty">{t(lang, 'noProductFound')}</div>
         ) : (

@@ -118,6 +118,21 @@ export function GlobalSmartSearch({
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(false)
   const hits = useMemo(() => searchApp(state, q, lang, 10), [state, q, lang])
+  const writeHelp = useMemo(() => {
+    const names = [
+      ...state.products.map((p) => p.name),
+      ...state.clients.map((c) => c.name),
+      ...state.orders
+        .filter((o) => o.invoiceNumber)
+        .slice(0, 20)
+        .map((o) => `N°${o.invoiceNumber}`),
+      lang === 'ar' ? 'مخزون' : 'stock',
+      lang === 'ar' ? 'زبون' : 'client',
+      lang === 'ar' ? 'فاتورة' : 'facture',
+      lang === 'ar' ? 'أرباح' : 'gains',
+    ]
+    return suggestNames(names, q, 8)
+  }, [state, q, lang])
 
   return (
     <div className="smart-search global">
@@ -166,9 +181,39 @@ export function GlobalSmartSearch({
           ))}
         </div>
       ) : null}
-      {open && q.trim() && hits.length === 0 ? (
+      {open && q.trim() && hits.length === 0 && writeHelp.length > 0 ? (
+        <div className="smart-suggest">
+          {writeHelp.map((s) => (
+            <button
+              key={s}
+              type="button"
+              className="smart-suggest-item"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setQ(s)}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {open && q.trim() && hits.length === 0 && writeHelp.length === 0 ? (
         <div className="smart-suggest">
           <div className="smart-suggest-empty">{t(lang, 'noSearchHit')}</div>
+        </div>
+      ) : null}
+      {open && !q.trim() && writeHelp.length > 0 ? (
+        <div className="smart-suggest">
+          {writeHelp.map((s) => (
+            <button
+              key={s}
+              type="button"
+              className="smart-suggest-item"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setQ(s)}
+            >
+              {s}
+            </button>
+          ))}
         </div>
       ) : null}
     </div>
