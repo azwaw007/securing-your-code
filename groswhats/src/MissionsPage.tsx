@@ -19,6 +19,7 @@ import {
   reorderMissionStops,
   updateDriver,
   updateMission,
+  updateMissionStop,
   updateTeam,
 } from './store'
 import { DriverHome } from './DriverHome'
@@ -510,6 +511,11 @@ function OwnerMissionsView({
                   }}
                   onSend={() => void sendTour(m)}
                   onShare={() => shareMission(m)}
+                  onCollectChange={(stopId, collectDa) => {
+                    onState((s) =>
+                      updateMissionStop(s, m.id, stopId, { collectDa }),
+                    )
+                  }}
                   onDelete={() => {
                     onState((s) => deleteMission(s, m.id))
                     onFlash('missionDeleted')
@@ -533,6 +539,7 @@ function MissionCard({
   onReorder,
   onSend,
   onShare,
+  onCollectChange,
   onDelete,
 }: {
   mission: Mission
@@ -543,6 +550,7 @@ function MissionCard({
   onReorder: (stopIds: string[]) => void
   onSend: () => void
   onShare: () => void
+  onCollectChange: (stopId: string, collectDa: number) => void
   onDelete: () => void
 }) {
   const w = wilayaByCode(mission.wilayaCode)
@@ -592,13 +600,26 @@ function MissionCard({
                   —{' '}
                   {[s.address, s.city].filter(Boolean).join(', ') ||
                     t(lang, 'noLocation')}
-                  {(s.collectDa || 0) > 0
-                    ? ` · 💵 ${formatDa(s.collectDa || 0)}`
-                    : ''}
                   {s.status !== 'todo'
                     ? ` [${t(lang, `stop_${s.status}`)}]`
                     : ''}
                 </span>
+                <div className="field" style={{ marginTop: 4, maxWidth: 160 }}>
+                  <label>💵 {t(lang, 'collectHere')}</label>
+                  <input
+                    inputMode="decimal"
+                    value={String(s.collectDa || 0)}
+                    onChange={(e) => {
+                      const n = Number(
+                        e.target.value.replace(',', '.').replace(/[^\d.]/g, ''),
+                      )
+                      onCollectChange(
+                        s.id,
+                        Number.isFinite(n) && n >= 0 ? +n.toFixed(2) : 0,
+                      )
+                    }}
+                  />
+                </div>
               </span>
               <span className="btn-row">
                 <button

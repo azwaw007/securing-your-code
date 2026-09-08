@@ -167,12 +167,16 @@ export function DriverHome({
     patch: Partial<MissionStop>,
   ) {
     onState((s) => updateMissionStop(s, missionId, stopId, patch))
+    const current = state.missions
+      .find((m) => m.id === missionId)
+      ?.stops.find((s) => s.id === stopId)
+    const status = patch.status ?? current?.status ?? 'todo'
     const cloud = await patchMissionStop({
       companyCode: state.team.companyCode,
       syncSecret: state.team.syncSecret,
       missionId,
       stopId,
-      status: patch.status,
+      status,
       collectedDa: patch.collectedDa,
       note: patch.note,
     })
@@ -383,10 +387,18 @@ function DriverMissionDetail({
   const stops = sortedStops(mission)
   const w = wilayaByCode(mission.wilayaCode)
   const totals = missionCollectTotal(mission)
+  const [cashDraft, setCashDraft] = useState<Record<string, string>>({})
   const routePoints = stops
     .filter((s) => typeof s.lat === 'number' && typeof s.lng === 'number')
     .map((s) => ({ lat: s.lat!, lng: s.lng! }))
   const nextTodo = stops.find((s) => s.status === 'todo')
+
+  function cashValue(s: MissionStop): number {
+    const raw = cashDraft[s.id]
+    if (raw === undefined) return s.collectDa || 0
+    const n = Number(raw.replace(',', '.'))
+    return Number.isFinite(n) && n >= 0 ? +n.toFixed(2) : 0
+  }
 
   return (
     <div className="card">
@@ -500,11 +512,30 @@ function DriverMissionDetail({
                 ) : null}
                 {due > 0 ? (
                   <div className="cash-line">
-                    💵 {t(lang, 'collectHere')} : <strong>{formatDa(due)}</strong>
+                    💵 {t(lang, 'collectHere')} :{' '}
+                    <strong>{formatDa(due)}</strong>
                   </div>
                 ) : (
                   <div className="muted">{t(lang, 'nothingToCollect')}</div>
                 )}
+                {s.status === 'todo' && due > 0 ? (
+                  <div className="field" style={{ marginTop: 6 }}>
+                    <label>{t(lang, 'takenCash')}</label>
+                    <input
+                      inputMode="decimal"
+                      value={
+                        cashDraft[s.id] ??
+                        String(s.collectDa || 0)
+                      }
+                      onChange={(e) =>
+                        setCashDraft((prev) => ({
+                          ...prev,
+                          [s.id]: e.target.value.replace(/[^\d.,]/g, ''),
+                        }))
+                      }
+                    />
+                  </div>
+                ) : null}
                 {s.collectedDa && s.collectedDa > 0 ? (
                   <div className="muted">
                     ✅ {t(lang, 'takenCash')} : {formatDa(s.collectedDa)}
@@ -552,12 +583,12 @@ function DriverMissionDetail({
                     onClick={() =>
                       onUpdateStop(s.id, {
                         status: 'done',
-                        collectedDa: due > 0 ? due : s.collectedDa || 0,
+                        collectedDa: due > 0 ? cashValue(s) : 0,
                       })
                     }
                   >
                     ✅ {t(lang, 'markDelivered')}
-                    {due > 0 ? ` + ${formatDa(due)}` : ''}
+                    {due > 0 ? ` + ${formatDa(cashValue(s))}` : ''}
                   </button>
                   <button
                     type="button"

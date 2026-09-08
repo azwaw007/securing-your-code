@@ -54,10 +54,11 @@ export function decodeMissionPack(text: string): MissionPack | null {
 export function missionWhatsappText(pack: MissionPack, shopName: string): string {
   const stops = [...pack.mission.stops]
     .sort((a, b) => a.sortOrder - b.sortOrder)
-    .map(
-      (s, i) =>
-        `${i + 1}. ${s.clientName}${s.address ? ` — ${s.address}` : ''}${s.city ? ` (${s.city})` : ''}`,
-    )
+    .map((s, i) => {
+      const cash =
+        (s.collectDa || 0) > 0 ? ` · 💵 ${Math.round(s.collectDa || 0)} DA` : ''
+      return `${i + 1}. ${s.clientName}${s.address ? ` — ${s.address}` : ''}${s.city ? ` (${s.city})` : ''}${cash}`
+    })
     .join('\n')
   const due = pack.mission.stops.reduce(
     (sum, s) => sum + (s.collectDa || 0),
