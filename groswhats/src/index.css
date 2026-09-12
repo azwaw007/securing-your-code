@@ -2174,3 +2174,50 @@ html.easy-mode .home-tile {
   color: var(--ink);
 }
 
+.barcode-product-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.barcode-product-row input {
+  flex: 1;
+}
+
+.barcode-product-row .btn {
+  min-width: 52px;
+  font-size: 1.25rem;
+  padding: 0 12px;
+}
+
+.barcode-cam-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(0, 0, 0, 0.72);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.barcode-cam-card {
+  width: min(440px, 100%);
+  background: var(--card, #fff);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+}
+
+.barcode-cam-reader {
+  width: 100%;
+  min-height: 240px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #111;
+}
+
+.barcode-cam-reader video {
+  width: 100% !important;
+  border-radius: 12px;
+}
+

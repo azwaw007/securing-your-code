@@ -119,6 +119,7 @@ import {
   BarcodeScanInput,
   bumpProductFromBarcode,
 } from './PosOps'
+import { ProductBarcodeField } from './BarcodeCamera'
 import { APP_BRAND } from './brand'
 import { APP_VERSION, activateLicense, getAccessStatus } from './license/license'
 
@@ -2308,15 +2309,11 @@ function ProductsPage({
           <label>{t(lang, 'name')}</label>
           <input value={name} onChange={(e) => setName(e.target.value)} />
         </div>
-        <div className="field">
-          <label>⬛ {t(lang, 'barcode')}</label>
-          <input
-            value={barcode}
-            onChange={(e) => setBarcode(e.target.value)}
-            placeholder="EAN / code…"
-            autoComplete="off"
-          />
-        </div>
+        <ProductBarcodeField
+          lang={lang}
+          value={barcode}
+          onChange={setBarcode}
+        />
         <div className="grid-2">
           <div className="field">
             <label>{t(lang, 'category')}</label>
@@ -2573,15 +2570,11 @@ function ProductEditCard({
         <label>{t(lang, 'name')}</label>
         <input value={name} onChange={(e) => setName(e.target.value)} />
       </div>
-      <div className="field">
-        <label>⬛ {t(lang, 'barcode')}</label>
-        <input
-          value={barcode}
-          onChange={(e) => setBarcode(e.target.value)}
-          placeholder="EAN / code…"
-          autoComplete="off"
-        />
-      </div>
+      <ProductBarcodeField
+        lang={lang}
+        value={barcode}
+        onChange={setBarcode}
+      />
       <div className="grid-2">
         <div className="field">
           <label>{t(lang, 'category')}</label>
