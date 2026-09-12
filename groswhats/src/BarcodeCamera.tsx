@@ -27,15 +27,19 @@ export function isBarcodeCameraSupported(): boolean {
   )
 }
 
-/** Overlay caméra pour lire un code-barres */
+/** Overlay caméra pour lire un code-barres / QR */
 export function BarcodeCameraModal({
   lang,
   onDetect,
   onClose,
+  title,
+  hint,
 }: {
   lang: Language
   onDetect: (code: string) => void
   onClose: () => void
+  title?: string
+  hint?: string
 }) {
   const reactId = useId().replace(/:/g, '')
   const readerId = `az-barcode-reader-${reactId}`
@@ -64,7 +68,7 @@ export function BarcodeCameraModal({
             fps: 12,
             qrbox: (viewW, viewH) => {
               const w = Math.min(viewW * 0.92, 360)
-              const h = Math.min(viewH * 0.28, 140)
+              const h = Math.min(viewH * 0.35, 180)
               return { width: Math.floor(w), height: Math.floor(h) }
             },
             aspectRatio: 1.333,
@@ -116,8 +120,8 @@ export function BarcodeCameraModal({
   return (
     <div className="barcode-cam-overlay" role="dialog" aria-modal="true">
       <div className="barcode-cam-card">
-        <h3>📷 {t(lang, 'barcodeCamTitle')}</h3>
-        <p className="muted">{t(lang, 'barcodeCamHint')}</p>
+        <h3>📷 {title || t(lang, 'barcodeCamTitle')}</h3>
+        <p className="muted">{hint || t(lang, 'barcodeCamHint')}</p>
         {error ? <div className="notice warn">{error}</div> : null}
         <div id={readerId} className="barcode-cam-reader" />
         {busy && !error ? (

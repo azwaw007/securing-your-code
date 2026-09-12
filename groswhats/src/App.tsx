@@ -125,7 +125,9 @@ import {
   BarcodeScanInput,
   bumpProductFromBarcode,
 } from './PosOps'
-import { ProductBarcodeField } from './BarcodeCamera'
+import { ProductBarcodeField, BarcodeCameraModal, isBarcodeCameraSupported } from './BarcodeCamera'
+import { ClientQrCard } from './ClientQrCard'
+import { classifyHomeScan } from './utils/clientQr'
 import { APP_BRAND } from './brand'
 import { APP_VERSION, activateLicense, getAccessStatus } from './license/license'
 
@@ -170,6 +172,10 @@ export default function App() {
   const [aliveScreens, setAliveScreens] = useState<Screen[]>(['home'])
   const [toast, setToast] = useState('')
   const [focusClientId, setFocusClientId] = useState<string | null>(null)
+  const [focusProductId, setFocusProductId] = useState<string | null>(null)
+  const [seedProductBarcode, setSeedProductBarcode] = useState<string | null>(null)
+  const [seedProductQuery, setSeedProductQuery] = useState<string | null>(null)
+  const [seedClientNotes, setSeedClientNotes] = useState<string | null>(null)
   const [historySeed, setHistorySeed] = useState<{
     from: string
     to: string
@@ -412,6 +418,19 @@ export default function App() {
           low={low}
           onGo={goTo}
           onFocusClient={(id) => setFocusClientId(id)}
+          onFocusProduct={(id) => setFocusProductId(id)}
+          onSeedNewProduct={(barcode) => {
+            setSeedProductBarcode(barcode)
+            setFocusProductId(null)
+          }}
+          onSeedProductSearch={(q) => {
+            setSeedProductQuery(q)
+            setFocusProductId(null)
+          }}
+          onSeedNewClient={(note) => {
+            setSeedClientNotes(note)
+            setFocusClientId(null)
+          }}
           onOpenHistoryDates={(from, to) => {
             setHistorySeed({ from, to })
             goTo('history', t(lang, 'appHistory'))
@@ -459,6 +478,14 @@ export default function App() {
           state={state}
           lang={lang}
           onFlash={flash}
+          initialProductId={focusProductId}
+          seedBarcode={seedProductBarcode}
+          seedQuery={seedProductQuery}
+          onSeedConsumed={() => {
+            setFocusProductId(null)
+            setSeedProductBarcode(null)
+            setSeedProductQuery(null)
+          }}
           onAdd={(p) => {
             setState((s) => addProduct(s, p))
             flash('productAdded')
@@ -485,6 +512,11 @@ export default function App() {
           state={state}
           lang={lang}
           initialClientId={focusClientId}
+          seedNotes={seedClientNotes}
+          onSeedConsumed={() => {
+            setFocusClientId(null)
+            setSeedClientNotes(null)
+          }}
           onAdd={(c) => {
             setState((s) => addClient(s, c))
             flash('clientAdded')
@@ -1302,6 +1334,10 @@ function HomePage({
   low,
   onGo,
   onFocusClient,
+  onFocusProduct,
+  onSeedNewProduct,
+  onSeedProductSearch,
+  onSeedNewClient,
   onOpenHistoryDates,
   onEnableAlerts,
   onWhatsapp,
@@ -1329,6 +1365,10 @@ function HomePage({
   low: Product[]
   onGo: (s: Screen, spokenLabel?: string) => void
   onFocusClient: (id: string) => void
+  onFocusProduct: (id: string) => void
+  onSeedNewProduct: (barcode: string) => void
+  onSeedProductSearch: (query: string) => void
+  onSeedNewClient: (note: string) => void
   onOpenHistoryDates: (from: string, to: string) => void
   onEnableAlerts: () => void
   onWhatsapp: (order: Order) => void
@@ -1337,6 +1377,8 @@ function HomePage({
   onInvoice: (order: Order) => void
 }) {
   const recent = (todayOrders(state).length > 0 ? todayOrders(state) : state.orders).slice(0, 4)
+  const [scanOpen, setScanOpen] = useState(false)
+  const [unknownCode, setUnknownCode] = useState<string | null>(null)
 
   function handleHit(hit: SearchHit) {
     if (hit.clientId) {
@@ -1345,6 +1387,22 @@ function HomePage({
       return
     }
     if (hit.screen) onGo(hit.screen, hit.label)
+  }
+
+  function handleHomeScan(code: string) {
+    const hit = classifyHomeScan(code, state.clients, state.products)
+    if (hit.kind === 'client' && hit.clientId) {
+      onFocusClient(hit.clientId)
+      onGo('clients', t(lang, 'appClients'))
+      return
+    }
+    if (hit.kind === 'product' && hit.productId) {
+      onFocusProduct(hit.productId)
+      onGo('products', t(lang, 'appStock'))
+      return
+    }
+    playBarcodeError()
+    setUnknownCode(hit.code)
   }
 
   const dockApps: Array<{
@@ -1427,6 +1485,23 @@ function HomePage({
           onHit={handleHit}
           onOpenHistory={onOpenHistoryDates}
         />
+        <button
+          type="button"
+          className="scan-cta"
+          onClick={() => {
+            if (!isBarcodeCameraSupported()) {
+              window.alert(t(lang, 'barcodeCamUnsupported'))
+              return
+            }
+            setScanOpen(true)
+          }}
+        >
+          <span className="sell-cta-emoji">📷</span>
+          <span>
+            <strong>{t(lang, 'homeScanTitle')}</strong>
+            <small>{t(lang, 'homeScanHint')}</small>
+          </span>
+        </button>
         <button type="button" className="sell-cta" onClick={() => onGo('order', t(lang, 'sellNow'))}>
           <span className="sell-cta-emoji">🛒</span>
           <span>
@@ -1550,6 +1625,75 @@ function HomePage({
           ))
         )}
       </div>
+
+      {scanOpen ? (
+        <BarcodeCameraModal
+          lang={lang}
+          title={t(lang, 'homeScanTitle')}
+          hint={t(lang, 'homeScanCamHint')}
+          onDetect={handleHomeScan}
+          onClose={() => setScanOpen(false)}
+        />
+      ) : null}
+
+      {unknownCode ? (
+        <div className="barcode-cam-overlay" role="dialog" aria-modal="true">
+          <div className="barcode-cam-card">
+            <h3>❓ {t(lang, 'scanUnknownTitle')}</h3>
+            <p className="muted">{t(lang, 'scanUnknownHint')}</p>
+            <div className="notice warn" style={{ wordBreak: 'break-all' }}>
+              {unknownCode}
+            </div>
+            <button
+              type="button"
+              className="btn block"
+              style={{ marginTop: 10 }}
+              onClick={() => {
+                const code = unknownCode
+                setUnknownCode(null)
+                onSeedNewProduct(code)
+                onGo('products', t(lang, 'newProduct'))
+              }}
+            >
+              ➕ {t(lang, 'scanAddProduct')}
+            </button>
+            <button
+              type="button"
+              className="btn secondary block"
+              style={{ marginTop: 8 }}
+              onClick={() => {
+                const code = unknownCode
+                setUnknownCode(null)
+                onSeedNewClient(`${t(lang, 'scanCodeNote')}: ${code}`)
+                onGo('clients', t(lang, 'appClients'))
+              }}
+            >
+              👤 {t(lang, 'scanAddClient')}
+            </button>
+            <button
+              type="button"
+              className="btn secondary block"
+              style={{ marginTop: 8 }}
+              onClick={() => {
+                const code = unknownCode
+                setUnknownCode(null)
+                onSeedProductSearch(code)
+                onGo('products', t(lang, 'appStock'))
+              }}
+            >
+              🔍 {t(lang, 'scanManualSearch')}
+            </button>
+            <button
+              type="button"
+              className="btn ghost block"
+              style={{ marginTop: 8 }}
+              onClick={() => setUnknownCode(null)}
+            >
+              {t(lang, 'cancel')}
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -2221,6 +2365,10 @@ function ProductsPage({
   onUpdate,
   onDelete,
   onOpenGallery,
+  initialProductId,
+  seedBarcode,
+  seedQuery,
+  onSeedConsumed,
 }: {
   state: AppState
   lang: Language
@@ -2229,6 +2377,10 @@ function ProductsPage({
   onUpdate: (id: string, patch: Partial<Product>) => void
   onDelete: (id: string) => void
   onOpenGallery: () => void
+  initialProductId?: string | null
+  seedBarcode?: string | null
+  seedQuery?: string | null
+  onSeedConsumed?: () => void
 }) {
   const [name, setName] = useState('')
   const [category, setCategory] = useState<ProductCategory>('alimentaire')
@@ -2247,6 +2399,25 @@ function ProductsPage({
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [barcode, setBarcode] = useState('')
+
+  useEffect(() => {
+    if (initialProductId) {
+      setEditId(initialProductId)
+      onSeedConsumed?.()
+      return
+    }
+    if (seedBarcode) {
+      setBarcode(seedBarcode)
+      setEditId(null)
+      onSeedConsumed?.()
+      return
+    }
+    if (seedQuery) {
+      setQuery(seedQuery)
+      setEditId(null)
+      onSeedConsumed?.()
+    }
+  }, [initialProductId, seedBarcode, seedQuery, onSeedConsumed])
 
   const editing = state.products.find((p) => p.id === editId) ?? null
 
@@ -2695,6 +2866,8 @@ function ClientsPage({
   state,
   lang,
   initialClientId,
+  seedNotes,
+  onSeedConsumed,
   onAdd,
   onUpdate,
   onPayDebt,
@@ -2706,6 +2879,8 @@ function ClientsPage({
   state: AppState
   lang: Language
   initialClientId?: string | null
+  seedNotes?: string | null
+  onSeedConsumed?: () => void
   onAdd: (c: Omit<Client, 'id' | 'createdAt'>) => void
   onUpdate: (id: string, patch: Partial<Omit<Client, 'id' | 'createdAt'>>) => void
   onPayDebt: (id: string, amount: number) => void
@@ -2734,8 +2909,19 @@ function ClientsPage({
   const [dateTo, setDateTo] = useState('')
 
   useEffect(() => {
-    if (initialClientId) setSelectedId(initialClientId)
-  }, [initialClientId])
+    if (initialClientId) {
+      setSelectedId(initialClientId)
+      onSeedConsumed?.()
+    }
+  }, [initialClientId, onSeedConsumed])
+
+  useEffect(() => {
+    if (!seedNotes) return
+    setSelectedId(null)
+    setEditing(false)
+    setNotes(seedNotes)
+    onSeedConsumed?.()
+  }, [seedNotes, onSeedConsumed])
 
   const selected = state.clients.find((c) => c.id === selectedId) ?? null
 
@@ -2961,6 +3147,8 @@ function ClientsPage({
               {t(lang, 'delete')}
             </button>
           </div>
+
+          <ClientQrCard client={selected} lang={lang} />
         </div>
       </>
     )

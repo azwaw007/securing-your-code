@@ -1750,22 +1750,80 @@ html[dir='rtl'] .style-card {
   cursor: pointer;
 }
 
+.scan-cta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  margin: 0 0 14px;
+  padding: 16px 18px;
+  border: none;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #1a4f7a, #2a7ab8);
+  color: #fff;
+  box-shadow: 0 12px 28px rgba(26, 79, 122, 0.35);
+  text-align: start;
+  cursor: pointer;
+}
+
 .sell-cta-emoji {
   font-size: 2.4rem;
   line-height: 1;
 }
 
-.sell-cta strong {
+.sell-cta strong,
+.scan-cta strong {
   display: block;
   font-size: 1.45rem;
   letter-spacing: 0.04em;
 }
 
-.sell-cta small {
+.sell-cta small,
+.scan-cta small {
   display: block;
   opacity: 0.9;
   font-size: 0.85rem;
   font-weight: 600;
+}
+
+.client-qr-card {
+  margin-top: 16px;
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.04);
+  text-align: center;
+}
+
+.client-qr-frame {
+  display: inline-block;
+  padding: 12px;
+  background: #fff;
+  border-radius: 12px;
+  margin: 8px 0;
+}
+
+.client-qr-name {
+  margin-top: 6px;
+}
+
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  .client-qr-card,
+  .client-qr-card * {
+    visibility: visible !important;
+  }
+  .client-qr-card {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    background: #fff;
+  }
+  .client-qr-card .btn {
+    display: none !important;
+  }
 }
 
 .choice-grid {
