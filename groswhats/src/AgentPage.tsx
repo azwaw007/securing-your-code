@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+﻿import { useEffect, useRef, useState } from 'react'
 import type { AppState, Language, Screen } from './types'
 import { t } from './i18n'
 import {
@@ -13,13 +13,6 @@ import {
   TEACHABLE_INTENTS,
   type AgentIntentId,
 } from './agent/memory'
-import {
-  isVoiceStop,
-  isVoiceSupported,
-  startVoiceListen,
-  type VoiceLang,
-} from './utils/voice'
-import { speakDarijaWelcome, stopSpeaking } from './utils/speak'
 
 interface ChatMessage {
   id: string
@@ -68,28 +61,21 @@ export function AgentPage({
   onNavigate,
   onInvoiceSent,
   initialUtterance,
-  handsFree = false,
-  onHandsFreeEnd,
 }: {
   state: AppState
   lang: Language
   onState: (next: AppState) => void
   onNavigate: (screen: Screen) => void
   onInvoiceSent: () => void
-  /** Première phrase (ex: demande vocale à l’ouverture) */
+  /** Première phrase optionnelle (texte) */
   initialUtterance?: string | null
-  /** Écoute continue jusqu’à arete / khlas / eskout */
-  handsFree?: boolean
-  onHandsFreeEnd?: () => void
 }) {
   const [input, setInput] = useState('')
-  const [voiceLang, setVoiceLang] = useState<VoiceLang>('darja')
-  const [listening, setListening] = useState(false)
-  const [handsFreeOn, setHandsFreeOn] = useState(handsFree)
-  const [partial, setPartial] = useState('')
+  const [suggestMode, setSuggestMode] = useState<'fr' | 'ar' | 'darja'>(
+    lang === 'ar' ? 'ar' : 'darja',
+  )
   const [pendingTeach, setPendingTeach] = useState<string | null>(null)
   const [memTick, setMemTick] = useState(0)
-  const stopRef = useRef<(() => void) | null>(null)
   const stateRef = useRef(state)
   const seededRef = useRef(false)
   const [messages, setMessages] = useState<ChatMessage[]>(() => [
@@ -98,18 +84,17 @@ export function AgentPage({
       role: 'agent',
       text:
         lang === 'ar'
-          ? 'مرحباً، أنا وكيل Grossiste DZ. قل «خلاص / اسكت / arete» باش نحبس.'
-          : 'Salam, je suis l’agent. Dis «khlas / eskout / arete» pour arrêter.',
+          ? 'مرحباً، أنا وكيل AZ POS. اكتب طلبك هنا (بدون صوت).'
+          : 'Salam, je suis l’agent AZ POS. Écris ta demande ici (sans voix).',
     },
   ])
   const endRef = useRef<HTMLDivElement>(null)
   const suggestions =
-    voiceLang === 'darja'
+    suggestMode === 'darja'
       ? SUGGESTIONS_DARJA
-      : voiceLang === 'ar' || lang === 'ar'
+      : suggestMode === 'ar'
         ? SUGGESTIONS_AR
         : SUGGESTIONS_FR
-  const voiceOk = isVoiceSupported()
   const stats = memoryStats()
 
   useEffect(() => {
@@ -118,13 +103,7 @@ export function AgentPage({
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, partial, pendingTeach])
-
-  useEffect(() => {
-    return () => {
-      stopRef.current?.()
-    }
-  }, [])
+  }, [messages, pendingTeach])
 
   function handleResult(result: AgentResult) {
     if (result.nextState) onState(result.nextState)
@@ -144,7 +123,6 @@ export function AgentPage({
         thought: result.agenticThought,
       },
     ])
-    speakDarijaWelcome(result.reply.slice(0, 220))
     if (result.needsTeach && result.pendingPhrase) {
       setPendingTeach(result.pendingPhrase)
     } else {
@@ -153,91 +131,19 @@ export function AgentPage({
     if (result.learned || result.intent) setMemTick((x) => x + 1)
   }
 
-  function stopHandsFree(bye = true) {
-    stopRef.current?.()
-    stopRef.current = null
-    setListening(false)
-    setPartial('')
-    setHandsFreeOn(false)
-    stopSpeaking()
-    if (bye) {
-      speakDarijaWelcome('واخا، سكيت. قولّي عاونّي كي تعاود تحتاجني.')
-      setMessages((m) => [
-        ...m,
-        {
-          id: `a_stop_${Date.now()}`,
-          role: 'agent',
-          text: t(lang, 'agentStopped'),
-        },
-      ])
-    }
-    onHandsFreeEnd?.()
-  }
-
   function send(text: string) {
     const value = text.trim()
     if (!value) return
-    if (isVoiceStop(value)) {
-      setMessages((m) => [...m, { id: `u_${Date.now()}`, role: 'user', text: value }])
-      stopHandsFree(true)
-      return
-    }
     setMessages((m) => [...m, { id: `u_${Date.now()}`, role: 'user', text: value }])
     setInput('')
-    setPartial('')
     const result = runAgent(stateRef.current, value)
     handleResult(result)
   }
 
-  function startHandsFreeListen() {
-    if (!voiceOk) return
-    stopRef.current?.()
-    setListening(true)
-    setPartial('')
-    const ctrl = startVoiceListen({
-      voiceLang: 'darja',
-      continuous: true,
-      onPartial: (text) => setPartial(text),
-      onFinal: (text) => {
-        setPartial('')
-        send(text)
-      },
-      onError: (err) => {
-        if (err === 'aborted' || err === 'no-speech') return
-        setListening(false)
-        stopRef.current = null
-        const msg =
-          err === 'not-allowed'
-            ? t(lang, 'voiceDenied')
-            : err === 'unsupported'
-              ? t(lang, 'voiceUnsupported')
-              : t(lang, 'voiceError')
-        setMessages((m) => [
-          ...m,
-          { id: `a_${Date.now()}`, role: 'agent', text: msg },
-        ])
-      },
-      onEnd: () => {
-        setListening(false)
-        stopRef.current = null
-      },
-    })
-    stopRef.current = ctrl?.stop ?? null
-  }
-
-  useEffect(() => {
-    if (!handsFree) return
-    setHandsFreeOn(true)
-    setVoiceLang('darja')
-    const tmr = window.setTimeout(() => startHandsFreeListen(), 900)
-    return () => window.clearTimeout(tmr)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [handsFree])
-
   useEffect(() => {
     if (!initialUtterance || seededRef.current) return
     seededRef.current = true
-    const tmr = window.setTimeout(() => send(initialUtterance), 400)
+    const tmr = window.setTimeout(() => send(initialUtterance), 200)
     return () => window.clearTimeout(tmr)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialUtterance])
@@ -250,34 +156,11 @@ export function AgentPage({
     handleResult(result)
   }
 
-  function toggleVoice() {
-    if (listening || handsFreeOn) {
-      stopHandsFree(false)
-      return
-    }
-    if (!voiceOk) {
-      setMessages((m) => [
-        ...m,
-        {
-          id: `a_${Date.now()}`,
-          role: 'agent',
-          text: t(lang, 'voiceUnsupported'),
-        },
-      ])
-      return
-    }
-    setHandsFreeOn(true)
-    startHandsFreeListen()
-  }
-
   return (
     <>
       <div className="card agent-card">
         <h2>🤖 {t(lang, 'agent')}</h2>
         <div className="notice">{t(lang, 'agentHint')}</div>
-        {handsFreeOn ? (
-          <div className="notice warn">{t(lang, 'agentHandsFreeHint')}</div>
-        ) : null}
         <div className="muted" style={{ marginBottom: 8 }}>
           {t(lang, 'agentMemory')} : {stats.intents} · {stats.aliases}
           <button
@@ -302,26 +185,26 @@ export function AgentPage({
         </div>
 
         <div className="field">
-          <label>{t(lang, 'voiceLang')}</label>
+          <label>{t(lang, 'agentSuggestLang')}</label>
           <div className="btn-row">
             <button
               type="button"
-              className={`btn ${voiceLang === 'fr' ? '' : 'ghost'}`}
-              onClick={() => setVoiceLang('fr')}
+              className={`btn ${suggestMode === 'fr' ? '' : 'ghost'}`}
+              onClick={() => setSuggestMode('fr')}
             >
               Français
             </button>
             <button
               type="button"
-              className={`btn ${voiceLang === 'ar' ? '' : 'ghost'}`}
-              onClick={() => setVoiceLang('ar')}
+              className={`btn ${suggestMode === 'ar' ? '' : 'ghost'}`}
+              onClick={() => setSuggestMode('ar')}
             >
               العربية
             </button>
             <button
               type="button"
-              className={`btn ${voiceLang === 'darja' ? '' : 'ghost'}`}
-              onClick={() => setVoiceLang('darja')}
+              className={`btn ${suggestMode === 'darja' ? '' : 'ghost'}`}
+              onClick={() => setSuggestMode('darja')}
             >
               دارجة
             </button>
@@ -339,11 +222,6 @@ export function AgentPage({
               <pre>{m.text}</pre>
             </div>
           ))}
-          {partial ? (
-            <div className="bubble agent partial">
-              <pre>🎤 {partial}</pre>
-            </div>
-          ) : null}
           <div ref={endRef} />
         </div>
 
@@ -374,22 +252,10 @@ export function AgentPage({
         </div>
 
         <div className="agent-input-row">
-          <button
-            type="button"
-            className={`btn mic-btn ${listening || handsFreeOn ? 'listening' : 'secondary'}`}
-            onClick={toggleVoice}
-            title={t(lang, 'voiceTalk')}
-          >
-            {listening || handsFreeOn ? '⏹️' : '🎤'}
-          </button>
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={
-              listening || handsFreeOn
-                ? t(lang, 'voiceListening')
-                : t(lang, 'agentPlaceholder')
-            }
+            placeholder={t(lang, 'agentPlaceholder')}
             onKeyDown={(e) => {
               if (e.key === 'Enter') send(input)
             }}
@@ -397,9 +263,6 @@ export function AgentPage({
           <button className="btn" onClick={() => send(input)}>
             {t(lang, 'agentSend')}
           </button>
-        </div>
-        <div className="muted" style={{ marginTop: 8, fontSize: '0.82rem' }}>
-          {t(lang, 'agentStopTip')}
         </div>
         <span style={{ display: 'none' }}>{memTick}</span>
       </div>

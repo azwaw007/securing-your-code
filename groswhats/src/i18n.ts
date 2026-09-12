@@ -1,4 +1,4 @@
-import type { Language, Unit } from './types'
+﻿import type { Language, Unit } from './types'
 
 export function isDecimalUnit(unit: Unit): boolean {
   return (
@@ -504,8 +504,9 @@ const fr: Dict = {
   stockAlertsToggle: 'Alertes rupture de stock',
   agent: 'Agent',
   agentHint:
-    'Dis-moi ce que tu veux : stock, client, zakat, organiser l’app, thème… Je planifie et j’exécute (agentic).',
+    'Écris ce que tu veux : stock, client, zakat, thème… (sans micro — texte seulement).',
   agentPlaceholder: 'Ex: organise l’app, thème nuit, stock bas…',
+  agentSuggestLang: 'Suggestions',
   agentPlan: 'Plan',
   agentSend: 'Envoyer',
   agentTeach: 'Tu voulais dire… (j’apprends)',
@@ -1065,8 +1066,9 @@ const ar: Dict = {
   stockAlertsToggle: 'تنبيهات نفاد المخزون',
   agent: 'الوكيل',
   agentHint:
-    'قل لي ماذا تريد: مخزون، زبون، زكاة، نظّم التطبيق، ثيم… أخطّط وأنفّذ (agentic).',
+    'اكتب ماذا تريد: مخزون، زبون، زكاة، ثيم… (بدون مايك — نص فقط).',
   agentPlaceholder: 'مثال: نظّم التطبيق، ثيم الليل، مخزون ناقص…',
+  agentSuggestLang: 'اقتراحات',
   agentPlan: 'الخطة',
   agentSend: 'إرسال',
   agentTeach: 'ماذا قصدت؟ (سأتعلّم)',

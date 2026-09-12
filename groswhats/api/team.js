@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Sync équipe multi-poste (patron ↔ livreurs).
  * Stockage durable : Vercel Blob (BLOB_READ_WRITE_TOKEN).
  * Push = merge (ne pas écraser le progrès livreur).
@@ -99,7 +99,7 @@ module.exports = async function handler(req, res) {
         const incoming = {
           companyCode,
           syncSecret,
-          shopName: body.shopName || 'Grossiste DZ',
+          shopName: body.shopName || 'AZ POS',
           drivers: Array.isArray(body.drivers) ? body.drivers : [],
           missions: Array.isArray(body.missions) ? body.missions : [],
           updatedAt: new Date().toISOString(),

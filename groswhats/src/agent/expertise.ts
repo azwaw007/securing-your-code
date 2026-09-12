@@ -1,4 +1,4 @@
-import type { AppState, Language } from '../types'
+﻿import type { AppState, Language } from '../types'
 import { formatDa } from '../utils/format'
 import {
   annualNetProfitDa,
@@ -21,7 +21,7 @@ export function expertAdvice(state: AppState, domain: string, lang: Language): s
     switch (domain) {
       case 'sales':
         return [
-          '🛒 خبير مبيعات — Grossiste DZ',
+          '🛒 خبير مبيعات — AZ POS',
           `اليوم: ${today.length} طلب · ${formatDa(todaySales)}`,
           low > 0 ? `⚠️ ${low} منتج ناقص — أعد التموين قبل خسارة الزبائن.` : '✅ المخزون مستقر.',
           'نصائح: اتصل بـ 5 زبائن قدامى هذا الأسبوع · عرض كرتون بسعر جذاب · واتساب عند وصول بضاعة.',
@@ -76,7 +76,7 @@ export function expertAdvice(state: AppState, domain: string, lang: Language): s
   switch (domain) {
     case 'sales':
       return [
-        '🛒 Expert vente — Grossiste DZ',
+        '🛒 Expert vente — AZ POS',
         `Aujourd’hui : ${today.length} commande(s) · ${formatDa(todaySales)}`,
         low > 0
           ? `⚠️ ${low} produit(s) bas — réapprovisionne avant de perdre des clients.`

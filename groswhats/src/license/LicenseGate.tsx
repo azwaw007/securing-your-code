@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+﻿import { useEffect, useState, type ReactNode } from 'react'
 import {
   APP_VERSION,
   TRIAL_DAYS,
@@ -48,7 +48,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
       <div className="app-shell license-shell">
         <div className="card license-card">
           <div className="brand">
-            Gros<span>siste DZ</span>
+            AZ <span>POS</span>
           </div>
           <p className="muted">Version {APP_VERSION}</p>
           <h2>Activation requise</h2>
@@ -86,7 +86,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
       <div className={`license-banner ${status.mode === 'trial' ? 'trial' : 'ok'}`}>
         {status.mode === 'trial' ? (
           <span>
-            Essai Grossiste DZ — <strong>{status.daysLeft} j</strong> restants (fin{' '}
+            Essai AZ POS — <strong>{status.daysLeft} j</strong> restants (fin{' '}
             {status.trialEndsAt})
           </span>
         ) : (

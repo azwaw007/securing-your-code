@@ -1,4 +1,4 @@
-import type { AppState, Client, Language, Screen } from '../types'
+﻿import type { AppState, Client, Language, Screen } from '../types'
 import {
   addClient,
   addIncomingOrder,
@@ -86,7 +86,7 @@ function help(lang: Language): string {
   const stats = memoryStats()
   if (lang === 'ar') {
     return [
-      'أنا وكيل Grossiste DZ (agentic + تعلّم).',
+      'أنا وكيل AZ POS (agentic + تعلّم).',
       '• مخزون ناقص / قيمة المخزون / الديون / ملخص اليوم',
       '• نظّم التطبيق / ثيم الليل / خط كبير / وضع سهل',
       '• افتح زبائن / بيع / أرباح / إعدادات',
@@ -96,7 +96,7 @@ function help(lang: Language): string {
     ].join('\n')
   }
   return [
-    'Je suis l’agent Grossiste DZ (agentic + apprentissage).',
+    'Je suis l’agent AZ POS (agentic + apprentissage).',
     '• stock bas / valeur stock / crédits / résumé du jour',
     '• organise l’app / thème nuit / gros texte / mode facile',
     '• ouvre clients / ventes / gains / paramètres',

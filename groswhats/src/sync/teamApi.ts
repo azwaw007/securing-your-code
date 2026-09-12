@@ -1,4 +1,4 @@
-import type { Driver, Mission } from '../types'
+﻿import type { Driver, Mission } from '../types'
 
 export interface TeamCloudPayload {
   companyCode: string
@@ -67,7 +67,7 @@ export function missionWhatsappText(pack: MissionPack, shopName: string): string
     0,
   )
   return [
-    `🚚 Mission Grossiste DZ — ${shopName}`,
+    `🚚 Mission AZ POS — ${shopName}`,
     `Code société: ${pack.companyCode}`,
     `Titre: ${pack.mission.title}`,
     `Date: ${pack.mission.date}`,

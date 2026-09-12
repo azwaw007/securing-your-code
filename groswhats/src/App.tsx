@@ -88,21 +88,13 @@ import {
 } from './utils/ticket'
 import { buildInvoiceText, openInvoiceWhatsapp } from './utils/invoice'
 import {
-  isVoiceNo,
-  isVoiceSupported,
-  isVoiceYes,
-  startVoiceListen,
-} from './utils/voice'
-import { notifyStockRuptures } from './utils/notify'
-import {
   isVoiceMuted,
   registerMuteAskHandler,
   setVoiceMuted,
   speak,
-  speakDarijaWelcome,
-  speakForced,
   stopSpeaking,
 } from './utils/speak'
+import { notifyStockRuptures } from './utils/notify'
 import {
   ArrivagesPage,
   enableStockAlerts,
@@ -129,6 +121,8 @@ import {
   BarcodeScanInput,
   bumpProductFromBarcode,
 } from './PosOps'
+import { APP_BRAND } from './brand'
+import { APP_VERSION, activateLicense, getAccessStatus } from './license/license'
 
 const NAV_IDS: Screen[] = ['home', 'order', 'agent', 'clients', 'inbox', 'products']
 const NAV_ICONS: Record<Screen, string> = {
@@ -175,73 +169,21 @@ export default function App() {
     from: string
     to: string
   } | null>(null)
-  const [muteAsk, setMuteAsk] = useState<{
-    text: string
-    lang: Language
-  } | null>(null)
   const [voiceMutedUi, setVoiceMutedUi] = useState(() => isVoiceMuted())
-  const [agentWelcome, setAgentWelcome] = useState(false)
-  const [agentHandsFree, setAgentHandsFree] = useState(false)
   const [agentSeed, setAgentSeed] = useState<string | null>(null)
-  const [welcomePartial, setWelcomePartial] = useState('')
-  const welcomeListenRef = useRef<(() => void) | null>(null)
   const lang = state.settings.language
 
   useEffect(() => {
-    registerMuteAskHandler((text, voiceLang) => {
-      setMuteAsk({ text, lang: voiceLang })
-    })
+    registerMuteAskHandler(null)
+    stopSpeaking()
     return () => registerMuteAskHandler(null)
   }, [])
-
-  function dismissAgentWelcome(help: boolean, seed?: string) {
-    try {
-      sessionStorage.setItem('gdza-agent-welcome', '1')
-    } catch {
-      /* ignore */
-    }
-    welcomeListenRef.current?.()
-    welcomeListenRef.current = null
-    setWelcomePartial('')
-    setAgentWelcome(false)
-    stopSpeaking()
-    if (help) {
-      speakDarijaWelcome(
-        seed
-          ? 'يلاه، نخدم معاك.'
-          : 'يالله. قولّي شنو بغيتي ندير.',
-      )
-      setAgentHandsFree(true)
-      setAgentSeed(seed?.trim() || null)
-      goTo('agent')
-    } else {
-      setAgentHandsFree(false)
-      setAgentSeed(null)
-      speakDarijaWelcome('واخا. أنا هنا إلا احتجتني.')
-    }
-  }
-
-  function handleWelcomeVoice(text: string) {
-    const raw = text.trim()
-    if (!raw) return
-    if (isVoiceNo(raw)) {
-      dismissAgentWelcome(false)
-      return
-    }
-    if (isVoiceYes(raw)) {
-      dismissAgentWelcome(true)
-      return
-    }
-    // Demande libre en darja → agent
-    dismissAgentWelcome(true, raw)
-  }
 
   function keepAlive(id: Screen) {
     setAliveScreens((list) => (list.includes(id) ? list : [...list, id]))
   }
 
-  function goTo(next: Screen, spokenLabel?: string) {
-    if (spokenLabel) speak(spokenLabel, lang)
+  function goTo(next: Screen, _spokenLabel?: string) {
     keepAlive(next)
     setScreen((curr) => {
       if (curr !== next) {
@@ -336,49 +278,10 @@ export default function App() {
     if (isDriverMode && screen !== 'missions') goTo('missions')
   }, [isDriverMode, screen])
 
-  /** À l’ouverture : agent propose son aide en darja + Oui / Non (+ micro) */
+  /** Voix agent / TTS désactivée */
   useEffect(() => {
-    if (isDriverMode || needRolePick) return
-    try {
-      if (sessionStorage.getItem('gdza-agent-welcome') === '1') return
-    } catch {
-      /* ignore */
-    }
-    setAgentWelcome(true)
-    const speakTimer = window.setTimeout(() => {
-      speakDarijaWelcome(
-        'السلام عليكم. أنا المساعد تاعك في Grossiste DZ. تبغي نعاونك؟ ولا ندير حاجة مكانك؟',
-      )
-    }, 700)
-    const listenTimer = window.setTimeout(() => {
-      if (!isVoiceSupported()) return
-      welcomeListenRef.current?.()
-      const ctrl = startVoiceListen({
-        voiceLang: 'darja',
-        continuous: false,
-        onPartial: (p) => setWelcomePartial(p),
-        onFinal: (text) => {
-          welcomeListenRef.current?.()
-          welcomeListenRef.current = null
-          setWelcomePartial('')
-          handleWelcomeVoice(text)
-        },
-        onError: () => {
-          welcomeListenRef.current = null
-        },
-        onEnd: () => {
-          welcomeListenRef.current = null
-        },
-      })
-      welcomeListenRef.current = ctrl?.stop ?? null
-    }, 3200)
-    return () => {
-      window.clearTimeout(speakTimer)
-      window.clearTimeout(listenTimer)
-      welcomeListenRef.current?.()
-      welcomeListenRef.current = null
-    }
-  }, [isDriverMode, needRolePick])
+    stopSpeaking()
+  }, [])
 
   return (
     <div
@@ -386,75 +289,6 @@ export default function App() {
         state.settings.easyMode !== false ? 'easy-ui' : ''
       } ${isDriverMode ? 'driver-mode' : ''}`}
     >
-      {agentWelcome && !needRolePick && !isDriverMode ? (
-        <div className="mute-ask-overlay" role="dialog" aria-modal="true">
-          <div className="mute-ask-card agent-welcome-card">
-            <div className="agent-welcome-emoji">🤖</div>
-            <h2>{t(lang, 'agentWelcomeTitle')}</h2>
-            <p className="agent-welcome-darja">{t(lang, 'agentWelcomeDarja')}</p>
-            <p>{t(lang, 'agentWelcomeBody')}</p>
-            {welcomePartial ? (
-              <div className="notice">🎤 {welcomePartial}</div>
-            ) : (
-              <div className="muted" style={{ marginBottom: 8 }}>
-                {t(lang, 'agentWelcomeListen')}
-              </div>
-            )}
-            <button
-              type="button"
-              className="btn block btn-ok"
-              onClick={() => dismissAgentWelcome(true)}
-            >
-              ✅ {t(lang, 'yes')}
-            </button>
-            <button
-              type="button"
-              className="btn secondary block"
-              style={{ marginTop: 8 }}
-              onClick={() => dismissAgentWelcome(false)}
-            >
-              ❌ {t(lang, 'no')}
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {muteAsk ? (
-        <div className="mute-ask-overlay" role="dialog" aria-modal="true">
-          <div className="mute-ask-card">
-            <h2>🔊 {t(lang, 'muteAskTitle')}</h2>
-            <p>{t(lang, 'muteAskBody')}</p>
-            <button
-              type="button"
-              className="btn block"
-              onClick={() => {
-                setVoiceMuted(true)
-                setVoiceMutedUi(true)
-                stopSpeaking()
-                setMuteAsk(null)
-                flash('voiceMutedOn')
-              }}
-            >
-              🔇 {t(lang, 'muteYes')}
-            </button>
-            <button
-              type="button"
-              className="btn secondary block"
-              style={{ marginTop: 8 }}
-              onClick={() => {
-                const pending = muteAsk
-                setVoiceMuted(false)
-                setVoiceMutedUi(false)
-                setMuteAsk(null)
-                speakForced(pending.text, pending.lang)
-              }}
-            >
-              🔊 {t(lang, 'muteNo')}
-            </button>
-          </div>
-        </div>
-      ) : null}
-
       {needRolePick ? (
         <RolePickGate
           lang={lang}
@@ -487,7 +321,7 @@ export default function App() {
           ) : null}
           <div>
             <div className="brand">
-              Gros<span>siste DZ</span>
+              AZ <span>POS</span>
             </div>
             <div className="muted">
               {state.settings.shopName}
@@ -531,7 +365,7 @@ export default function App() {
             </button>
             <div>
               <div className="brand">
-                Gros<span>siste DZ</span>
+                AZ <span>POS</span>
               </div>
               <div className="muted">🚚 {t(lang, 'driverMode')}</div>
             </div>
@@ -731,12 +565,7 @@ export default function App() {
         <AgentPage
           state={state}
           lang={lang}
-          handsFree={agentHandsFree}
           initialUtterance={agentSeed}
-          onHandsFreeEnd={() => {
-            setAgentHandsFree(false)
-            setAgentSeed(null)
-          }}
           onState={setState}
           onNavigate={goTo}
           onInvoiceSent={() => {
@@ -745,6 +574,7 @@ export default function App() {
               setState((s) => markInvoiceSent(s, last.id))
               flash('invoiceSent')
             }
+            setAgentSeed(null)
           }}
         />
         </div>
@@ -1153,7 +983,7 @@ function SettingsPage({
       <div className="card">
         <h2>{t(lang, 'settingsTitle')}</h2>
         <div className="notice">{t(lang, 'oneAppHint')}</div>
-        <div className="muted">Grossiste DZ v{APP_VERSION}</div>
+        <div className="muted">{APP_BRAND.name} v{APP_VERSION}</div>
         <div className="notice" style={{ marginTop: 8 }}>
           {licenseInfo || '…'}
         </div>
@@ -1581,7 +1411,7 @@ function HomePage({
       <section className="home-hero">
         <div className="home-hero-text">
           <div className="muted">{t(lang, 'todayStrip')}</div>
-          <h2 className="home-shop">{state.settings.shopName || 'Grossiste DZ'}</h2>
+          <h2 className="home-shop">{state.settings.shopName || APP_BRAND.defaultShopName}</h2>
         </div>
         <GlobalSmartSearch
           state={state}

@@ -27,6 +27,7 @@ import {
   DEFAULT_AGENT_PERMISSIONS,
   type AgentPermissions,
 } from './agent/permissions'
+import { APP_BRAND } from './brand'
 
 const STORAGE_KEY = 'grossiste-dz-v1'
 
@@ -36,7 +37,7 @@ export function uid(prefix: string): string {
 
 function defaultSettings(): ShopSettings {
   return {
-    shopName: 'Grossiste DZ',
+    shopName: APP_BRAND.defaultShopName,
     phone: '',
     city: '',
     language: 'fr',
@@ -71,10 +72,16 @@ function genCode(len = 6): string {
 }
 
 function cleanShopName(name: string | undefined): string {
-  if (!name) return 'Grossiste DZ'
+  if (!name) return APP_BRAND.defaultShopName
   const n = name.toLowerCase()
-  if (n.includes('groswhats') || n.includes('dépôt gros') || n.includes('depot gros')) {
-    return 'Grossiste DZ'
+  if (
+    n.includes('groswhats') ||
+    n.includes('dépôt gros') ||
+    n.includes('depot gros') ||
+    n === 'grossiste dz' ||
+    n === 'grossiste-dz'
+  ) {
+    return APP_BRAND.defaultShopName
   }
   return name
 }
