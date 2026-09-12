@@ -3,6 +3,9 @@
 ## Web (déjà en ligne)
 https://grossiste-dz.vercel.app — push sur `main` déploie automatiquement.
 
+Politique de confidentialité (Play Store) :
+https://grossiste-dz.vercel.app/privacy.html
+
 ## PC Windows (.exe)
 
 Fichiers déjà générés sur cette machine :
@@ -20,9 +23,7 @@ npm run desktop:build
 
 ## Android → Google Play
 
-1. Installer Android Studio + SDK
-2. Sync le web dans Android :
-
+### 1. Préparer le projet
 ```bash
 cd groswhats
 npm run native:deps
@@ -30,24 +31,47 @@ npm run android:sync
 npm run android:open
 ```
 
-3. Dans Android Studio :
-   - **Build → Generate Signed Bundle / APK**
-   - Choisir **Android App Bundle (.aab)**
-   - Créer un keystore (garde-le en sécurité)
-4. Play Console : https://play.google.com/console
-   - Créer l’app **AZ POS**
-   - Package : `com.azpos.app`
-   - Upload le `.aab`
-   - Remplir fiche (description, captures, politique de confidentialité)
+### 2. Android Studio — Bundle signé
+1. **Build → Generate Signed Bundle / APK**
+2. Choisir **Android App Bundle (.aab)**
+3. Créer un keystore (mot de passe fort, **sauvegarde hors PC**)
+4. Package : `com.azpos.app`
 
-### Checklist Play Store
-- [ ] Nom : AZ POS
-- [ ] Icône 512×512
-- [ ] Captures téléphone (min. 2)
-- [ ] Description courte + longue (FR / AR)
-- [ ] Catégorie : Business
-- [ ] Politique de confidentialité (URL)
-- [ ] Contenu PEGI / rating questionnaire
+### 3. Play Console
+https://play.google.com/console
+
+- Créer l’app **AZ POS**
+- Type : Application
+- Catégorie : **Business**
+- Contenu : questionnaire PEGI / public cible
+- Confidentialité : URL `https://grossiste-dz.vercel.app/privacy.html`
+
+### 4. Textes store (copier-coller)
+
+**Nom :** AZ POS
+
+**Description courte (FR) :**  
+Point de vente simple pour grossistes en Algérie — stock, crédit, caisse, WhatsApp.
+
+**Description longue (FR) :**  
+AZ POS aide les commerçants et grossistes en Algérie à vendre vite : catalogue produits, clients, ventes cash ou crédit (versé + reste), échéances, scan code-barres / QR, caisse du jour, retours, achats fournisseurs, multi-poste livreurs, agent d’aide en texte (FR / AR). Données sur l’appareil. Fonctionne aussi en PWA hors ligne.
+
+**Description courte (AR) :**  
+نقطة بيع بسيطة للتجار في الجزائر — مخزون، دين، صندوق، واتساب.
+
+**Description longue (AR) :**  
+AZ POS يساعد التجار والموزعين في الجزائر على البيع بسرعة: منتجات، زبائن، بيع نقداً أو دين، استحقاقات، مسح باركود / QR، صندوق اليوم، مرتجعات، مشتريات، سائقون متعددون، وكيل مساعدة بالنص (فرنسية / عربية). البيانات على الجهاز. يعمل أيضاً كتطبيق ويب دون إنترنت.
+
+### 5. Visuels
+- Icône : `groswhats/public/icons/icon-512.png` (idéalement 512×512)
+- Captures téléphone : min. 2 (accueil, vente, clients)
+
+### Checklist
+- [ ] Compte Google Play Developer (~25 USD une fois)
+- [ ] Keystore sauvegardé
+- [ ] `.aab` uploadé (test interne puis production)
+- [ ] Politique confidentialité URL
+- [ ] Captures + textes FR/AR
 
 ## Agent
 Texte seulement — pas de voix TTS ni micro.

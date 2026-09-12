@@ -1786,13 +1786,16 @@ html[dir='rtl'] .style-card {
   font-weight: 600;
 }
 
-.client-qr-card {
-  margin-top: 16px;
-  padding: 14px;
-  border-radius: 14px;
-  background: rgba(0, 0, 0, 0.04);
-  text-align: center;
+.due-alert-row {
+  width: 100%;
+  border: none;
+  background: transparent;
+  text-align: start;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
 }
+
 
 .client-qr-frame {
   display: inline-block;

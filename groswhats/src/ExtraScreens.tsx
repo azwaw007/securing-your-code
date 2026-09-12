@@ -1,10 +1,15 @@
 import { useMemo, useState } from 'react'
-import type { AppState, Client, IncomingOrder, Language, Product, Screen } from './types'
+import type { AppState, Client, IncomingOrder, Language, Order, Product, Screen } from './types'
 import { t, unitLabel } from './i18n'
-import { formatQty } from './utils/format'
+import { formatDa, formatQty } from './utils/format'
 import { buildArrivalsMessage, openWhatsappText } from './utils/whatsapp'
 import { parseContactLines, pickPhoneContacts } from './utils/contacts'
 import { ensureNotificationPermission } from './utils/notify'
+import {
+  daysUntilDue,
+  formatDueDateLabel,
+  orderRemainingDa,
+} from './store'
 
 export function StockAlertCard({
   products,
@@ -40,6 +45,85 @@ export function StockAlertCard({
           </div>
         ))
       )}
+    </div>
+  )
+}
+
+/** Alertes échéances dettes (retard + bientôt) */
+export function DueAlertCard({
+  overdue,
+  soon,
+  lang,
+  enabled,
+  onEnable,
+  onOpenClient,
+}: {
+  overdue: Order[]
+  soon: Order[]
+  lang: Language
+  enabled: boolean
+  onEnable: () => void
+  onOpenClient?: (id: string) => void
+}) {
+  const list = [...overdue, ...soon]
+  if (list.length === 0 && enabled) return null
+
+  return (
+    <div className={`card ${list.length ? 'alert-card' : ''}`}>
+      <h2>📅 {t(lang, 'dueAlertTitle')}</h2>
+      {!enabled ? (
+        <button className="btn block" onClick={onEnable}>
+          {t(lang, 'enableAlerts')}
+        </button>
+      ) : null}
+      {enabled && list.length === 0 ? (
+        <div className="empty">{t(lang, 'dueAlertEmpty')}</div>
+      ) : null}
+      {overdue.map((o) => (
+        <button
+          type="button"
+          className="list-item due-alert-row"
+          key={`ov-${o.id}`}
+          onClick={() => o.clientId && onOpenClient?.(o.clientId)}
+        >
+          <div>
+            <strong>{o.clientName}</strong>
+            <div className="muted">
+              {formatDa(orderRemainingDa(o))}
+              {o.dueDate
+                ? ` · ${formatDueDateLabel(o.dueDate, lang)}`
+                : ''}
+            </div>
+          </div>
+          <span className="badge warn">{t(lang, 'dueOverdue')}</span>
+        </button>
+      ))}
+      {soon.map((o) => {
+        const left = o.dueDate ? daysUntilDue(o.dueDate) : 0
+        return (
+          <button
+            type="button"
+            className="list-item due-alert-row"
+            key={`soon-${o.id}`}
+            onClick={() => o.clientId && onOpenClient?.(o.clientId)}
+          >
+            <div>
+              <strong>{o.clientName}</strong>
+              <div className="muted">
+                {formatDa(orderRemainingDa(o))}
+                {o.dueDate
+                  ? ` · ${formatDueDateLabel(o.dueDate, lang)}`
+                  : ''}
+              </div>
+            </div>
+            <span className="badge">
+              {left === 0
+                ? t(lang, 'dueToday')
+                : t(lang, 'dueInDays').replace('{n}', String(left))}
+            </span>
+          </button>
+        )
+      })}
     </div>
   )
 }

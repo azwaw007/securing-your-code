@@ -57,6 +57,13 @@ import {
   rangePresets,
   updateTeam,
   ensureCompanyCode,
+  dueDateFromDays,
+  overdueCreditOrders,
+  dueSoonCreditOrders,
+  clientOpenCreditOrders,
+  formatDueDateLabel,
+  daysUntilDue,
+  orderRemainingDa,
 } from './store'
 import { isDecimalUnit, qtyStep, t, unitLabel } from './i18n'
 import { formatDa, formatQty } from './utils/format'
@@ -92,7 +99,7 @@ import {
   speak,
   stopSpeaking,
 } from './utils/speak'
-import { notifyStockRuptures } from './utils/notify'
+import { notifyDueAlerts, notifyStockRuptures } from './utils/notify'
 import {
   installUiClickSounds,
   playBarcodeError,
@@ -106,6 +113,7 @@ import {
   importPastedContacts,
   InboxPage,
   StockAlertCard,
+  DueAlertCard,
 } from './ExtraScreens'
 import { CalculatorPage } from './CalculatorPage'
 import { DeliveryMapPage } from './DeliveryMapPage'
@@ -256,13 +264,19 @@ export default function App() {
     if (!state.settings.stockAlertsEnabled) return
     const low = lowStockProducts(state)
     if (low.length > 0) notifyStockRuptures(low, lang)
-  }, [state.products, state.settings.stockAlertsEnabled, lang])
+    const overdue = overdueCreditOrders(state)
+    const soon = dueSoonCreditOrders(state, 3)
+    if (overdue.length > 0 || soon.length > 0) {
+      notifyDueAlerts(overdue, soon, lang)
+    }
+  }, [state.products, state.orders, state.settings.stockAlertsEnabled, lang])
 
   const stats = useMemo(() => {
     const today = todayOrders(state)
     const todayExp = sumExpensesDa(expensesOnDate(state))
     const monthExp = sumExpensesDa(expensesInMonth(state))
     const todayProfit = realizedProfitDa(state, today)
+    const overdue = overdueCreditOrders(state)
     return {
       todayCount: today.length,
       todayTotal: today.reduce((s, o) => s + o.totalDa, 0),
@@ -277,6 +291,7 @@ export default function App() {
       lowStock: lowStockProducts(state).length,
       credits: openCreditsDa(state),
       pendingInbox: pendingIncoming(state).length,
+      overdueCount: overdue.length,
     }
   }, [state])
 
@@ -1360,6 +1375,7 @@ function HomePage({
     lowStock: number
     pendingInbox: number
     credits: number
+    overdueCount: number
   }
   lang: Language
   low: Product[]
@@ -1379,6 +1395,8 @@ function HomePage({
   const recent = (todayOrders(state).length > 0 ? todayOrders(state) : state.orders).slice(0, 4)
   const [scanOpen, setScanOpen] = useState(false)
   const [unknownCode, setUnknownCode] = useState<string | null>(null)
+  const overdue = useMemo(() => overdueCreditOrders(state), [state])
+  const soon = useMemo(() => dueSoonCreditOrders(state, 3), [state])
 
   function handleHit(hit: SearchHit) {
     if (hit.clientId) {
@@ -1473,6 +1491,17 @@ function HomePage({
         enabled={state.settings.stockAlertsEnabled}
         onEnable={onEnableAlerts}
       />
+      <DueAlertCard
+        overdue={overdue}
+        soon={soon}
+        lang={lang}
+        enabled={state.settings.stockAlertsEnabled}
+        onEnable={onEnableAlerts}
+        onOpenClient={(id) => {
+          onFocusClient(id)
+          onGo('clients', t(lang, 'appClients'))
+        }}
+      />
 
       <section className="home-hero">
         <div className="home-hero-text">
@@ -1538,6 +1567,12 @@ function HomePage({
             <div className="home-chip warn">
               <span>📝 {t(lang, 'openCredits')}</span>
               <strong>{formatDa(stats.credits)}</strong>
+            </div>
+          ) : null}
+          {stats.overdueCount > 0 ? (
+            <div className="home-chip warn">
+              <span>⏰ {t(lang, 'dueOverdue')}</span>
+              <strong>{stats.overdueCount}</strong>
             </div>
           ) : null}
           {stats.pendingInbox > 0 ? (
@@ -3109,6 +3144,49 @@ function ClientsPage({
             </button>
           </div>
 
+          {(() => {
+            const open = clientOpenCreditOrders(state, selected.id)
+            if (open.length === 0) return null
+            return (
+              <div className="card" style={{ marginTop: 12, boxShadow: 'none' }}>
+                <h3>📅 {t(lang, 'clientDueTitle')}</h3>
+                {open.map((o) => {
+                  const rem = orderRemainingDa(o)
+                  const late =
+                    o.dueDate != null && daysUntilDue(o.dueDate) < 0
+                  const soon =
+                    o.dueDate != null &&
+                    daysUntilDue(o.dueDate) >= 0 &&
+                    daysUntilDue(o.dueDate) <= 3
+                  return (
+                    <div className="list-item" key={o.id}>
+                      <div>
+                        <strong>
+                          {o.invoiceNumber
+                            ? `N°${o.invoiceNumber}`
+                            : o.id.slice(-6)}
+                        </strong>
+                        <div className="muted">
+                          {formatDa(rem)}
+                          {o.dueDate
+                            ? ` · ${formatDueDateLabel(o.dueDate, lang)}`
+                            : ` · ${t(lang, 'dueNone')}`}
+                        </div>
+                      </div>
+                      {late ? (
+                        <span className="badge warn">{t(lang, 'dueOverdue')}</span>
+                      ) : soon ? (
+                        <span className="badge">{t(lang, 'dueSoon')}</span>
+                      ) : o.dueDate ? (
+                        <span className="badge">{t(lang, 'dueOk')}</span>
+                      ) : null}
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })()}
+
           {hasGps ? (
             <div className="map-embed">
               <iframe
@@ -3524,6 +3602,7 @@ function OrderPage({
   /** Après le panier : choisir Payé / Versé */
   const [payStep, setPayStep] = useState(false)
   const [verseInput, setVerseInput] = useState('')
+  const [dueDays, setDueDays] = useState(15)
   const [invoiceDraft, setInvoiceDraft] = useState('')
 
   const isQuick = clientId === QUICK
@@ -3645,6 +3724,8 @@ function OrderPage({
       lines,
       totalDa: total,
       ...pay,
+      dueDate:
+        pay.remainingDa > 0.001 ? dueDateFromDays(dueDays) : undefined,
     })
     setLastOrder(created)
     setInvoiceDraft(buildInvoiceText(created, state.settings))
@@ -3652,6 +3733,7 @@ function OrderPage({
     setTierMap({})
     setPayStep(false)
     setVerseInput('')
+    setDueDays(15)
     speak(
       lang === 'ar'
         ? `تم. ${Math.round(total)} دينار`
@@ -3938,6 +4020,29 @@ function OrderPage({
                     {t(lang, 'cashIn')} : <strong>{formatDa(verseParsed)}</strong>
                     {' · '}
                     {t(lang, 'stillOwes')} : <strong>{formatDa(verseRemaining)}</strong>
+                  </div>
+                ) : null}
+                {verseOk && verseRemaining > 0.001 ? (
+                  <div className="field" style={{ marginTop: 10 }}>
+                    <label>📅 {t(lang, 'dueInLabel')}</label>
+                    <div className="tier-row">
+                      {[7, 15, 30].map((d) => (
+                        <button
+                          key={d}
+                          type="button"
+                          className={`tier-chip ${dueDays === d ? 'active' : ''}`}
+                          onClick={() => setDueDays(d)}
+                        >
+                          {d} {t(lang, 'dueDaysUnit')}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="muted" style={{ marginTop: 4 }}>
+                      {t(lang, 'dueOn')} :{' '}
+                      <strong>
+                        {formatDueDateLabel(dueDateFromDays(dueDays), lang)}
+                      </strong>
+                    </div>
                   </div>
                 ) : null}
                 <button

@@ -1,6 +1,7 @@
-import type { Language, Product } from '../types'
+import type { Language, Order, Product } from '../types'
 import { unitLabel } from '../i18n'
-import { formatQty } from './format'
+import { formatDa, formatQty } from './format'
+import { formatDueDateLabel } from '../store'
 
 export async function ensureNotificationPermission(): Promise<boolean> {
   if (!('Notification' in window)) return false
@@ -27,6 +28,42 @@ export function notifyStockRuptures(products: Product[], lang: Language): void {
 
   try {
     new Notification(title, { body, tag: 'az-pos-stock' })
+  } catch {
+    // ignore
+  }
+}
+
+export function notifyDueAlerts(
+  overdue: Order[],
+  soon: Order[],
+  lang: Language,
+): void {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return
+  if (overdue.length === 0 && soon.length === 0) return
+
+  const title =
+    lang === 'ar' ? 'تنبيه استحقاق الديون' : 'Alerte échéances dettes'
+  const parts: string[] = []
+  if (overdue.length > 0) {
+    parts.push(
+      lang === 'ar' ? `${overdue.length} متأخر` : `${overdue.length} en retard`,
+    )
+  }
+  if (soon.length > 0) {
+    parts.push(
+      lang === 'ar'
+        ? `${soon.length} قريب`
+        : `${soon.length} bientôt dues`,
+    )
+  }
+  const sample = [...overdue, ...soon].slice(0, 3).map((o) => {
+    const due = o.dueDate ? formatDueDateLabel(o.dueDate, lang) : ''
+    return `${o.clientName} ${formatDa(o.remainingDa ?? 0)}${due ? ` (${due})` : ''}`
+  })
+  const body = `${parts.join(' · ')} — ${sample.join(' · ')}`
+
+  try {
+    new Notification(title, { body, tag: 'az-pos-dues' })
   } catch {
     // ignore
   }

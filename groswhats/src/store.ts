@@ -764,6 +764,7 @@ export function applyClientPayment(
       paidDa,
       remainingDa,
       payment: (remainingDa <= 0.001 ? 'paye' : 'credit') as Order['payment'],
+      dueDate: remainingDa <= 0.001 ? undefined : o.dueDate,
     }
   })
 
