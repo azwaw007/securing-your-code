@@ -2,12 +2,13 @@
 node_modules/
 juiceshop.sqlite
 order_*.pdf
-app/
+/app/
 !frontend/src/app
 uploads/complaints/*.*
 !uploads/complaints/.gitkeep
 ftp/legal.md
 package-lock.json
+!groswhats/package-lock.json
 i18n/*.json
 i18n/*.invalid
 !frontend/src/assets/i18n/*.json
@@ -19,7 +20,8 @@ data/chatbot/*.*
 # Build
 .nyc_output/
 .sass-cache/
-build/
+/build/
+!groswhats/build/
 cache/
 dist/
 logs/
@@ -64,3 +66,4 @@ config/*.yml
 
 # System Files
 .DS_Store
+.vercel
