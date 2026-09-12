@@ -203,7 +203,7 @@ const fr: Dict = {
   teamSynced: 'Envoyé OK',
   teamPulled: 'Mis à jour depuis le cloud',
   teamBlobHint:
-    'Cloud durable : crée un Blob Store dans Vercel (projet grossiste-dz) — variable BLOB_READ_WRITE_TOKEN.',
+    'Cloud durable : crée un Blob Store dans Vercel (projet AZ POS) — variable BLOB_READ_WRITE_TOKEN.',
   missionCreated: 'Tournée créée',
   switchToDriver: 'Mode livreur',
   addDriver: 'Ajouter livreur',
@@ -739,7 +739,7 @@ const ar: Dict = {
   teamSynced: 'تمت مزامنة الفريق',
   teamPulled: 'تم التحديث من السحابة',
   teamBlobHint:
-    'تخزين دائم: أنشئ Blob Store في Vercel (مشروع grossiste-dz) — المتغير BLOB_READ_WRITE_TOKEN.',
+    'تخزين دائم: أنشئ Blob Store في Vercel (مشروع AZ POS) — المتغير BLOB_READ_WRITE_TOKEN.',
   teamSyncFail: 'فشلت المزامنة (دون اتصال أو رمز خاطئ)',
   switchToDriver: 'وضع السائق',
   switchToOwner: 'وضع صاحب المتجر',

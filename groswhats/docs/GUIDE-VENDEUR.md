@@ -1,4 +1,4 @@
-# Guide vendeur — Grossiste DZ
+﻿# Guide vendeur — AZ POS
 
 Tu vends l’app. Le client utilise. Tu génères les licences.
 
@@ -39,7 +39,7 @@ node tools/generate-license.mjs "Dépôt El Amel" 365
 
 ## Script de vente (WhatsApp)
 
-> Salam, je te propose **Grossiste DZ** : stock + commandes WhatsApp + ticket + facture + zakat + agent vocal.  
+> Salam, je te propose **AZ POS** : stock + commandes WhatsApp + ticket + facture + zakat + agent vocal.  
 > Essai **14 jours gratuit**.  
 > Ensuite **12 000 DA / an**.  
 > Je t’installe sur le téléphone et je t’explique.
@@ -60,3 +60,4 @@ node tools/generate-license.mjs "Dépôt El Amel" 365
 La licence est côté téléphone (suffisant pour grossistes locaux).  
 Ne publie **jamais** ton `LICENSE_SECRET`.  
 Change-le avant la première vente réelle.
+

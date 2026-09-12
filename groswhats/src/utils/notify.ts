@@ -26,7 +26,7 @@ export function notifyStockRuptures(products: Product[], lang: Language): void {
       : `${products.length} produit(s) en rupture / stock bas : ${names}`
 
   try {
-    new Notification(title, { body, tag: 'groswhats-stock' })
+    new Notification(title, { body, tag: 'az-pos-stock' })
   } catch {
     // ignore
   }

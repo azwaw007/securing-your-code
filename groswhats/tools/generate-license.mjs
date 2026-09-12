@@ -1,6 +1,6 @@
-#!/usr/bin/env node
+﻿#!/usr/bin/env node
 /**
- * Générateur de licences Grossiste DZ (vendeur)
+ * Générateur de licences AZ POS (vendeur)
  *
  * Usage:
  *   node tools/generate-license.mjs "Nom du commerce" [jours=365]
@@ -48,7 +48,7 @@ const days = Number(process.argv[3] || 365)
 const { key, payload } = createKey(customer, days)
 
 console.log('')
-console.log('=== Grossiste DZ — Licence annuelle ===')
+console.log('=== AZ POS — Licence annuelle ===')
 console.log(`Client     : ${payload.c}`)
 console.log(`Expire le  : ${payload.e}`)
 console.log(`Durée      : ${days} jours`)
@@ -56,3 +56,4 @@ console.log('')
 console.log('CLÉ (à envoyer au client) :')
 console.log(key)
 console.log('')
+

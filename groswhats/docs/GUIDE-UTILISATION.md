@@ -1,4 +1,4 @@
-# Guide d’utilisation — Grossiste DZ v1.0
+﻿# Guide d’utilisation — AZ POS v1.0
 
 Application mobile pour commerces et grossistes en Algérie.
 
@@ -12,7 +12,7 @@ Application mobile pour commerces et grossistes en Algérie.
 
 1. Ouvrir le lien de l’app (Chrome Android / Safari iPhone)
 2. **Ajouter à l’écran d’accueil**
-3. Lancer Grossiste DZ
+3. Lancer AZ POS
 
 ## Fonctions principales
 
@@ -49,3 +49,4 @@ Calcul **annuel** à 2,5 % (stock ± crédits). Pas à chaque transaction.
 À la fin de l’essai, coller la clé fournie par le vendeur sur l’écran d’activation.
 
 Le guide web est aussi disponible dans l’app : `/guide.html`
+

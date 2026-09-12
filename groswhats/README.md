@@ -1,51 +1,65 @@
-# Grossiste DZ v1.0 — Prêt à vendre
+# AZ POS v1.0
 
-## Contenu
+Point de vente pour commerçants en Algérie — **web**, **Windows (.exe)** et **Android (Play Store)**.
 
-| Élément | Chemin |
-|---------|--------|
-| Application | `src/` → build `dist/` |
-| Guide client | `public/guide.html` + `docs/GUIDE-UTILISATION.md` |
-| Guide vendeur | `docs/GUIDE-VENDEUR.md` |
-| Générateur licences (page) | `seller/license-generator.html` |
-| Générateur licences (CLI) | `tools/generate-license.mjs` |
+- Web : https://grossiste-dz.vercel.app  
+- Package ID : `com.azpos.app`
 
-## Multi-poste (livreurs)
-
-1. Dans Vercel → projet **grossiste-dz** → Storage → crée un **Blob Store**
-2. La variable `BLOB_READ_WRITE_TOKEN` est injectée automatiquement
-3. Sans ce token, `/api/team` refuse d’écrire (stockage durable obligatoire)
-
-Sync : push patron = pull+merge puis écriture Blob (le progrès livreur n’est pas écrasé).
-Cash livré → caisse + solde client (idempotent via `missionStopId`).
-
-## Lancer en local
+## Développement
 
 ```bash
 cd groswhats
 npm install
+npm run icons
 npm run dev
 ```
 
-## Build production
+## Build web (Vercel)
 
 ```bash
 npm run build
-npm run preview
 ```
 
-Le dossier `dist/` est ce que tu donnes / héberges pour les clients.
+Déploiement auto sur push `main` (projet Vercel `grossiste-dz`, root `groswhats`).
 
-## Générer une licence
+## Version PC Windows (.exe)
 
 ```bash
-npm run license -- "Nom du commerce" 365
+npm run desktop:build
 ```
 
-Ou ouvrir `seller/license-generator.html` dans Chrome.
+Sortie dans `groswhats/release/` :
+- `AZ POS Setup *.exe` (installeur NSIS)
+- `AZ POS *.exe` (portable)
 
-## Avant la 1ère vraie vente
+Prérequis : Node.js 20+.
 
-1. Change `LICENSE_SECRET` dans `src/license/license.ts`
-2. Mets le **même** secret dans le générateur
-3. `npm run build`
+## Version Android (Play Store)
+
+1. Installer [Android Studio](https://developer.android.com/studio)
+2. Une fois :
+
+```bash
+npm run android:add
+```
+
+3. Ensuite à chaque changement :
+
+```bash
+npm run android:sync
+npm run android:open
+```
+
+4. Dans Android Studio : **Build → Generate Signed Bundle / APK** → **Android App Bundle (.aab)** pour Play Console.
+
+Package : `com.azpos.app` · Nom affiché : **AZ POS**
+
+## Agent
+
+Texte seulement (pas de voix TTS / micro).
+
+## Licence vendeur
+
+```bash
+npm run license -- "Nom client"
+```

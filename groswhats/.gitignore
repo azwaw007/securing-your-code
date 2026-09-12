@@ -24,3 +24,20 @@ dist-ssr
 *.sw?
 
 .vercel
+.env*
+
+# Native builds
+ios
+release
+dist-electron
+*.exe
+*.apk
+*.aab
+android/.gradle
+android/app/build
+android/build
+android/local.properties
+android/captures
+android/.idea
+android/*.iml
+

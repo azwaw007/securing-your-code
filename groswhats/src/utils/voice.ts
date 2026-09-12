@@ -1,4 +1,4 @@
-export type VoiceLang = 'fr' | 'ar' | 'darja'
+﻿export type VoiceLang = 'fr' | 'ar' | 'darja'
 
 export const VOICE_LANG_CODE: Record<VoiceLang, string> = {
   fr: 'fr-FR',
@@ -161,7 +161,7 @@ export function isVoiceStop(text: string): boolean {
   )
 }
 
-/** Normalise darja / arabe dialectal / typos pour l’agent Grossiste DZ */
+/** Normalise darja / arabe dialectal / typos pour l’agent AZ POS */
 export function normalizeDarjaHints(text: string): string {
   let s = text.toLowerCase()
 
