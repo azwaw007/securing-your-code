@@ -57,3 +57,7 @@ Texte seulement (pas de voix TTS / micro).
 ```bash
 npm run license -- "Nom client"
 ```
+
+## Publication PC / Play Store
+
+Voir [docs/PUBLISH.md](docs/PUBLISH.md).

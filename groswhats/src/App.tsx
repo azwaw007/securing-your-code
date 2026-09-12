@@ -88,9 +88,7 @@ import {
 } from './utils/ticket'
 import { buildInvoiceText, openInvoiceWhatsapp } from './utils/invoice'
 import {
-  isVoiceMuted,
   registerMuteAskHandler,
-  setVoiceMuted,
   speak,
   stopSpeaking,
 } from './utils/speak'
@@ -169,7 +167,6 @@ export default function App() {
     from: string
     to: string
   } | null>(null)
-  const [voiceMutedUi, setVoiceMutedUi] = useState(() => isVoiceMuted())
   const [agentSeed, setAgentSeed] = useState<string | null>(null)
   const lang = state.settings.language
 
@@ -806,13 +803,6 @@ export default function App() {
         <SettingsPage
           state={state}
           lang={lang}
-          voiceMuted={voiceMutedUi}
-          onToggleVoice={(muted) => {
-            setVoiceMuted(muted)
-            setVoiceMutedUi(muted)
-            if (muted) stopSpeaking()
-            flash(muted ? 'voiceMutedOn' : 'voiceMutedOff')
-          }}
           onSave={(patch) => {
             setState((s) => updateSettings(s, patch))
             flash('settingsSaved')
@@ -901,16 +891,12 @@ function RolePickGate({
 function SettingsPage({
   state,
   lang,
-  voiceMuted,
-  onToggleVoice,
   onSave,
   onToggleMultiPoste,
   onGo,
 }: {
   state: AppState
   lang: Language
-  voiceMuted: boolean
-  onToggleVoice: (muted: boolean) => void
   onSave: (patch: Partial<AppState['settings']>) => void
   onToggleMultiPoste: (enabled: boolean) => void
   onGo: (s: Screen) => void
@@ -1139,18 +1125,6 @@ function SettingsPage({
             <span>{t(lang, 'gallery')}</span>
           </label>
         </div>
-
-        <label className="field check-row">
-          <input
-            type="checkbox"
-            checked={voiceMuted}
-            onChange={(e) => onToggleVoice(e.target.checked)}
-          />
-          <span>
-            <strong>{t(lang, 'voiceMuteToggle')}</strong>
-            <div className="muted">{t(lang, 'voiceMuteHint')}</div>
-          </span>
-        </label>
 
         <label className="field check-row">
           <input
