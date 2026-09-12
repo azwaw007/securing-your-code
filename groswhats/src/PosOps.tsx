@@ -137,6 +137,7 @@ export function CashSessionPage({
             <button
               type="button"
               className="btn block"
+              data-sfx-cash
               disabled={countDa === '' || !Number.isFinite(Number(countDa))}
               onClick={() => {
                 onState((s) =>
@@ -169,6 +170,7 @@ export function CashSessionPage({
             <button
               type="button"
               className="btn block"
+              data-sfx-cash
               onClick={() => {
                 const n = Number(String(floatDa).replace(',', '.'))
                 if (!Number.isFinite(n) || n < 0) return

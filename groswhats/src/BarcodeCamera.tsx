@@ -5,6 +5,7 @@ import {
 } from 'html5-qrcode'
 import type { Language } from './types'
 import { t } from './i18n'
+import { playBarcodeOk } from './utils/sfx'
 
 const BARCODE_FORMATS = [
   Html5QrcodeSupportedFormats.EAN_13,
@@ -77,6 +78,7 @@ export function BarcodeCameraModal({
               .stop()
               .catch(() => undefined)
               .finally(() => {
+                playBarcodeOk()
                 onDetectRef.current(code)
                 onCloseRef.current()
               })

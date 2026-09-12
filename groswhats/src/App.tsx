@@ -94,6 +94,12 @@ import {
 } from './utils/speak'
 import { notifyStockRuptures } from './utils/notify'
 import {
+  installUiClickSounds,
+  playBarcodeError,
+  playBarcodeOk,
+  setUiSoundsEnabled,
+} from './utils/sfx'
+import {
   ArrivagesPage,
   enableStockAlerts,
   importPhoneContacts,
@@ -227,6 +233,12 @@ export default function App() {
       state.settings.easyMode !== false,
     )
   }, [state.settings.themePreset, state.settings.fontScale, state.settings.easyMode])
+
+  useEffect(() => {
+    setUiSoundsEnabled(state.settings.uiSoundsEnabled !== false)
+  }, [state.settings.uiSoundsEnabled])
+
+  useEffect(() => installUiClickSounds(), [])
 
   useEffect(() => {
     if (!toast) return
@@ -909,6 +921,9 @@ function SettingsPage({
   const [stockAlertsEnabled, setStockAlertsEnabled] = useState(
     state.settings.stockAlertsEnabled,
   )
+  const [uiSoundsEnabled, setUiSoundsEnabledLocal] = useState(
+    state.settings.uiSoundsEnabled !== false,
+  )
   const [easyMode, setEasyMode] = useState(state.settings.easyMode !== false)
   const [themePreset, setThemePreset] = useState<ThemePreset>(
     state.settings.themePreset || 'forest',
@@ -954,6 +969,7 @@ function SettingsPage({
       city,
       language,
       stockAlertsEnabled,
+      uiSoundsEnabled,
       easyMode,
       themePreset,
       fontScale,
@@ -1134,6 +1150,23 @@ function SettingsPage({
             onChange={(e) => setStockAlertsEnabled(e.target.checked)}
           />
           {t(lang, 'stockAlertsToggle')}
+        </label>
+
+        <label className="field check-row">
+          <input
+            type="checkbox"
+            checked={uiSoundsEnabled}
+            onChange={(e) => {
+              const on = e.target.checked
+              setUiSoundsEnabledLocal(on)
+              setUiSoundsEnabled(on)
+              if (on) playBarcodeOk()
+            }}
+          />
+          <span>
+            <strong>{t(lang, 'uiSoundsToggle')}</strong>
+            <div className="muted">{t(lang, 'uiSoundsHint')}</div>
+          </span>
         </label>
 
         <div className="notice">
@@ -2857,6 +2890,7 @@ function ClientsPage({
             </div>
             <button
               className="btn block"
+              data-sfx-cash
               disabled={!(Number(payAmount) > 0)}
               onClick={() => {
                 const n = Number(String(payAmount).replace(',', '.'))
@@ -3532,10 +3566,13 @@ function OrderPage({
           onScan={(code) => {
             const r = bumpProductFromBarcode(state.products, code, bump)
             if (r === 'missing') {
+              playBarcodeError()
               speak(
                 lang === 'ar' ? 'باركود غير موجود' : 'Code-barres inconnu',
                 lang,
               )
+            } else {
+              playBarcodeOk()
             }
           }}
         />
@@ -3671,6 +3708,7 @@ function OrderPage({
               <button
                 type="button"
                 className="choice-card pay-cash"
+                data-sfx-cash
                 onClick={() => finishSale(total)}
               >
                 <span className="choice-emoji">💵</span>
@@ -3716,6 +3754,7 @@ function OrderPage({
                 ) : null}
                 <button
                   className="btn block"
+                  data-sfx-cash
                   disabled={!verseOk}
                   onClick={() => finishSale(verseParsed)}
                 >

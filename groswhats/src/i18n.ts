@@ -502,6 +502,8 @@ const fr: Dict = {
   copyAskText: 'Copier le message “comment commander”',
   askCopied: 'Message copié',
   stockAlertsToggle: 'Alertes rupture de stock',
+  uiSoundsToggle: 'Sons (clics + caisse + code-barres)',
+  uiSoundsHint: 'Bip au scan, clic sur boutons, son spécial à l’encaissement.',
   agent: 'Agent',
   agentHint:
     'Agent expert : conseil vente / compta, organise l’app, thème, stock… (texte seul).',
@@ -1071,6 +1073,8 @@ const ar: Dict = {
   copyAskText: 'نسخ رسالة “كيف تطلب”',
   askCopied: 'تم نسخ الرسالة',
   stockAlertsToggle: 'تنبيهات نفاد المخزون',
+  uiSoundsToggle: 'الأصوات (نقرات + صندوق + باركود)',
+  uiSoundsHint: 'صوت عند المسح، نقر الأزرار، وصوت خاص عند الدفع.',
   agent: 'الوكيل',
   agentHint:
     'وكيل خبير: نصيحة مبيعات / محاسبة، نظّم التطبيق، ثيم، مخزون… (نص فقط).',

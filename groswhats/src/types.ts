@@ -197,6 +197,8 @@ export interface Order {
   remainingDa: number
   /** paye si remainingDa ≈ 0, sinon credit (même partiel) */
   payment: 'paye' | 'credit'
+  /** Date d’échéance (YYYY-MM-DD) si reste dû > 0 */
+  dueDate?: string
   createdAt: string
   whatsappSent: boolean
   invoiceNumber?: string
@@ -235,6 +237,8 @@ export interface ShopSettings {
   language: Language
   nextInvoiceNumber: number
   stockAlertsEnabled: boolean
+  /** Sons de clic + son caisse */
+  uiSoundsEnabled: boolean
   /** Gros boutons + icônes (commerçants qui lisent peu) */
   easyMode: boolean
   /** Couleurs / ambiance (modifiable par l’agent vocal) */

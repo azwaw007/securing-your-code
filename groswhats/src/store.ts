@@ -7,6 +7,7 @@ import type {
   Expense,
   ExpenseCategory,
   IncomingOrder,
+  Language,
   Mission,
   MissionStatus,
   MissionStop,
@@ -43,6 +44,7 @@ function defaultSettings(): ShopSettings {
     language: 'fr',
     nextInvoiceNumber: 1,
     stockAlertsEnabled: true,
+    uiSoundsEnabled: true,
     easyMode: true,
     themePreset: 'forest',
     fontScale: 'normal',
@@ -147,6 +149,7 @@ function migrate(raw: unknown): AppState {
     language: incoming.language === 'ar' ? 'ar' : 'fr',
     nextInvoiceNumber: incoming.nextInvoiceNumber ?? defaults.nextInvoiceNumber,
     stockAlertsEnabled: incoming.stockAlertsEnabled ?? true,
+    uiSoundsEnabled: incoming.uiSoundsEnabled !== false,
     easyMode: incoming.easyMode !== false,
     themePreset: themeOk.includes(incoming.themePreset as (typeof themeOk)[number])
       ? (incoming.themePreset as ShopSettings['themePreset'])
@@ -634,6 +637,73 @@ export function openCreditsDa(state: AppState): number {
     0,
   )
   return Math.max(0, +(fromOrders + fromAdjust).toFixed(2))
+}
+
+/** Reste dû d’une facture */
+export function orderRemainingDa(o: Order): number {
+  return Math.max(
+    0,
+    o.remainingDa ?? (o.payment === 'credit' ? o.totalDa : 0),
+  )
+}
+
+/** Factures encore ouvertes (crédit / partiel) */
+export function openCreditOrders(state: AppState): Order[] {
+  return state.orders.filter((o) => orderRemainingDa(o) > 0.001)
+}
+
+/** YYYY-MM-DD dans N jours (local) */
+export function dueDateFromDays(days: number, from = new Date()): string {
+  const d = new Date(from.getFullYear(), from.getMonth(), from.getDate())
+  d.setDate(d.getDate() + Math.max(0, Math.floor(days)))
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+/** Jours restants jusqu’à l’échéance (négatif = en retard) */
+export function daysUntilDue(dueDate: string, today = new Date()): number {
+  const [y, m, d] = dueDate.split('-').map(Number)
+  if (!y || !m || !d) return 0
+  const due = new Date(y, m - 1, d)
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  return Math.round((due.getTime() - start.getTime()) / 86_400_000)
+}
+
+export function formatDueDateLabel(dueDate: string, lang: Language): string {
+  const [y, m, d] = dueDate.split('-').map(Number)
+  if (!y || !m || !d) return dueDate
+  const date = new Date(y, m - 1, d)
+  return date.toLocaleDateString(lang === 'ar' ? 'ar-DZ' : 'fr-DZ', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  })
+}
+
+/** Dettes en retard (échéance passée) */
+export function overdueCreditOrders(state: AppState): Order[] {
+  return openCreditOrders(state).filter((o) => {
+    if (!o.dueDate) return false
+    return daysUntilDue(o.dueDate) < 0
+  })
+}
+
+/** Dettes bientôt dues (aujourd’hui → +withinDays), hors retard */
+export function dueSoonCreditOrders(state: AppState, withinDays = 3): Order[] {
+  return openCreditOrders(state).filter((o) => {
+    if (!o.dueDate) return false
+    const left = daysUntilDue(o.dueDate)
+    return left >= 0 && left <= withinDays
+  })
+}
+
+export function clientOpenCreditOrders(
+  state: AppState,
+  clientId: string,
+): Order[] {
+  return openCreditOrders(state).filter((o) => o.clientId === clientId)
 }
 
 /** Encours crédit d’un client (reste factures + ajustement fiche) */
