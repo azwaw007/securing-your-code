@@ -1,7 +1,7 @@
 import type { AppState, Language, Screen } from '../types'
 import { can } from './permissions'
 import { executeTool, type ToolCall, type ToolResult } from './tools'
-import { detectExpertDomain, expertAdvice } from './expertise'
+import { detectExpertDomain } from './expertise'
 
 export interface AgenticTrace {
   thought: string
@@ -28,6 +28,8 @@ function planTools(text: string, lang: Language): ToolCall[] {
     .replace(/[\u0300-\u036f]/g, '')
 
   const calls: ToolCall[] = []
+  const expertDomain = detectExpertDomain(text)
+  const isExpertAsk = !!expertDomain
 
   if (
     includesAny(n, [
@@ -104,11 +106,15 @@ function planTools(text: string, lang: Language): ToolCall[] {
     calls.push({ name: 'get_profits', args: { period } })
   }
 
-  if (includesAny(n, ['zakat', 'زكاة'])) {
+  if (includesAny(n, ['zakat', 'زكاة']) && !includesAny(n, ['شرح', 'conseil', 'expert', 'خبير'])) {
     calls.push({ name: 'calc_zakat' })
   }
 
-  // Navigation
+  if (expertDomain) {
+    calls.push({ name: 'expert_advice', args: { domain: expertDomain } })
+  }
+
+  // Navigation — ne pas voler « conseil vente »
   const navMap: Array<{ words: string[]; screen: string }> = [
     { words: ['vente', 'commande', 'order', 'بيع', 'طلب'], screen: 'order' },
     { words: ['historique', 'facture', 'سجل', 'فاتورة'], screen: 'history' },
@@ -120,9 +126,15 @@ function planTools(text: string, lang: Language): ToolCall[] {
     { words: ['galerie', 'photo', 'معرض', 'صور'], screen: 'gallery' },
     { words: ['depense', 'مصاريف'], screen: 'expenses' },
     { words: ['profit', 'gain', 'أرباح'], screen: 'profits' },
+    { words: ['caisse', 'صندوق'], screen: 'caisse' },
+    { words: ['retour', 'مرتجع'], screen: 'returns' },
+    { words: ['achat', 'fournisseur', 'مورد', 'شراء'], screen: 'purchases' },
   ]
 
-  if (includesAny(n, ['ouvre', 'va ', 'allez', 'افتح', 'روح', 'سير'])) {
+  if (
+    !isExpertAsk &&
+    includesAny(n, ['ouvre', 'va ', 'allez', 'افتح', 'روح', 'سير'])
+  ) {
     for (const m of navMap) {
       if (includesAny(n, m.words)) {
         calls.push({ name: 'navigate', args: { screen: m.screen } })
@@ -135,12 +147,6 @@ function planTools(text: string, lang: Language): ToolCall[] {
   if (calls.length === 0 && includesAny(n, ['organise', 'organize', 'نظم', 'رتب', 'agentic'])) {
     calls.push({ name: 'list_capabilities' })
     calls.push({ name: 'organize_easy' })
-  }
-
-  // Conseil expert si demandé
-  const domain = detectExpertDomain(text)
-  if (domain && calls.length === 0) {
-    // handled outside tools
   }
 
   void lang
@@ -157,7 +163,6 @@ export function runAgentic(state: AppState, userText: string): AgenticOutcome | 
   const text = userText.trim()
   if (!text) return null
 
-  // Déclencheurs agentic (sinon laisser runAgent classique)
   const wantAgentic = includesAny(text.toLowerCase(), [
     'organise',
     'organize',
@@ -171,6 +176,8 @@ export function runAgentic(state: AppState, userText: string): AgenticOutcome | 
     'permission',
     'que peux',
     'tes droits',
+    'conseil',
+    'expert',
     'نظم',
     'رتب',
     'سهّل',
@@ -181,19 +188,19 @@ export function runAgentic(state: AppState, userText: string): AgenticOutcome | 
     'نظّم',
     'resume du jour',
     'ملخص',
+    'خبير',
+    'نصيحة',
+    'نصائح',
   ])
 
   const calls = planTools(text, lang)
   if (!wantAgentic && calls.length === 0) {
     const domain = detectExpertDomain(text)
     if (domain) {
-      return {
-        usedAgentic: true,
-        reply: expertAdvice(state, domain, lang),
-        trace: { thought: `expert:${domain}`, tools: [] },
-      }
+      calls.push({ name: 'expert_advice', args: { domain } })
+    } else {
+      return null
     }
-    return null
   }
 
   if (calls.length === 0) {
@@ -218,8 +225,13 @@ export function runAgentic(state: AppState, userText: string): AgenticOutcome | 
     messages.push(res.message)
   }
 
-  const header =
-    lang === 'ar' ? '🤖 Agentic — تم التنفيذ\n' : '🤖 Agentic — exécuté\n'
+  const onlyExpert =
+    calls.length === 1 && calls[0]?.name === 'expert_advice'
+  const header = onlyExpert
+    ? ''
+    : lang === 'ar'
+      ? '🤖 Agentic — تم التنفيذ\n'
+      : '🤖 Agentic — exécuté\n'
 
   return {
     usedAgentic: true,

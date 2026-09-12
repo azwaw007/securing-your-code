@@ -23,6 +23,8 @@ import {
   memoryStats,
   type AgentIntentId,
 } from './memory'
+import { expertAdvice } from './expertise'
+import { executeTool } from './tools'
 
 import { runAgentic } from './orchestrator'
 
@@ -86,20 +88,22 @@ function help(lang: Language): string {
   const stats = memoryStats()
   if (lang === 'ar') {
     return [
-      'أنا وكيل AZ POS (agentic + تعلّم).',
+      'أنا وكيل AZ POS (agentic + خبير + تعلّم) — نص فقط.',
       '• مخزون ناقص / قيمة المخزون / الديون / ملخص اليوم',
       '• نظّم التطبيق / ثيم الليل / خط كبير / وضع سهل',
-      '• افتح زبائن / بيع / أرباح / إعدادات',
+      '• خبير مبيعات · خبير محاسبة · خبير تسويق · خبير تسيير',
+      '• افتح زبائن / بيع / أرباح / صندوق / إعدادات',
       '• أضف زبون / احسب الزكاة / مصاريف',
       '• تعلّم: «apprend X = stock bas» أو اختر بعد سوء الفهم',
       `📚 تعلّمت: ${stats.intents} عبارة، ${stats.aliases} مرادف`,
     ].join('\n')
   }
   return [
-    'Je suis l’agent AZ POS (agentic + apprentissage).',
+    'Je suis l’agent AZ POS (agentic + expert + apprentissage) — texte seul.',
     '• stock bas / valeur stock / crédits / résumé du jour',
     '• organise l’app / thème nuit / gros texte / mode facile',
-    '• ouvre clients / ventes / gains / paramètres',
+    '• conseil vente · conseil compta · marketing · gestion',
+    '• ouvre clients / ventes / gains / caisse / paramètres',
     '• ajoute client / calcule zakat / dépenses',
     '• enseigne : « apprend khlass = stock bas »',
     `📚 Mémoire : ${stats.intents} phrases, ${stats.aliases} synonymes`,
@@ -420,6 +424,28 @@ export function runIntent(
       }
     }
 
+    case 'expert_sales':
+      return { reply: expertAdvice(state, 'sales', lang), intent }
+    case 'expert_accounting':
+      return { reply: expertAdvice(state, 'accounting', lang), intent }
+    case 'expert_marketing':
+      return { reply: expertAdvice(state, 'marketing', lang), intent }
+    case 'expert_management':
+      return { reply: expertAdvice(state, 'management', lang), intent }
+    case 'expert_it':
+      return { reply: expertAdvice(state, 'it', lang), intent }
+    case 'expert_dev':
+      return { reply: expertAdvice(state, 'dev', lang), intent }
+
+    case 'organize_ui': {
+      const res = executeTool(state, { name: 'organize_easy' }, lang)
+      return {
+        reply: res.message,
+        nextState: res.nextState,
+        intent,
+      }
+    }
+
     default:
       return { reply: help(lang), intent: 'help' }
   }
@@ -454,6 +480,15 @@ function tryTeachCommand(state: AppState, raw: string, lang: Language): AgentRes
     if (includesAny(targetNorm, ['inbox', 'وارد'])) return 'nav_inbox'
     if (includesAny(targetNorm, ['benefice', 'gain', 'ربح'])) return 'benefice'
     if (includesAny(targetNorm, ['aide', 'help'])) return 'help'
+    if (includesAny(targetNorm, ['conseil vente', 'expert vente', 'مبيعات']))
+      return 'expert_sales'
+    if (includesAny(targetNorm, ['conseil compta', 'compta', 'محاسبة']))
+      return 'expert_accounting'
+    if (includesAny(targetNorm, ['marketing', 'تسويق'])) return 'expert_marketing'
+    if (includesAny(targetNorm, ['gestion', 'تسيير'])) return 'expert_management'
+    if (includesAny(targetNorm, ['informatique', 'معلومات'])) return 'expert_it'
+    if (includesAny(targetNorm, ['developpeur', 'مطور'])) return 'expert_dev'
+    if (includesAny(targetNorm, ['organise', 'organize', 'نظم', 'رتب'])) return 'organize_ui'
     return null
   }
 
@@ -605,6 +640,26 @@ export function runAgent(state: AppState, userText: string): AgentResult {
   }
   if (includesAny(text, ['facture', 'invoice', 'فاتورة', 'فاتوره'])) {
     return withLearn(raw, 'facture', runIntent(state, 'facture', raw))
+  }
+  if (
+    includesAny(text, [
+      'conseil vente',
+      'expert vente',
+      'خبير مبيعات',
+      'كيف ابيع',
+      'بيع اكثر',
+    ])
+  ) {
+    return withLearn(raw, 'expert_sales', runIntent(state, 'expert_sales', raw))
+  }
+  if (includesAny(text, ['conseil compta', 'expert compta', 'خبير محاسبة'])) {
+    return withLearn(raw, 'expert_accounting', runIntent(state, 'expert_accounting', raw))
+  }
+  if (includesAny(text, ['conseil marketing', 'expert marketing', 'خبير تسويق'])) {
+    return withLearn(raw, 'expert_marketing', runIntent(state, 'expert_marketing', raw))
+  }
+  if (includesAny(text, ['conseil gestion', 'expert gestion', 'خبير تسيير'])) {
+    return withLearn(raw, 'expert_management', runIntent(state, 'expert_management', raw))
   }
 
   const products = findProducts(state, raw)

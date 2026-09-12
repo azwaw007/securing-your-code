@@ -504,8 +504,8 @@ const fr: Dict = {
   stockAlertsToggle: 'Alertes rupture de stock',
   agent: 'Agent',
   agentHint:
-    'Écris ce que tu veux : stock, client, zakat, thème… (sans micro — texte seulement).',
-  agentPlaceholder: 'Ex: organise l’app, thème nuit, stock bas…',
+    'Agent expert : conseil vente / compta, organise l’app, thème, stock… (texte seul).',
+  agentPlaceholder: 'Ex: conseil vente, thème nuit, stock bas…',
   agentSuggestLang: 'Suggestions',
   agentPlan: 'Plan',
   agentSend: 'Envoyer',
@@ -1073,8 +1073,8 @@ const ar: Dict = {
   stockAlertsToggle: 'تنبيهات نفاد المخزون',
   agent: 'الوكيل',
   agentHint:
-    'اكتب ماذا تريد: مخزون، زبون، زكاة، ثيم… (بدون مايك — نص فقط).',
-  agentPlaceholder: 'مثال: نظّم التطبيق، ثيم الليل، مخزون ناقص…',
+    'وكيل خبير: نصيحة مبيعات / محاسبة، نظّم التطبيق، ثيم، مخزون… (نص فقط).',
+  agentPlaceholder: 'مثال: خبير مبيعات، ثيم الليل، مخزون ناقص…',
   agentSuggestLang: 'اقتراحات',
   agentPlan: 'الخطة',
   agentSend: 'إرسال',

@@ -18,6 +18,7 @@ import {
 import { formatDa } from '../utils/format'
 import { applyUiTheme, parseFontFromText, parseThemeFromText, themeLabel } from '../utils/theme'
 import { can, type AgentPermissions } from './permissions'
+import { expertAdvice, type ExpertDomain } from './expertise'
 
 export type ToolName =
   | 'list_capabilities'
@@ -35,6 +36,7 @@ export type ToolName =
   | 'add_client'
   | 'calc_zakat'
   | 'open_screen_help'
+  | 'expert_advice'
 
 export interface ToolCall {
   name: ToolName
@@ -105,6 +107,7 @@ export const AGENT_TOOLS: ToolDef[] = [
               '• فتح الشاشات (بيع، مخزون، زبائن، سجل، أرباح…)',
               '• قراءة الصندوق / الديون / المخزون الناقص',
               '• تنظيم الواجهة: وضع سهل، ثيم، خط، إظهار/إخفاء أيقونات',
+              '• نصائح خبير: مبيعات، محاسبة، تسويق، تسيير، معلوماتية، مطور',
               '• إضافة زبون، حساب الزكاة',
               '❌ لا أعدّل كود السيرفر ولا أحذف كل البيانات',
               `الثيم الحالي: ${themeLabel(lang, p.themePreset)} · سهل: ${p.easyMode !== false ? 'نعم' : 'لا'}`,
@@ -114,6 +117,7 @@ export const AGENT_TOOLS: ToolDef[] = [
               '• Ouvrir les écrans (vente, stock, clients, historique, gains…)',
               '• Lire caisse / dettes / stock bas',
               '• Organiser l’UI : mode facile, thème, police, icônes',
+              '• Conseils expert : vente, compta, marketing, gestion, info, dév',
               '• Ajouter client, calculer zakat',
               '❌ Je ne réécris pas le code serveur ni ne vide toutes les données',
               `Thème: ${themeLabel(lang, p.themePreset)} · Facile: ${p.easyMode !== false ? 'oui' : 'non'}`,
@@ -440,6 +444,19 @@ export const AGENT_TOOLS: ToolDef[] = [
     },
   },
   {
+    name: 'expert_advice',
+    permission: 'readBusiness',
+    descriptionFr: 'Conseil expert métier',
+    descriptionAr: 'نصيحة خبير',
+    run: (state, args, lang) => {
+      const domain = String(args.domain || 'sales') as ExpertDomain
+      return {
+        ok: true,
+        message: expertAdvice(state, domain, lang),
+      }
+    },
+  },
+  {
     name: 'open_screen_help',
     permission: 'navigate',
     descriptionFr: 'Aide sur un écran',
@@ -447,9 +464,13 @@ export const AGENT_TOOLS: ToolDef[] = [
     run: (_state, args, lang) => {
       const screen = String(args.screen || 'home')
       const tips: Record<string, { fr: string; ar: string }> = {
+        home: {
+          fr: 'Accueil : icônes apps + recherche intelligente. Dis « organise l’app » pour le mode facile.',
+          ar: 'الرئيسية: أيقونات التطبيقات + بحث ذكي. اكتب «نظّم التطبيق» للوضع السهل.',
+        },
         order: {
-          fr: 'Vente : choisis client → produits → paiement cash (tout / versé).',
-          ar: 'البيع: زبون → منتجات → دفع كاش (كامل / جزء).',
+          fr: 'Vente : client (ou rapide) → produits / scan → Payé ou Versé.',
+          ar: 'البيع: زبون (أو سريع) → منتجات / مسح → مدفوع أو جزء.',
         },
         history: {
           fr: 'Historique : filtre date + type (commande, facture, client, caisse).',
@@ -460,13 +481,65 @@ export const AGENT_TOOLS: ToolDef[] = [
           ar: 'الأرباح: اليوم / شهر / سنة أو تقويم.',
         },
         settings: {
-          fr: 'Réglages : langue, mode facile, sourdine, multi-poste, licence.',
-          ar: 'الإعدادات: لغة، وضع سهل، صوت، متعدد أجهزة، رخصة.',
+          fr: 'Réglages : langue, mode facile, thème, multi-poste, droits agent, licence.',
+          ar: 'الإعدادات: لغة، وضع سهل، ثيم، متعدد أجهزة، صلاحيات الوكيل، رخصة.',
+        },
+        products: {
+          fr: 'Produits : ajoute nom + prix ; 📷 pour scanner le code-barres.',
+          ar: 'المنتجات: أضف الاسم والسعر ؛ 📷 لمسح الباركود.',
+        },
+        clients: {
+          fr: 'Clients : fiche + GPS + solde. Utile pour crédit et livraisons.',
+          ar: 'الزبائن: بطاقة + GPS + رصيد. مفيد للدين والتوصيل.',
+        },
+        caisse: {
+          fr: 'Caisse : ouvre le jour avec fond, ferme avec comptage (écart affiché).',
+          ar: 'الصندوق: افتح اليوم بمبلغ، أغلق بالعد (يظهر الفرق).',
+        },
+        returns: {
+          fr: 'Retours : choisis la vente, quantité, remboursement cash ou crédit.',
+          ar: 'المرتجعات: اختر البيع والكمية، استرداد كاش أو دين.',
+        },
+        purchases: {
+          fr: 'Achats / fournisseurs : +stock et prix d’achat à l’arrivage.',
+          ar: 'المشتريات / الموردون: زيادة المخزون وسعر الشراء عند الوصول.',
+        },
+        inbox: {
+          fr: 'Inbox : commandes reçues à traiter (WhatsApp / saisie).',
+          ar: 'الوارد: طلبات واردة للمعالجة.',
+        },
+        arrivages: {
+          fr: 'Arrivages : message WhatsApp groupé pour annoncer la marchandise.',
+          ar: 'الوصول: رسالة واتساب جماعية لإعلان البضاعة.',
+        },
+        delivery: {
+          fr: 'Carte GPS : clients avec position pour la tournée.',
+          ar: 'خريطة GPS: زبائن بموقع للجولة.',
+        },
+        missions: {
+          fr: 'Équipe : livreurs, tournées, sync cloud (si multi-poste ON).',
+          ar: 'الفريق: سائقون، جولات، مزامنة سحابة (إن فُعّل المتعدد).',
+        },
+        gallery: {
+          fr: 'Galerie : photos produits pour vendre plus vite.',
+          ar: 'المعرض: صور المنتجات للبيع أسرع.',
+        },
+        expenses: {
+          fr: 'Dépenses : gasoil, personnel… pour un vrai bénéfice net.',
+          ar: 'المصاريف: مازوط، عمال… لربح صافٍ صحيح.',
+        },
+        zakat: {
+          fr: 'Zakat : estimation stock + crédits × 2,5 %.',
+          ar: 'الزكاة: تقدير المخزون + الديون × 2.5٪.',
+        },
+        agent: {
+          fr: 'Agent : écris un conseil (vente, compta…) ou une commande (thème, stock bas).',
+          ar: 'الوكيل: اكتب نصيحة (مبيعات، محاسبة…) أو أمراً (ثيم، مخزون ناقص).',
         },
       }
       const tip = tips[screen] ?? {
-        fr: 'Dis « organise facile » pour que je range l’app.',
-        ar: 'قول «نظّم سهل» باش نرتّب التطبيق.',
+        fr: 'Écris « organise l’app » pour que je range l’interface, ou « conseil vente » pour un tip.',
+        ar: 'اكتب «نظّم التطبيق» لترتيب الواجهة، أو «خبير مبيعات» لنصيحة.',
       }
       return { ok: true, message: lang === 'ar' ? tip.ar : tip.fr, navigateTo: screen as Screen }
     },

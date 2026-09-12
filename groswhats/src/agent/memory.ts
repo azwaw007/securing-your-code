@@ -28,6 +28,13 @@ export type AgentIntentId =
   | 'facture'
   | 'depenses'
   | 'benefice'
+  | 'expert_sales'
+  | 'expert_accounting'
+  | 'expert_marketing'
+  | 'expert_management'
+  | 'expert_it'
+  | 'expert_dev'
+  | 'organize_ui'
 
 export interface LearnedIntent {
   phrase: string
@@ -181,4 +188,9 @@ export const TEACHABLE_INTENTS: Array<{ id: AgentIntentId; fr: string; ar: strin
   { id: 'depenses', fr: 'Voir dépenses', ar: 'عرض المصاريف' },
   { id: 'benefice', fr: 'Bénéfice', ar: 'الربح' },
   { id: 'commandes_jour', fr: 'Commandes du jour', ar: 'طلبات اليوم' },
+  { id: 'expert_sales', fr: 'Conseil vente', ar: 'خبير مبيعات' },
+  { id: 'expert_accounting', fr: 'Conseil compta', ar: 'خبير محاسبة' },
+  { id: 'expert_marketing', fr: 'Conseil marketing', ar: 'خبير تسويق' },
+  { id: 'expert_management', fr: 'Conseil gestion', ar: 'خبير تسيير' },
+  { id: 'organize_ui', fr: 'Organiser l’app', ar: 'نظّم التطبيق' },
 ]

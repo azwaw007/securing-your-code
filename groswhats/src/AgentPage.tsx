@@ -13,6 +13,7 @@ import {
   TEACHABLE_INTENTS,
   type AgentIntentId,
 } from './agent/memory'
+import { dailyExpertTip } from './agent/expertise'
 
 interface ChatMessage {
   id: string
@@ -22,34 +23,36 @@ interface ChatMessage {
 }
 
 const SUGGESTIONS_FR = [
+  'conseil vente',
+  'conseil compta',
   'organise l’app',
   'thème nuit',
   'résumé du jour',
   'stock bas',
   'crédits',
   'mes gains',
-  'calcule zakat',
   'aide',
 ]
 
 const SUGGESTIONS_AR = [
+  'خبير مبيعات',
+  'خبير محاسبة',
   'نظّم التطبيق',
   'ثيم الليل',
   'ملخص اليوم',
   'مخزون ناقص',
   'الديون',
   'أرباحي',
-  'احسب الزكاة',
   'مساعدة',
 ]
 
 const SUGGESTIONS_DARJA = [
+  'conseil vente',
   'nadem l’app',
   'theme lil',
   'resume lyoum',
   'stock na9es',
   'chkoune yekhlas',
-  '7seb zakat',
   'apprend khlass = stock bas',
   '3aweni',
 ]
@@ -78,16 +81,20 @@ export function AgentPage({
   const [memTick, setMemTick] = useState(0)
   const stateRef = useRef(state)
   const seededRef = useRef(false)
-  const [messages, setMessages] = useState<ChatMessage[]>(() => [
-    {
-      id: 'welcome',
-      role: 'agent',
-      text:
-        lang === 'ar'
-          ? 'مرحباً، أنا وكيل AZ POS. اكتب طلبك هنا (بدون صوت).'
-          : 'Salam, je suis l’agent AZ POS. Écris ta demande ici (sans voix).',
-    },
-  ])
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    const tip = dailyExpertTip(state, lang)
+    return [
+      {
+        id: 'welcome',
+        role: 'agent',
+        text:
+          (lang === 'ar'
+            ? 'مرحباً، أنا وكيل AZ POS الخبير. اكتب طلبك أو اضغط نصيحة (بدون صوت).\n\n'
+            : 'Salam, je suis l’agent expert AZ POS. Écris ta demande ou tape un conseil (sans voix).\n\n') +
+          tip,
+      },
+    ]
+  })
   const endRef = useRef<HTMLDivElement>(null)
   const suggestions =
     suggestMode === 'darja'
