@@ -75,6 +75,9 @@ const SCREENS: Screen[] = [
   'calculator',
   'arrivages',
   'inbox',
+  'caisse',
+  'returns',
+  'purchases',
 ]
 
 function asBool(v: unknown, fallback = false): boolean {

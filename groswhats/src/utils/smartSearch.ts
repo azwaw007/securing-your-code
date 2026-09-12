@@ -35,6 +35,13 @@ const SCREEN_KEYWORDS: Array<{
   { screen: 'calculator', fr: ['calculatrice', 'calcul'], ar: ['حاسبة'] },
   { screen: 'arrivages', fr: ['arrivage', 'nouveau'], ar: ['وصول'] },
   { screen: 'inbox', fr: ['message', 'inbox', 'recu'], ar: ['وارد'] },
+  { screen: 'caisse', fr: ['caisse', 'cloture', 'fond', 'tiroir'], ar: ['صندوق', 'درج'] },
+  { screen: 'returns', fr: ['retour', 'avoir', 'remboursement'], ar: ['مرتجع', 'ارجاع'] },
+  {
+    screen: 'purchases',
+    fr: ['achat', 'fournisseur', 'approvisionnement'],
+    ar: ['شراء', 'مورد'],
+  },
 ]
 
 function soft(s: string): string {
@@ -88,6 +95,7 @@ export function searchApp(
   for (const p of state.products) {
     const s = Math.max(
       scoreMatch(p.name, q),
+      scoreMatch(p.barcode || '', q),
       scoreMatch(String(p.priceDa), q),
       scoreMatch(String(p.stock), q),
     )

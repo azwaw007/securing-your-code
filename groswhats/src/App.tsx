@@ -122,7 +122,13 @@ import {
   filterActivity,
   type ActivityKind,
 } from './utils/activityLog'
-import { APP_VERSION, activateLicense, getAccessStatus } from './license/license'
+import {
+  CashSessionPage,
+  PurchasesPage,
+  ReturnsPage,
+  BarcodeScanInput,
+  bumpProductFromBarcode,
+} from './PosOps'
 
 const NAV_IDS: Screen[] = ['home', 'order', 'agent', 'clients', 'inbox', 'products']
 const NAV_ICONS: Record<Screen, string> = {
@@ -143,6 +149,9 @@ const NAV_ICONS: Record<Screen, string> = {
   missions: '🚚',
   history: '📜',
   profits: '💰',
+  caisse: '💵',
+  returns: '↩️',
+  purchases: '🏭',
 }
 
 const CATEGORIES: ProductCategory[] = [
@@ -873,6 +882,48 @@ export default function App() {
           <ProfitsPage state={state} lang={lang} />
         </div>
       ) : null}
+      {isAlive('caisse') && !isDriverMode ? (
+        <div
+          className={`screen-pane ${screen === 'caisse' ? 'is-active' : 'is-cached'}`}
+          aria-hidden={screen !== 'caisse'}
+          inert={screen !== 'caisse' ? true : undefined}
+        >
+          <CashSessionPage
+            state={state}
+            lang={lang}
+            onState={setState}
+            onFlash={flash}
+          />
+        </div>
+      ) : null}
+      {isAlive('returns') && !isDriverMode ? (
+        <div
+          className={`screen-pane ${screen === 'returns' ? 'is-active' : 'is-cached'}`}
+          aria-hidden={screen !== 'returns'}
+          inert={screen !== 'returns' ? true : undefined}
+        >
+          <ReturnsPage
+            state={state}
+            lang={lang}
+            onState={setState}
+            onFlash={flash}
+          />
+        </div>
+      ) : null}
+      {isAlive('purchases') && !isDriverMode ? (
+        <div
+          className={`screen-pane ${screen === 'purchases' ? 'is-active' : 'is-cached'}`}
+          aria-hidden={screen !== 'purchases'}
+          inert={screen !== 'purchases' ? true : undefined}
+        >
+          <PurchasesPage
+            state={state}
+            lang={lang}
+            onState={setState}
+            onFlash={flash}
+          />
+        </div>
+      ) : null}
       {isAlive('stock') ? (
         <div
           className={`screen-pane ${screen === 'stock' ? 'is-active' : 'is-cached'}`}
@@ -1499,6 +1550,9 @@ function HomePage({
     { id: 'gallery', label: t(lang, 'appGallery'), icon: '🖼️', tone: 'blue' },
     { id: 'clients', label: t(lang, 'appClients'), icon: '👥', tone: 'navy' },
     { id: 'history', label: t(lang, 'appHistory'), icon: '📜', tone: 'slate' },
+    { id: 'caisse', label: t(lang, 'appCaisse'), icon: '💵', tone: 'amber' },
+    { id: 'returns', label: t(lang, 'appReturns'), icon: '↩️', tone: 'coral' },
+    { id: 'purchases', label: t(lang, 'appPurchases'), icon: '🏭', tone: 'steel' },
     {
       id: 'inbox',
       label: t(lang, 'appInbox'),
@@ -2354,6 +2408,7 @@ function ProductsPage({
   const [query, setQuery] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+  const [barcode, setBarcode] = useState('')
 
   const editing = state.products.find((p) => p.id === editId) ?? null
 
@@ -2374,6 +2429,7 @@ function ProductsPage({
         return (
           p.name.toLowerCase().includes(q) ||
           p.category.toLowerCase().includes(q) ||
+          (p.barcode || '').toLowerCase().includes(q) ||
           t(lang, `cat_${p.category}`).toLowerCase().includes(q)
         )
       })
@@ -2448,6 +2504,15 @@ function ProductsPage({
           <label>{t(lang, 'name')}</label>
           <input value={name} onChange={(e) => setName(e.target.value)} />
         </div>
+        <div className="field">
+          <label>⬛ {t(lang, 'barcode')}</label>
+          <input
+            value={barcode}
+            onChange={(e) => setBarcode(e.target.value)}
+            placeholder="EAN / code…"
+            autoComplete="off"
+          />
+        </div>
         <div className="grid-2">
           <div className="field">
             <label>{t(lang, 'category')}</label>
@@ -2518,8 +2583,10 @@ function ProductsPage({
               superGrosPriceDa: ppp > 0 && superG > 0 ? superG : undefined,
               packPriceDa: ppp > 0 && gros > 0 ? gros : undefined,
               imageDataUrl,
+              barcode: barcode.trim() || undefined,
             })
             setName('')
+            setBarcode('')
             setCostDa('')
             setPriceDa('')
             setDemiGrosPriceDa('')
@@ -2674,6 +2741,7 @@ function ProductEditCard({
   )
   const [stock, setStock] = useState(String(product.stock))
   const [lowStockAt, setLowStockAt] = useState(String(product.lowStockAt))
+  const [barcode, setBarcode] = useState(product.barcode || '')
 
   return (
     <div className="card">
@@ -2700,6 +2768,15 @@ function ProductEditCard({
       <div className="field">
         <label>{t(lang, 'name')}</label>
         <input value={name} onChange={(e) => setName(e.target.value)} />
+      </div>
+      <div className="field">
+        <label>⬛ {t(lang, 'barcode')}</label>
+        <input
+          value={barcode}
+          onChange={(e) => setBarcode(e.target.value)}
+          placeholder="EAN / code…"
+          autoComplete="off"
+        />
       </div>
       <div className="grid-2">
         <div className="field">
@@ -2771,6 +2848,7 @@ function ProductEditCard({
             grosPriceDa: ppp > 0 && gros > 0 ? gros : undefined,
             superGrosPriceDa: ppp > 0 && superG > 0 ? superG : undefined,
             packPriceDa: ppp > 0 && gros > 0 ? gros : undefined,
+            barcode: barcode.trim() || undefined,
           })
         }}
       >
@@ -3462,6 +3540,7 @@ function OrderPage({
       if (!q) return true
       return (
         p.name.toLowerCase().includes(q) ||
+        (p.barcode || '').toLowerCase().includes(q) ||
         t(lang, `cat_${p.category}`).toLowerCase().includes(q)
       )
     })
@@ -3564,6 +3643,8 @@ function OrderPage({
 
   return (
     <>
+      <div className="pos-shell">
+        <div className="pos-main">
       <div className="card">
         <h2>🛒 {t(lang, 'newOrder')}</h2>
         <div className="choice-grid">
@@ -3649,6 +3730,18 @@ function OrderPage({
             {t(lang, 'catalogForClient')} : <strong>{client.name}</strong>
           </div>
         ) : null}
+        <BarcodeScanInput
+          lang={lang}
+          onScan={(code) => {
+            const r = bumpProductFromBarcode(state.products, code, bump)
+            if (r === 'missing') {
+              speak(
+                lang === 'ar' ? 'باركود غير موجود' : 'Code-barres inconnu',
+                lang,
+              )
+            }
+          }}
+        />
         <SmartSearchBar
           lang={lang}
           value={productQuery}
@@ -3692,6 +3785,9 @@ function OrderPage({
                   )}
                   <div className="product-card-body">
                     <strong>{p.name}</strong>
+                    {p.barcode ? (
+                      <div className="muted">⬛ {p.barcode}</div>
+                    ) : null}
                     {tiers.length > 1 ? (
                       <div className="tier-row">
                         {tiers.map((tr) => (
@@ -3740,7 +3836,9 @@ function OrderPage({
           </div>
         )}
       </div>
+        </div>
 
+      <aside className="pos-cart">
       <div className="card sticky-validate">
         <h2 className="total-big">💰 {formatDa(total)}</h2>
         {lines.length > 0 ? (
@@ -3838,6 +3936,8 @@ function OrderPage({
             </button>
           </div>
         )}
+      </div>
+      </aside>
       </div>
 
       {lastOrder ? (

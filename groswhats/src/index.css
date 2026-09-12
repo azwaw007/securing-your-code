@@ -2117,3 +2117,60 @@ html.easy-mode .btn {
 html.easy-mode .home-tile {
   min-height: 96px;
 }
+
+/* Caisse style PC : catalogue + panier */
+.pos-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+@media (min-width: 960px) {
+  .pos-shell {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .pos-main {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .pos-cart {
+    width: 340px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 72px;
+  }
+
+  .pos-cart .sticky-validate {
+    margin-bottom: 0;
+  }
+}
+
+.barcode-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 6px 10px;
+  border: 1px dashed var(--line, #d9d0c0);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--brand) 6%, transparent);
+}
+
+.barcode-icon {
+  font-size: 1.1rem;
+}
+
+.barcode-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 1rem;
+  padding: 8px 4px;
+  color: var(--ink);
+}
+

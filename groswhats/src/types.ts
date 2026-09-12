@@ -28,6 +28,9 @@ export type Screen =
   | 'missions'
   | 'history'
   | 'profits'
+  | 'caisse'
+  | 'returns'
+  | 'purchases'
 
 export type ExpenseCategory =
   | 'personnel'
@@ -70,6 +73,69 @@ export interface Product {
   /** Tarif super gros (DA / carton) — le plus bas */
   superGrosPriceDa?: number
   imageDataUrl?: string
+  /** Code-barres / EAN / code interne */
+  barcode?: string
+  createdAt: string
+}
+
+export interface Supplier {
+  id: string
+  name: string
+  phone: string
+  note: string
+  createdAt: string
+}
+
+export interface PurchaseLine {
+  productId: string
+  name: string
+  qty: number
+  unitCostDa: number
+  lineTotalDa: number
+}
+
+export interface Purchase {
+  id: string
+  supplierId: string
+  supplierName: string
+  lines: PurchaseLine[]
+  totalDa: number
+  paidDa: number
+  note: string
+  createdAt: string
+}
+
+export interface CashSession {
+  id: string
+  openedAt: string
+  closedAt?: string
+  openingFloatDa: number
+  closingCountDa?: number
+  expectedCashDa?: number
+  varianceDa?: number
+  note: string
+}
+
+export interface ReturnLine {
+  productId: string
+  name: string
+  unit: Unit
+  qty: number
+  unitPriceDa: number
+  lineTotalDa: number
+  priceTier?: PriceTier
+}
+
+/** Retour marchandise (avoir cash ou crédit client) */
+export interface SaleReturn {
+  id: string
+  orderId?: string
+  clientId?: string
+  clientName: string
+  lines: ReturnLine[]
+  totalDa: number
+  refundMode: 'cash' | 'credit'
+  note: string
   createdAt: string
 }
 
@@ -279,6 +345,10 @@ export interface AppState {
   drivers: Driver[]
   missions: Mission[]
   team: TeamSettings
+  suppliers: Supplier[]
+  purchases: Purchase[]
+  cashSessions: CashSession[]
+  returns: SaleReturn[]
 }
 
 export const ALL_UNITS: Unit[] = [

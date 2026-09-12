@@ -1,6 +1,7 @@
 import type {
   AppState,
   CashEntry,
+  CashSession,
   Client,
   Driver,
   Expense,
@@ -12,8 +13,13 @@ import type {
   Order,
   OrderLine,
   Product,
+  Purchase,
+  PurchaseLine,
+  ReturnLine,
+  SaleReturn,
   ShopSettings,
   StopStatus,
+  Supplier,
   TeamSettings,
   ZakatRecord,
 } from './types'
@@ -97,6 +103,10 @@ function seedState(): AppState {
       companyCode,
       syncSecret: genCode(8),
     },
+    suppliers: [],
+    purchases: [],
+    cashSessions: [],
+    returns: [],
   }
 }
 
@@ -113,6 +123,10 @@ function migrate(raw: unknown): AppState {
     drivers?: Driver[]
     missions?: Mission[]
     team?: Partial<TeamSettings>
+    suppliers?: Supplier[]
+    purchases?: Purchase[]
+    cashSessions?: CashSession[]
+    returns?: SaleReturn[]
   }
   const incoming = data.settings ?? {}
   const defaults = defaultSettings()
@@ -167,6 +181,10 @@ function migrate(raw: unknown): AppState {
         ...p,
         costDa: typeof p.costDa === 'number' ? p.costDa : 0,
         piecesPerPack,
+        barcode:
+          typeof (p as Product).barcode === 'string'
+            ? (p as Product).barcode!.trim()
+            : undefined,
         demiGrosPriceDa:
           typeof p.demiGrosPriceDa === 'number' && p.demiGrosPriceDa > 0
             ? p.demiGrosPriceDa
@@ -251,6 +269,43 @@ function migrate(raw: unknown): AppState {
       updatedAt: m.updatedAt || m.createdAt || new Date().toISOString(),
     })),
     team: { ...teamDefaults, ...team },
+    suppliers: (data.suppliers ?? []).map((s) => ({
+      ...s,
+      id: s.id || uid('sup'),
+      name: s.name || '',
+      phone: typeof s.phone === 'string' ? s.phone : '',
+      note: typeof s.note === 'string' ? s.note : '',
+      createdAt: s.createdAt || new Date().toISOString(),
+    })),
+    purchases: (data.purchases ?? []).map((p) => ({
+      ...p,
+      id: p.id || uid('pur'),
+      supplierId: p.supplierId || '',
+      supplierName: p.supplierName || '',
+      lines: Array.isArray(p.lines) ? p.lines : [],
+      totalDa: typeof p.totalDa === 'number' ? p.totalDa : 0,
+      paidDa: typeof p.paidDa === 'number' ? p.paidDa : 0,
+      note: typeof p.note === 'string' ? p.note : '',
+      createdAt: p.createdAt || new Date().toISOString(),
+    })),
+    cashSessions: (data.cashSessions ?? []).map((s) => ({
+      ...s,
+      id: s.id || uid('cs'),
+      openedAt: s.openedAt || new Date().toISOString(),
+      openingFloatDa:
+        typeof s.openingFloatDa === 'number' ? s.openingFloatDa : 0,
+      note: typeof s.note === 'string' ? s.note : '',
+    })),
+    returns: (data.returns ?? []).map((r) => ({
+      ...r,
+      id: r.id || uid('ret'),
+      clientName: r.clientName || '',
+      lines: Array.isArray(r.lines) ? r.lines : [],
+      totalDa: typeof r.totalDa === 'number' ? r.totalDa : 0,
+      refundMode: r.refundMode === 'credit' ? 'credit' : 'cash',
+      note: typeof r.note === 'string' ? r.note : '',
+      createdAt: r.createdAt || new Date().toISOString(),
+    })),
   }
 }
 
@@ -1258,4 +1313,218 @@ export function mergeCloudDrivers(state: AppState, incoming: Driver[]): AppState
   const map = new Map(state.drivers.map((d) => [d.id, d]))
   for (const d of incoming) map.set(d.id, d)
   return { ...state, drivers: [...map.values()] }
+}
+
+export function findProductByBarcode(
+  state: AppState,
+  code: string,
+): Product | undefined {
+  const q = code.trim()
+  if (!q) return undefined
+  return state.products.find(
+    (p) => p.barcode && p.barcode.trim().toLowerCase() === q.toLowerCase(),
+  )
+}
+
+export function addSupplier(
+  state: AppState,
+  input: Omit<Supplier, 'id' | 'createdAt'>,
+): AppState {
+  const item: Supplier = {
+    ...input,
+    id: uid('sup'),
+    createdAt: new Date().toISOString(),
+  }
+  return { ...state, suppliers: [item, ...state.suppliers] }
+}
+
+export function updateSupplier(
+  state: AppState,
+  id: string,
+  patch: Partial<Omit<Supplier, 'id' | 'createdAt'>>,
+): AppState {
+  return {
+    ...state,
+    suppliers: state.suppliers.map((s) => (s.id === id ? { ...s, ...patch } : s)),
+  }
+}
+
+export function deleteSupplier(state: AppState, id: string): AppState {
+  return { ...state, suppliers: state.suppliers.filter((s) => s.id !== id) }
+}
+
+export function addPurchase(
+  state: AppState,
+  input: {
+    supplierId: string
+    supplierName: string
+    lines: PurchaseLine[]
+    paidDa: number
+    note: string
+  },
+): AppState {
+  const totalDa = +(
+    input.lines.reduce((s, l) => s + l.lineTotalDa, 0)
+  ).toFixed(2)
+  const purchase: Purchase = {
+    id: uid('pur'),
+    supplierId: input.supplierId,
+    supplierName: input.supplierName,
+    lines: input.lines,
+    totalDa,
+    paidDa: Math.max(0, +input.paidDa.toFixed(2)),
+    note: input.note,
+    createdAt: new Date().toISOString(),
+  }
+  const addBy = new Map<string, { qty: number; unitCost: number }>()
+  for (const line of input.lines) {
+    const prev = addBy.get(line.productId) ?? { qty: 0, unitCost: line.unitCostDa }
+    addBy.set(line.productId, {
+      qty: prev.qty + line.qty,
+      unitCost: line.unitCostDa,
+    })
+  }
+  const products = state.products.map((p) => {
+    const add = addBy.get(p.id)
+    if (!add) return p
+    return {
+      ...p,
+      stock: +(p.stock + add.qty).toFixed(3),
+      costDa: add.unitCost > 0 ? add.unitCost : p.costDa,
+    }
+  })
+  let next = {
+    ...state,
+    products,
+    purchases: [purchase, ...state.purchases],
+  }
+  if (purchase.paidDa > 0) {
+    next = addExpense(next, {
+      category: 'autre',
+      amountDa: purchase.paidDa,
+      note: `Achat ${purchase.supplierName}${purchase.note ? ` — ${purchase.note}` : ''}`,
+      date: purchase.createdAt.slice(0, 10),
+    })
+  }
+  return next
+}
+
+export function openCashSession(
+  state: AppState,
+  openingFloatDa: number,
+  note = '',
+): AppState {
+  if (activeCashSession(state)) return state
+  const session: CashSession = {
+    id: uid('cs'),
+    openedAt: new Date().toISOString(),
+    openingFloatDa: Math.max(0, +openingFloatDa.toFixed(2)),
+    note,
+  }
+  return { ...state, cashSessions: [session, ...state.cashSessions] }
+}
+
+export function activeCashSession(state: AppState): CashSession | undefined {
+  return state.cashSessions.find((s) => !s.closedAt)
+}
+
+function cashInPeriod(state: AppState, fromIso: string, toIso?: string): number {
+  const from = new Date(fromIso).getTime()
+  const to = toIso ? new Date(toIso).getTime() : Date.now()
+  let sum = 0
+  for (const o of state.orders) {
+    const t = new Date(o.createdAt).getTime()
+    if (t >= from && t <= to) sum += o.paidDa || 0
+  }
+  for (const e of state.cashEntries) {
+    const t = new Date(e.createdAt).getTime()
+    if (t >= from && t <= to) sum += e.amountDa || 0
+  }
+  for (const r of state.returns) {
+    if (r.refundMode !== 'cash') continue
+    const t = new Date(r.createdAt).getTime()
+    if (t >= from && t <= to) sum -= r.totalDa || 0
+  }
+  return +sum.toFixed(2)
+}
+
+export function expectedCashForSession(
+  state: AppState,
+  session: CashSession,
+  atIso?: string,
+): number {
+  const moved = cashInPeriod(state, session.openedAt, atIso || session.closedAt)
+  return +(session.openingFloatDa + moved).toFixed(2)
+}
+
+export function closeCashSession(
+  state: AppState,
+  closingCountDa: number,
+  note = '',
+): AppState {
+  const open = activeCashSession(state)
+  if (!open) return state
+  const closedAt = new Date().toISOString()
+  const expected = expectedCashForSession(state, open, closedAt)
+  const counted = Math.max(0, +closingCountDa.toFixed(2))
+  return {
+    ...state,
+    cashSessions: state.cashSessions.map((s) =>
+      s.id === open.id
+        ? {
+            ...s,
+            closedAt,
+            closingCountDa: counted,
+            expectedCashDa: expected,
+            varianceDa: +(counted - expected).toFixed(2),
+            note: note || s.note,
+          }
+        : s,
+    ),
+  }
+}
+
+export function createSaleReturn(
+  state: AppState,
+  input: {
+    orderId?: string
+    clientId?: string
+    clientName: string
+    lines: ReturnLine[]
+    refundMode: 'cash' | 'credit'
+    note: string
+  },
+): AppState {
+  const totalDa = +(input.lines.reduce((s, l) => s + l.lineTotalDa, 0)).toFixed(2)
+  if (totalDa <= 0 || input.lines.length === 0) return state
+  const item: SaleReturn = {
+    id: uid('ret'),
+    orderId: input.orderId,
+    clientId: input.clientId,
+    clientName: input.clientName,
+    lines: input.lines,
+    totalDa,
+    refundMode: input.refundMode,
+    note: input.note,
+    createdAt: new Date().toISOString(),
+  }
+  const addBy = new Map<string, number>()
+  for (const line of input.lines) {
+    const p = state.products.find((x) => x.id === line.productId)
+    const units = stockUnitsSold(p, line)
+    addBy.set(line.productId, (addBy.get(line.productId) ?? 0) + units)
+  }
+  let next: AppState = {
+    ...state,
+    products: state.products.map((p) => {
+      const add = addBy.get(p.id)
+      if (!add) return p
+      return { ...p, stock: +(p.stock + add).toFixed(3) }
+    }),
+    returns: [item, ...state.returns],
+  }
+  if (input.refundMode === 'credit' && input.clientId) {
+    next = applyClientPayment(next, input.clientId, totalDa)
+  }
+  return next
 }
