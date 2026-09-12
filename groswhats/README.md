@@ -25,34 +25,28 @@ Déploiement auto sur push `main` (projet Vercel `grossiste-dz`, root `groswhats
 ## Version PC Windows (.exe)
 
 ```bash
+npm run native:deps   # installe Electron (hors deps web Vercel)
 npm run desktop:build
 ```
 
 Sortie dans `groswhats/release/` :
-- `AZ POS Setup *.exe` (installeur NSIS)
+- `AZ POS Setup *.exe` (installeur)
 - `AZ POS *.exe` (portable)
-
-Prérequis : Node.js 20+.
 
 ## Version Android (Play Store)
 
 1. Installer [Android Studio](https://developer.android.com/studio)
-2. Une fois :
+2. Puis :
 
 ```bash
-npm run android:add
-```
-
-3. Ensuite à chaque changement :
-
-```bash
+npm run native:deps
 npm run android:sync
 npm run android:open
 ```
 
-4. Dans Android Studio : **Build → Generate Signed Bundle / APK** → **Android App Bundle (.aab)** pour Play Console.
+3. Dans Android Studio : **Build → Generate Signed Bundle / APK** → **.aab** pour Play Console.
 
-Package : `com.azpos.app` · Nom affiché : **AZ POS**
+Package : `com.azpos.app` · Nom : **AZ POS**
 
 ## Agent
 
