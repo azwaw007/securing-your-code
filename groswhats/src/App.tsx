@@ -67,6 +67,7 @@ import {
 } from './store'
 import { isDecimalUnit, qtyStep, t, unitLabel } from './i18n'
 import { formatDa, formatQty } from './utils/format'
+import { DzPhoneInput, WilayaSelect } from './DzFields'
 import { applyUiTheme, themeLabel, THEME_PRESETS } from './utils/theme'
 import {
   DEFAULT_AGENT_PERMISSIONS,
@@ -139,7 +140,8 @@ import { classifyHomeScan } from './utils/clientQr'
 import { APP_BRAND } from './brand'
 import { APP_VERSION, activateLicense, getAccessStatus } from './license/license'
 
-const NAV_IDS: Screen[] = ['home', 'order', 'agent', 'clients', 'inbox', 'products']
+const NAV_IDS: Screen[] = ['home', 'order', 'clients', 'products']
+const CASH_CHIPS = [500, 1000, 2000, 5000, 10000]
 const NAV_ICONS: Record<Screen, string> = {
   home: '🏠',
   order: '🛒',
@@ -365,6 +367,21 @@ export default function App() {
         <div className="topbar-actions">
           {toast ? <div className="badge">{toast}</div> : null}
           <button
+            type="button"
+            className="lang-toggle"
+            onClick={() =>
+              setState((s) =>
+                updateSettings(s, {
+                  language: s.settings.language === 'fr' ? 'ar' : 'fr',
+                }),
+              )
+            }
+            aria-label={lang === 'fr' ? 'العربية' : 'Français'}
+            title={lang === 'fr' ? 'العربية' : 'Français'}
+          >
+            {lang === 'fr' ? 'عربي' : 'FR'}
+          </button>
+          <button
             className={`settings-btn ${screen === 'settings' ? 'active' : ''}`}
             onClick={() => goTo('settings')}
             aria-label={t(lang, 'settings')}
@@ -570,6 +587,7 @@ export default function App() {
         <OrderPage
           state={state}
           lang={lang}
+          onGo={goTo}
           onCreate={(order) => {
             const next = createOrder(state, order)
             setState(next)
@@ -1328,11 +1346,12 @@ function SettingsPage({
         </div>
         <div className="field">
           <label>{t(lang, 'phone')}</label>
-          <input value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <DzPhoneInput value={phone} onChange={setPhone} />
+          <div className="muted">{t(lang, 'phoneHint')}</div>
         </div>
         <div className="field">
           <label>{t(lang, 'city')}</label>
-          <input value={city} onChange={(e) => setCity(e.target.value)} />
+          <WilayaSelect lang={lang} value={city} onChange={setCity} />
         </div>
         <button className="btn block" onClick={() => saveAll()}>
           {t(lang, 'save')}
@@ -1395,8 +1414,10 @@ function HomePage({
   const recent = (todayOrders(state).length > 0 ? todayOrders(state) : state.orders).slice(0, 4)
   const [scanOpen, setScanOpen] = useState(false)
   const [unknownCode, setUnknownCode] = useState<string | null>(null)
+  const [showMoreApps, setShowMoreApps] = useState(false)
   const overdue = useMemo(() => overdueCreditOrders(state), [state])
   const soon = useMemo(() => dueSoonCreditOrders(state, 3), [state])
+  const needsSetup = state.products.length === 0
 
   function handleHit(hit: SearchHit) {
     if (hit.clientId) {
@@ -1423,16 +1444,15 @@ function HomePage({
     setUnknownCode(hit.code)
   }
 
-  const dockApps: Array<{
+  const dailyApps: Array<{
     id: Screen
     label: string
     icon: string
     tone: string
     badge?: number
   }> = [
-    { id: 'order', label: t(lang, 'appQuick'), icon: '⚡', tone: 'amber' },
-    { id: 'order', label: t(lang, 'appOrder'), icon: '🛒', tone: 'green' },
-    { id: 'calculator', label: t(lang, 'appCalc'), icon: '🧮', tone: 'steel' },
+    { id: 'clients', label: t(lang, 'appClients'), icon: '👥', tone: 'navy' },
+    { id: 'caisse', label: t(lang, 'appCaisse'), icon: '💵', tone: 'amber' },
     {
       id: 'products',
       label: t(lang, 'appStock'),
@@ -1440,9 +1460,10 @@ function HomePage({
       tone: 'blue',
       badge: stats.lowStock,
     },
+    { id: 'history', label: t(lang, 'appHistory'), icon: '📜', tone: 'slate' },
   ]
 
-  const gridApps: Array<{
+  const moreApps: Array<{
     id: Screen
     label: string
     icon: string
@@ -1461,10 +1482,9 @@ function HomePage({
           },
         ]
       : []),
-    { id: 'gallery', label: t(lang, 'appGallery'), icon: '🖼️', tone: 'blue' },
-    { id: 'clients', label: t(lang, 'appClients'), icon: '👥', tone: 'navy' },
-    { id: 'history', label: t(lang, 'appHistory'), icon: '📜', tone: 'slate' },
-    { id: 'caisse', label: t(lang, 'appCaisse'), icon: '💵', tone: 'amber' },
+    ...(state.settings.showGallery !== false
+      ? [{ id: 'gallery' as Screen, label: t(lang, 'appGallery'), icon: '🖼️', tone: 'blue' }]
+      : []),
     { id: 'returns', label: t(lang, 'appReturns'), icon: '↩️', tone: 'coral' },
     { id: 'purchases', label: t(lang, 'appPurchases'), icon: '🏭', tone: 'steel' },
     {
@@ -1479,9 +1499,15 @@ function HomePage({
     { id: 'expenses', label: t(lang, 'appExpenses'), icon: '💸', tone: 'rose' },
     { id: 'profits', label: t(lang, 'appProfits'), icon: '💰', tone: 'amber' },
     { id: 'stock', label: t(lang, 'appValue'), icon: '📈', tone: 'emerald' },
-    { id: 'zakat', label: t(lang, 'appZakat'), icon: '🌙', tone: 'forest' },
+    ...(state.settings.showZakat !== false
+      ? [{ id: 'zakat' as Screen, label: t(lang, 'appZakat'), icon: '🌙', tone: 'forest' }]
+      : []),
+    ...(state.settings.showCalculator !== false
+      ? [{ id: 'calculator' as Screen, label: t(lang, 'appCalc'), icon: '🧮', tone: 'steel' }]
+      : []),
     { id: 'settings', label: t(lang, 'appSettings'), icon: '⚙️', tone: 'charcoal' },
   ]
+  const moreBadge = moreApps.reduce((n, app) => n + (app.badge ?? 0), 0)
 
   return (
     <div className="home-screen">
@@ -1584,9 +1610,26 @@ function HomePage({
         </div>
       </section>
 
+      {needsSetup ? (
+        <section className="start-guide" aria-label={t(lang, 'startHere')}>
+          <h2>{t(lang, 'startHere')}</h2>
+          <button type="button" className="start-step" onClick={() => onGo('products', t(lang, 'newProduct'))}>
+            <strong>{t(lang, 'startAddProduct')}</strong>
+            <span className="muted">{t(lang, 'startAddProductHint')}</span>
+          </button>
+          <button type="button" className="start-step" onClick={() => onGo('clients', t(lang, 'newClient'))}>
+            <strong>{t(lang, 'startAddClient')}</strong>
+            <span className="muted">{t(lang, 'startAddClientHint')}</span>
+          </button>
+          <button type="button" className="start-step" onClick={() => onGo('order', t(lang, 'sellNow'))}>
+            <strong>{t(lang, 'startSell')}</strong>
+            <span className="muted">{t(lang, 'startSellHint')}</span>
+          </button>
+        </section>
+      ) : (
       <section className="home-apps" aria-label={t(lang, 'appMenu')}>
         <div className="app-grid">
-          {gridApps.map((app) => (
+          {dailyApps.map((app) => (
             <button
               key={app.id}
               type="button"
@@ -1604,25 +1647,39 @@ function HomePage({
           ))}
         </div>
 
-        <div className="home-dock" aria-label={t(lang, 'quickActions')}>
-          {dockApps.map((app, index) => (
-            <button
-              key={`dock-${app.label}-${index}`}
-              type="button"
-              className="app-tile dock"
-              onClick={() => onGo(app.id, app.label)}
-            >
-              <span className={`app-icon tone-${app.tone}`}>
-                {app.icon}
-                {app.badge && app.badge > 0 ? (
-                  <i className="app-badge">{app.badge > 99 ? '99+' : app.badge}</i>
-                ) : null}
-              </span>
-              <span className="app-label">{app.label}</span>
-            </button>
-          ))}
-        </div>
+        <button
+          type="button"
+          className="more-apps-btn"
+          onClick={() => setShowMoreApps((v) => !v)}
+        >
+          {showMoreApps ? t(lang, 'hideMoreApps') : t(lang, 'moreApps')}
+          {!showMoreApps && moreBadge > 0 ? (
+            <i className="app-badge inline">{moreBadge > 99 ? '99+' : moreBadge}</i>
+          ) : null}
+        </button>
+
+        {showMoreApps ? (
+          <div className="app-grid more-grid">
+            {moreApps.map((app) => (
+              <button
+                key={app.id}
+                type="button"
+                className="app-tile"
+                onClick={() => onGo(app.id, app.label)}
+              >
+                <span className={`app-icon tone-${app.tone}`}>
+                  {app.icon}
+                  {app.badge && app.badge > 0 ? (
+                    <i className="app-badge">{app.badge > 99 ? '99+' : app.badge}</i>
+                  ) : null}
+                </span>
+                <span className="app-label">{app.label}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
       </section>
+      )}
 
       <div className="card home-recent">
         <div className="list-item" style={{ borderBottom: 'none', paddingTop: 0 }}>
@@ -2942,6 +2999,8 @@ function ClientsPage({
   const [query, setQuery] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+  const [showImport, setShowImport] = useState(false)
+  const [showClientExtra, setShowClientExtra] = useState(false)
 
   useEffect(() => {
     if (initialClientId) {
@@ -3235,44 +3294,6 @@ function ClientsPage({
   return (
     <>
       <div className="card">
-        <h2>{t(lang, 'importContacts')}</h2>
-        <div className="notice">{t(lang, 'contactsUnsupported')}</div>
-        <button
-          className="btn block"
-          onClick={async () => {
-            try {
-              const list = await importPhoneContacts()
-              onImport(list)
-            } catch {
-              onFlash('contactsUnsupported')
-            }
-          }}
-        >
-          {t(lang, 'importContacts')}
-        </button>
-        <div className="field" style={{ marginTop: 12 }}>
-          <label>{t(lang, 'pasteWhatsapp')}</label>
-          <div className="muted">{t(lang, 'pasteHint')}</div>
-          <textarea
-            rows={4}
-            value={paste}
-            onChange={(e) => setPaste(e.target.value)}
-            placeholder={'Épicerie Amel,0555123456\nParfumerie Nour;0777987654'}
-          />
-        </div>
-        <button
-          className="btn secondary block"
-          disabled={!paste.trim()}
-          onClick={() => {
-            onImport(importPastedContacts(paste))
-            setPaste('')
-          }}
-        >
-          {t(lang, 'importPaste')}
-        </button>
-      </div>
-
-      <div className="card">
         <h2>{t(lang, 'newClient')}</h2>
         <div className="field">
           <label>{t(lang, 'clientName')}</label>
@@ -3280,12 +3301,13 @@ function ClientsPage({
         </div>
         <div className="field">
           <label>WhatsApp</label>
-          <input value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <DzPhoneInput value={phone} onChange={setPhone} />
+          <div className="muted">{t(lang, 'phoneHint')}</div>
         </div>
         <div className="grid-2">
           <div className="field">
             <label>{t(lang, 'city')}</label>
-            <input value={city} onChange={(e) => setCity(e.target.value)} />
+            <WilayaSelect lang={lang} value={city} onChange={setCity} />
           </div>
           <div className="field">
             <label>{t(lang, 'clientAddress')}</label>
@@ -3296,6 +3318,16 @@ function ClientsPage({
             />
           </div>
         </div>
+        <button
+          type="button"
+          className="btn ghost block"
+          style={{ marginBottom: 10 }}
+          onClick={() => setShowClientExtra((v) => !v)}
+        >
+          {showClientExtra ? t(lang, 'hideDetails') : t(lang, 'moreDetails')}
+        </button>
+        {showClientExtra ? (
+          <>
         <div className="field">
           <label>{t(lang, 'clientNotes')}</label>
           <textarea
@@ -3354,6 +3386,8 @@ function ClientsPage({
             GPS : {lat}, {lng}
           </div>
         ) : null}
+          </>
+        ) : null}
         <button
           className="btn block"
           disabled={!name || !phone}
@@ -3378,7 +3412,55 @@ function ClientsPage({
         >
           {t(lang, 'addClient')}
         </button>
+        <button
+          type="button"
+          className="btn ghost block"
+          style={{ marginTop: 8 }}
+          onClick={() => setShowImport((v) => !v)}
+        >
+          {t(lang, 'importContacts')}
+        </button>
       </div>
+
+      {showImport ? (
+      <div className="card">
+        <h2>{t(lang, 'importContacts')}</h2>
+        <div className="notice">{t(lang, 'contactsUnsupported')}</div>
+        <button
+          className="btn block"
+          onClick={async () => {
+            try {
+              const list = await importPhoneContacts()
+              onImport(list)
+            } catch {
+              onFlash('contactsUnsupported')
+            }
+          }}
+        >
+          {t(lang, 'importContacts')}
+        </button>
+        <div className="field" style={{ marginTop: 12 }}>
+          <label>{t(lang, 'pasteWhatsapp')}</label>
+          <div className="muted">{t(lang, 'pasteHint')}</div>
+          <textarea
+            rows={4}
+            value={paste}
+            onChange={(e) => setPaste(e.target.value)}
+            placeholder={'Épicerie Amel,0555123456\nParfumerie Nour;0777987654'}
+          />
+        </div>
+        <button
+          className="btn secondary block"
+          disabled={!paste.trim()}
+          onClick={() => {
+            onImport(importPastedContacts(paste))
+            setPaste('')
+          }}
+        >
+          {t(lang, 'importPaste')}
+        </button>
+      </div>
+      ) : null}
 
       <div className="card">
         <h2>
@@ -3499,12 +3581,13 @@ function ClientEditCard({
       </div>
       <div className="field">
         <label>WhatsApp</label>
-        <input value={phone} onChange={(e) => setPhone(e.target.value)} />
+        <DzPhoneInput value={phone} onChange={setPhone} />
+        <div className="muted">{t(lang, 'phoneHint')}</div>
       </div>
       <div className="grid-2">
         <div className="field">
           <label>{t(lang, 'city')}</label>
-          <input value={city} onChange={(e) => setCity(e.target.value)} />
+          <WilayaSelect lang={lang} value={city} onChange={setCity} />
         </div>
         <div className="field">
           <label>{t(lang, 'clientAddress')}</label>
@@ -3576,6 +3659,7 @@ function OrderPage({
   onPrint,
   onBoth,
   onInvoice,
+  onGo,
 }: {
   state: AppState
   lang: Language
@@ -3586,6 +3670,7 @@ function OrderPage({
   onPrint: (order: Order, customText?: string) => Promise<void>
   onBoth: (order: Order, customText?: string) => Promise<void>
   onInvoice: (order: Order, customText?: string) => void
+  onGo: (s: Screen, spokenLabel?: string) => void
 }) {
   const QUICK = '__quick__'
   const [clientId, setClientId] = useState(QUICK)
@@ -3859,7 +3944,19 @@ function OrderPage({
           onDateTo={setProductDateTo}
         />
         {filteredProducts.length === 0 ? (
-          <div className="empty">{t(lang, 'noProductFound')}</div>
+          <div className="empty">
+            <div>{state.products.length === 0 ? t(lang, 'emptyCatalogHint') : t(lang, 'noProductFound')}</div>
+            {state.products.length === 0 ? (
+              <button
+                type="button"
+                className="btn block"
+                style={{ marginTop: 12 }}
+                onClick={() => onGo('products', t(lang, 'newProduct'))}
+              >
+                ➕ {t(lang, 'newProduct')}
+              </button>
+            ) : null}
+          </div>
         ) : (
           <div className="product-catalog">
             {filteredProducts.map((p) => {
@@ -4014,6 +4111,21 @@ function OrderPage({
                     onChange={(e) => setVerseInput(e.target.value)}
                     placeholder="0"
                   />
+                  <div className="muted" style={{ marginTop: 6 }}>
+                    {t(lang, 'cashQuick')}
+                  </div>
+                  <div className="tier-row" style={{ marginTop: 6 }}>
+                    {CASH_CHIPS.map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        className="tier-chip"
+                        onClick={() => setVerseInput(String(Math.min(n, Math.round(total))))}
+                      >
+                        {formatDa(n)}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 {verseOk ? (
                   <div className="notice">

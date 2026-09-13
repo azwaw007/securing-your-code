@@ -154,3 +154,6 @@ export function matchWilayaCode(city: string): string | null {
 export function wilayaByCode(code: string): Wilaya | undefined {
   return WILAYAS.find((w) => w.code === code)
 }
+
+/** 58 wilayas officielles (les codes 59+ sont des villes pour la carte). */
+export const OFFICIAL_WILAYAS: Wilaya[] = WILAYAS.filter((w) => Number(w.code) <= 58)

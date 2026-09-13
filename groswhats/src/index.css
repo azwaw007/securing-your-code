@@ -123,6 +123,18 @@ button {
   gap: 8px;
 }
 
+.lang-toggle {
+  min-width: 52px;
+  height: 42px;
+  padding: 0 10px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--ink);
+}
+
 .settings-btn {
   width: 42px;
   height: 42px;
@@ -243,6 +255,56 @@ button {
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+.start-guide {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 2px 8px;
+}
+
+.start-guide h2 {
+  margin: 0 4px 4px;
+  font-size: 1.15rem;
+}
+
+.start-step {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  text-align: start;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+}
+
+.start-step strong {
+  font-size: 1.05rem;
+}
+
+.more-apps-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+  background: transparent;
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.app-badge.inline {
+  position: static;
+  display: inline-flex;
 }
 
 .app-grid {
@@ -1033,7 +1095,7 @@ button {
   bottom: 12px;
   width: min(448px, calc(100% - 24px));
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 4px;
   background: rgba(28, 25, 20, 0.92);
   color: white;
@@ -1068,7 +1130,7 @@ button {
 }
 
 .nav-text {
-  font-size: 0.62rem;
+  font-size: 0.72rem;
   line-height: 1.1;
 }
 
