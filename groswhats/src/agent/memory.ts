@@ -1,6 +1,7 @@
 /** Mémoire locale de l’agent — auto-apprentissage (localStorage). */
 
-const STORAGE_KEY = 'grossiste-dz-agent-memory-v1'
+const STORAGE_KEY = 'az-pos-agent-memory-v1'
+const LEGACY_STORAGE_KEY = 'grossiste-dz-agent-memory-v1'
 const MAX_INTENTS = 200
 const MAX_ALIASES = 150
 
@@ -60,13 +61,19 @@ function emptyMemory(): AgentMemory {
 
 export function loadAgentMemory(): AgentMemory {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw =
+      localStorage.getItem(STORAGE_KEY) ||
+      localStorage.getItem(LEGACY_STORAGE_KEY)
     if (!raw) return emptyMemory()
     const data = JSON.parse(raw) as Partial<AgentMemory>
-    return {
+    const mem = {
       intents: Array.isArray(data.intents) ? data.intents : [],
       aliases: Array.isArray(data.aliases) ? data.aliases : [],
     }
+    if (!localStorage.getItem(STORAGE_KEY)) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(mem))
+    }
+    return mem
   } catch {
     return emptyMemory()
   }

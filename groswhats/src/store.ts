@@ -30,7 +30,13 @@ import {
 } from './agent/permissions'
 import { APP_BRAND } from './brand'
 
-const STORAGE_KEY = 'grossiste-dz-v1'
+const STORAGE_KEY = 'az-pos-v1'
+const LEGACY_STORAGE_KEYS = [
+  'grossiste-dz-v1',
+  'groswhats-v3',
+  'groswhats-v2',
+  'groswhats-v1',
+]
 
 export function uid(prefix: string): string {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`
@@ -321,12 +327,7 @@ function migrate(raw: unknown): AppState {
 
 export function loadState(): AppState {
   try {
-    for (const key of [
-      STORAGE_KEY,
-      'groswhats-v3',
-      'groswhats-v2',
-      'groswhats-v1',
-    ]) {
+    for (const key of [STORAGE_KEY, ...LEGACY_STORAGE_KEYS]) {
       const raw = localStorage.getItem(key)
       if (raw) {
         const migrated = migrate(JSON.parse(raw))

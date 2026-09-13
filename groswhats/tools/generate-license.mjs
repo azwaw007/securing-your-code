@@ -42,7 +42,7 @@ function createKey(customer, days) {
   return { key: `GDZ1.${body}.${sig}`, payload }
 }
 
-const customer = process.argv[2] || 'Client Grossiste'
+const customer = process.argv[2] || 'Client AZ POS'
 const days = Number(process.argv[3] || 365)
 
 const { key, payload } = createKey(customer, days)

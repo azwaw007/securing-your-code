@@ -5,10 +5,10 @@ const isDev = !app.isPackaged
 
 function createWindow() {
   const win = new BrowserWindow({
-    width: 1280,
-    height: 840,
-    minWidth: 900,
-    minHeight: 600,
+    width: 1360,
+    height: 860,
+    minWidth: 960,
+    minHeight: 640,
     title: 'AZ POS',
     backgroundColor: '#f3efe6',
     webPreferences: {

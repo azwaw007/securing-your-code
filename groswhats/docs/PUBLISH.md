@@ -1,7 +1,7 @@
 # Publier AZ POS
 
 ## Web (déjà en ligne)
-https://grossiste-dz.vercel.app — push sur `main` déploie automatiquement.
+Site AZ POS : https://grossiste-dz.vercel.app — push sur `main` déploie automatiquement.
 
 Politique de confidentialité (Play Store) :
 https://grossiste-dz.vercel.app/privacy.html
@@ -10,13 +10,12 @@ https://grossiste-dz.vercel.app/privacy.html
 
 Fichiers déjà générés sur cette machine :
 
-- `groswhats/release/AZ POS Setup 1.0.0.exe` — installeur
-- `groswhats/release/AZ POS 1.0.0.exe` — portable
+- `release/AZ POS Setup 1.0.0.exe` — installeur
+- `release/AZ POS 1.0.0.exe` — portable
 
 Rebuild :
 
 ```bash
-cd groswhats
 npm run native:deps
 npm run desktop:build
 ```
@@ -25,7 +24,6 @@ npm run desktop:build
 
 ### 1. Préparer le projet
 ```bash
-cd groswhats
 npm run native:deps
 npm run android:sync
 npm run android:open
@@ -63,7 +61,7 @@ AZ POS aide les commerçants et grossistes en Algérie à vendre vite : catalogu
 AZ POS يساعد التجار والموزعين في الجزائر على البيع بسرعة: منتجات، زبائن، بيع نقداً أو دين، استحقاقات، مسح باركود / QR، صندوق اليوم، مرتجعات، مشتريات، سائقون متعددون، وكيل مساعدة بالنص (فرنسية / عربية). البيانات على الجهاز. يعمل أيضاً كتطبيق ويب دون إنترنت.
 
 ### 5. Visuels
-- Icône : `groswhats/public/icons/icon-512.png` (idéalement 512×512)
+- Icône : `public/icons/icon-512.png` (idéalement 512×512)
 - Captures téléphone : min. 2 (accueil, vente, clients)
 
 ### Checklist

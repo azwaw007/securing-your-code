@@ -33,7 +33,6 @@ Tu vends l’app. Le client utilise. Tu génères les licences.
 ### Option B — terminal
 
 ```bash
-cd groswhats
 node tools/generate-license.mjs "Dépôt El Amel" 365
 ```
 

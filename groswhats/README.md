@@ -8,7 +8,6 @@ Point de vente pour commerçants en Algérie — **web**, **Windows (.exe)** et 
 ## Développement
 
 ```bash
-cd groswhats
 npm install
 npm run icons
 npm run dev
@@ -20,7 +19,7 @@ npm run dev
 npm run build
 ```
 
-Déploiement auto sur push `main` (projet Vercel `grossiste-dz`, root `groswhats`).
+Déploiement auto sur push `main` (projet AZ POS / Vercel, dossier app).
 
 ## Version PC Windows (.exe)
 
@@ -29,7 +28,7 @@ npm run native:deps   # installe Electron (hors deps web Vercel)
 npm run desktop:build
 ```
 
-Sortie dans `groswhats/release/` :
+Sortie dans `release/` :
 - `AZ POS Setup *.exe` (installeur)
 - `AZ POS *.exe` (portable)
 

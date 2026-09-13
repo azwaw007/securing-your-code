@@ -114,13 +114,19 @@ export async function printTicketBluetooth(
 }
 
 /** Par défaut on n'ouvre PAS le sélecteur Bluetooth (ça confuse). */
+const BT_PRINTER_KEY = 'az-pos-use-bt-printer'
+const BT_PRINTER_LEGACY = 'groswhats-use-bt-printer'
+
 function settingsPreferBluetooth(): boolean {
-  return localStorage.getItem('groswhats-use-bt-printer') === '1'
+  return (
+    localStorage.getItem(BT_PRINTER_KEY) === '1' ||
+    localStorage.getItem(BT_PRINTER_LEGACY) === '1'
+  )
 }
 
 /** Active l'essai Bluetooth (réglage optionnel). */
 export function setPreferBluetoothPrinter(enabled: boolean): void {
-  localStorage.setItem('groswhats-use-bt-printer', enabled ? '1' : '0')
+  localStorage.setItem(BT_PRINTER_KEY, enabled ? '1' : '0')
 }
 
 export function getPreferBluetoothPrinter(): boolean {
@@ -129,11 +135,11 @@ export function getPreferBluetoothPrinter(): boolean {
 
 /** Impression dans la même page via iframe cachée — pas de nouvel onglet. */
 function printInPage(text: string): void {
-  const existing = document.getElementById('groswhats-print-frame')
+  const existing = document.getElementById('az-pos-print-frame')
   if (existing) existing.remove()
 
   const iframe = document.createElement('iframe')
-  iframe.id = 'groswhats-print-frame'
+  iframe.id = 'az-pos-print-frame'
   iframe.setAttribute('aria-hidden', 'true')
   iframe.style.cssText =
     'position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;pointer-events:none;'
