@@ -2,7 +2,7 @@
 
 Point de vente pour commerçants en Algérie — **web**, **Windows (.exe)** et **Android (Play Store)**.
 
-- Web : https://grossiste-dz.vercel.app  
+- Web : https://az-pos-dz.vercel.app  
 - Package ID : `com.azpos.app`
 
 ## Développement

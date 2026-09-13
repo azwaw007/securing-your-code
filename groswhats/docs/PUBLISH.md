@@ -1,10 +1,10 @@
 # Publier AZ POS
 
 ## Web (déjà en ligne)
-Site AZ POS : https://grossiste-dz.vercel.app — push sur `main` déploie automatiquement.
+Site AZ POS : https://az-pos-dz.vercel.app — push sur `main` déploie automatiquement.
 
 Politique de confidentialité (Play Store) :
-https://grossiste-dz.vercel.app/privacy.html
+https://az-pos-dz.vercel.app/privacy.html
 
 ## PC Windows (.exe)
 
@@ -42,7 +42,7 @@ https://play.google.com/console
 - Type : Application
 - Catégorie : **Business**
 - Contenu : questionnaire PEGI / public cible
-- Confidentialité : URL `https://grossiste-dz.vercel.app/privacy.html`
+- Confidentialité : URL `https://az-pos-dz.vercel.app/privacy.html`
 
 ### 4. Textes store (copier-coller)
 
