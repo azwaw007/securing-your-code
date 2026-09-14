@@ -1,5 +1,7 @@
 export type Language = 'fr' | 'ar'
 
+export type CommerceMode = 'gros' | 'detail' | 'sante' | 'auto' | 'services'
+
 export type Unit =
   | 'piece'
   | 'carton'
@@ -235,6 +237,12 @@ export interface ShopSettings {
   phone: string
   city: string
   language: Language
+  /** Premier lancement : pays + mode + domaine choisis */
+  setupDone: boolean
+  countryCode: string
+  commerceMode: CommerceMode
+  domainId: string
+  currency: string
   nextInvoiceNumber: number
   stockAlertsEnabled: boolean
   /** Sons de clic + son caisse */

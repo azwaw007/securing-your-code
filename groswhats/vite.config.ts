@@ -13,7 +13,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['favicon.svg', 'catalog/*.png'],
       manifest: {
         name: 'AZ POS',
         short_name: 'AZ POS',

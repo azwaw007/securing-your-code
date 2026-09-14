@@ -1,5 +1,13 @@
+let activeCurrency = 'DA'
+
+export function setActiveCurrency(code: string): void {
+  activeCurrency = code || 'DA'
+}
+
 export function formatDa(amount: number): string {
-  return `${Math.round(amount).toLocaleString('fr-DZ')} DA`
+  const n = Number.isFinite(amount) ? amount : 0
+  const rounded = Math.abs(n) >= 10 ? Math.round(n) : Math.round(n * 100) / 100
+  return `${rounded.toLocaleString('fr-DZ')} ${activeCurrency}`
 }
 
 export function normalizePhone(phone: string): string {

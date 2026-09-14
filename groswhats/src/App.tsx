@@ -50,6 +50,7 @@ import {
   updateIncomingOrder,
   updateProduct,
   updateSettings,
+  applyShopSetup,
   applyClientPayment,
   setClientDisplayedBalance,
   buildPaymentFields,
@@ -66,7 +67,11 @@ import {
   orderRemainingDa,
 } from './store'
 import { isDecimalUnit, qtyStep, t, unitLabel } from './i18n'
-import { formatDa, formatQty } from './utils/format'
+import { formatDa, formatQty, setActiveCurrency } from './utils/format'
+import { productImageSrc } from './utils/productArt'
+import { SetupWizard } from './SetupWizard'
+import { countryByCode } from './data/countries'
+import { domainById, domainName, modeLabel } from './data/domains'
 import { DzPhoneInput, WilayaSelect } from './DzFields'
 import { applyUiTheme, themeLabel, THEME_PRESETS } from './utils/theme'
 import {
@@ -191,6 +196,7 @@ export default function App() {
     to: string
   } | null>(null)
   const [agentSeed, setAgentSeed] = useState<string | null>(null)
+  const [redoSetup, setRedoSetup] = useState(false)
   const lang = state.settings.language
 
   useEffect(() => {
@@ -316,13 +322,40 @@ export default function App() {
     stopSpeaking()
   }, [])
 
+  useEffect(() => {
+    setActiveCurrency(state.settings.currency || 'DA')
+  }, [state.settings.currency])
+
+  const needSetup = !state.settings.setupDone || redoSetup
+
   return (
     <div
       className={`app-shell ${screen === 'delivery' ? 'map-mode' : ''} ${
         state.settings.easyMode !== false ? 'easy-ui' : ''
       } ${isDriverMode ? 'driver-mode' : ''}`}
     >
-      {needRolePick ? (
+      {needSetup ? (
+        <SetupWizard
+          lang={lang}
+          existingProducts={state.products.length}
+          startStep={redoSetup ? 1 : 0}
+          initial={{
+            countryCode: state.settings.countryCode,
+            commerceMode: state.settings.commerceMode,
+            domainId: state.settings.domainId,
+            shopName: state.settings.shopName,
+            phone: state.settings.phone,
+          }}
+          onCancel={redoSetup ? () => setRedoSetup(false) : undefined}
+          onDone={(input) => {
+            setState((s) => applyShopSetup(s, input))
+            setRedoSetup(false)
+            goTo('home')
+          }}
+        />
+      ) : null}
+
+      {!needSetup && needRolePick ? (
         <RolePickGate
           lang={lang}
           onPick={(role) => {
@@ -338,7 +371,7 @@ export default function App() {
         />
       ) : null}
 
-      {!needRolePick && screen !== 'delivery' && !isDriverMode ? (
+      {!needSetup && !needRolePick && screen !== 'delivery' && !isDriverMode ? (
       <header className="topbar">
         <div className="topbar-left">
           {showBackBtn && screen !== 'home' ? (
@@ -391,7 +424,7 @@ export default function App() {
           </button>
         </div>
       </header>
-      ) : !needRolePick && isDriverMode ? (
+      ) : !needSetup && !needRolePick && isDriverMode ? (
         <header className="topbar">
           <div className="topbar-left">
             <button
@@ -420,11 +453,11 @@ export default function App() {
           </div>
           {toast ? <div className="badge">{toast}</div> : null}
         </header>
-      ) : !needRolePick && toast ? (
+      ) : !needSetup && !needRolePick && toast ? (
         <div className="badge map-toast">{toast}</div>
       ) : null}
 
-      {!needRolePick && screen === 'delivery' ? (
+      {!needSetup && !needRolePick && screen === 'delivery' ? (
         <button
           type="button"
           className="back-btn map-back"
@@ -435,7 +468,7 @@ export default function App() {
         </button>
       ) : null}
 
-      {!needRolePick ? (
+      {!needSetup && !needRolePick ? (
       <>
       {isAlive('home') && !isDriverMode ? (
         <div
@@ -881,6 +914,7 @@ export default function App() {
         <SettingsPage
           state={state}
           lang={lang}
+          onRedoSetup={() => setRedoSetup(true)}
           onSave={(patch) => {
             setState((s) => updateSettings(s, patch))
             flash('settingsSaved')
@@ -911,7 +945,7 @@ export default function App() {
       </>
       ) : null}
 
-      {!needRolePick && !isDriverMode ? (
+      {!needSetup && !needRolePick && !isDriverMode ? (
       <nav className="bottom-nav" aria-label="Navigation">
         {NAV_IDS.map((id) => (
           <button
@@ -972,12 +1006,14 @@ function SettingsPage({
   onSave,
   onToggleMultiPoste,
   onGo,
+  onRedoSetup,
 }: {
   state: AppState
   lang: Language
   onSave: (patch: Partial<AppState['settings']>) => void
   onToggleMultiPoste: (enabled: boolean) => void
   onGo: (s: Screen) => void
+  onRedoSetup: () => void
 }) {
   const [shopName, setShopName] = useState(state.settings.shopName)
   const [phone, setPhone] = useState(state.settings.phone)
@@ -1335,6 +1371,21 @@ function SettingsPage({
         ))}
         <button type="button" className="btn secondary block" onClick={() => onGo('agent')}>
           🤖 {t(lang, 'agent')}
+        </button>
+      </div>
+
+      <div className="card">
+        <h2>{t(lang, 'setupCommerceTitle')}</h2>
+        <p className="muted">{t(lang, 'setupCurrent')}</p>
+        <div className="notice" style={{ marginBottom: 12 }}>
+          {countryByCode(state.settings.countryCode || 'DZ')[lang === 'ar' ? 'nameAr' : 'nameFr']}
+          {' · '}
+          {modeLabel(state.settings.commerceMode || 'gros', lang)}
+          {' · '}
+          {domainName(domainById(state.settings.domainId || 'gros-alimentaire'), lang)}
+        </div>
+        <button type="button" className="btn block" onClick={onRedoSetup}>
+          {t(lang, 'setupChangeType')}
         </button>
       </div>
 
@@ -2155,7 +2206,7 @@ function GalleryPage({
               onClick={() => setPreviewId(p.id)}
             >
               {p.imageDataUrl ? (
-                <img src={p.imageDataUrl} alt={p.name} />
+                <img src={productImageSrc(p.imageDataUrl)} alt={p.name} />
               ) : (
                 <div className="gallery-tile-ph">{t(lang, 'noPhoto')}</div>
               )}
@@ -2185,7 +2236,7 @@ function GalleryPage({
             onClick={(e) => e.stopPropagation()}
           >
             {preview.imageDataUrl ? (
-              <img src={preview.imageDataUrl} alt={preview.name} />
+              <img src={productImageSrc(preview.imageDataUrl)} alt={preview.name} />
             ) : (
               <div className="gallery-tile-ph large">{t(lang, 'noPhoto')}</div>
             )}
@@ -2589,7 +2640,7 @@ function ProductsPage({
         </div>
         <div className="product-photo-field">
           {imageDataUrl ? (
-            <img className="product-thumb" src={imageDataUrl} alt="" />
+            <img className="product-thumb" src={productImageSrc(imageDataUrl)} alt="" />
           ) : (
             <div className="product-thumb placeholder">{t(lang, 'noPhoto')}</div>
           )}
@@ -2728,7 +2779,7 @@ function ProductsPage({
           return (
             <div className="list-item with-thumb" key={p.id}>
               {p.imageDataUrl ? (
-                <img className="product-thumb" src={p.imageDataUrl} alt="" />
+                <img className="product-thumb" src={productImageSrc(p.imageDataUrl)} alt="" />
               ) : (
                 <div className="product-thumb placeholder">{t(lang, 'noPhoto')}</div>
               )}
@@ -2849,7 +2900,7 @@ function ProductEditCard({
 
       <div className="product-photo-field">
         {product.imageDataUrl ? (
-          <img className="product-thumb" src={product.imageDataUrl} alt="" />
+          <img className="product-thumb" src={productImageSrc(product.imageDataUrl)} alt="" />
         ) : (
           <div className="product-thumb placeholder">{t(lang, 'noPhoto')}</div>
         )}
@@ -3980,7 +4031,7 @@ function OrderPage({
                   key={p.id}
                 >
                   {p.imageDataUrl ? (
-                    <img className="product-card-img" src={p.imageDataUrl} alt={p.name} />
+                    <img className="product-card-img" src={productImageSrc(p.imageDataUrl)} alt={p.name} />
                   ) : (
                     <div className="product-card-img placeholder">📷</div>
                   )}

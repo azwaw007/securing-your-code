@@ -27,6 +27,7 @@ import { expertAdvice } from './expertise'
 import { executeTool } from './tools'
 
 import { runAgentic } from './orchestrator'
+import { chatReply } from './chat'
 
 export type AgentAction =
   | { type: 'none' }
@@ -553,7 +554,20 @@ export function runAgent(state: AppState, userText: string): AgentResult {
   }
 
   // Règles intégrées
-  if (includesAny(text, ['aide', 'help', 'que peux', 'ماذا', 'ساعد', 'اوامر', '3aweni'])) {
+  if (
+    includesAny(text, [
+      'aide',
+      'help',
+      'ayuda',
+      'que peux',
+      'what can',
+      'ماذا',
+      'ساعد',
+      'اوامر',
+      '3aweni',
+      'كيفاش',
+    ])
+  ) {
     return withLearn(raw, 'help', runIntent(state, 'help', raw))
   }
   if (
@@ -562,16 +576,41 @@ export function runAgent(state: AppState, userText: string): AgentResult {
       'nouvelle commande',
       'va commande',
       'vente rapide',
+      'ouvre vente',
+      'va vendre',
+      'sell',
+      'open sell',
+      'vender',
       'افتح طلب',
       'طلب جديد',
+      'بيع',
     ])
   ) {
     return withLearn(raw, 'nav_order', runIntent(state, 'nav_order', raw))
   }
-  if (includesAny(text, ['ouvre client', 'va client', 'افتح زبون', 'الزبائن'])) {
+  if (
+    includesAny(text, [
+      'ouvre client',
+      'va client',
+      'clients',
+      'customers',
+      'clientes',
+      'افتح زبون',
+      'الزبائن',
+    ])
+  ) {
     return withLearn(raw, 'nav_clients', runIntent(state, 'nav_clients', raw))
   }
-  if (includesAny(text, ['ouvre stock', 'produit', 'افتح مخزون', 'المنتجات'])) {
+  if (
+    includesAny(text, [
+      'ouvre stock',
+      'produit',
+      'inventory',
+      'products',
+      'افتح مخزون',
+      'المنتجات',
+    ])
+  ) {
     return withLearn(raw, 'nav_products', runIntent(state, 'nav_products', raw))
   }
   if (includesAny(text, ['calculat', 'حاسبة', 'حاسبه'])) {
@@ -695,15 +734,9 @@ export function runAgent(state: AppState, userText: string): AgentResult {
     }
   }
 
-  const tips =
-    lang === 'ar'
-      ? 'لم أفهم. اختر ماذا قصدت في الأسفل — سأتعلّم هذه العبارة.\nأو اكتب: يعني عبارتي = مخزون ناقص'
-      : 'Je n’ai pas compris. Choisis en bas ce que tu voulais — j’apprendrai cette phrase.\nOu écris : apprend ma phrase = stock bas'
-
   return {
-    reply: tips,
-    needsTeach: true,
-    pendingPhrase: raw,
+    reply: chatReply(state, raw),
+    intent: undefined,
   }
 }
 

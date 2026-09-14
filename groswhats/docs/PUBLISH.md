@@ -29,6 +29,8 @@ npm run android:sync
 npm run android:open
 ```
 
+Les photos catalogue (`public/catalog/`) partent dans `dist/` puis dans l’APK via `cap sync`. Même app que le web, hors ligne.
+
 ### 2. Android Studio — Bundle signé
 1. **Build → Generate Signed Bundle / APK**
 2. Choisir **Android App Bundle (.aab)**

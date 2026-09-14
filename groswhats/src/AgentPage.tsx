@@ -7,6 +7,14 @@ import {
   teachAndRun,
   type AgentResult,
 } from './agent/runAgent'
+import { detectChatLang } from './agent/chat'
+import {
+  isVoiceMuted,
+  setVoiceMuted,
+  speak,
+  stopSpeaking,
+} from './utils/speak'
+import { isVoiceSupported, startVoiceListen, type VoiceLang } from './utils/voice'
 import {
   clearAgentMemory,
   memoryStats,
@@ -79,6 +87,10 @@ export function AgentPage({
   )
   const [pendingTeach, setPendingTeach] = useState<string | null>(null)
   const [memTick, setMemTick] = useState(0)
+  const [listening, setListening] = useState(false)
+  const [voiceOn, setVoiceOn] = useState(() => !isVoiceMuted())
+  const [voiceLang, setVoiceLang] = useState<VoiceLang>(lang === 'ar' ? 'darja' : 'fr')
+  const listenRef = useRef<{ stop: () => void } | null>(null)
   const stateRef = useRef(state)
   const seededRef = useRef(false)
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
@@ -89,8 +101,8 @@ export function AgentPage({
         role: 'agent',
         text:
           (lang === 'ar'
-            ? 'مرحباً، أنا وكيل AZ POS الخبير. اكتب طلبك أو اضغط نصيحة (بدون صوت).\n\n'
-            : 'Salam, je suis l’agent expert AZ POS. Écris ta demande ou tape un conseil (sans voix).\n\n') +
+            ? 'مرحباً، أنا وكيل AZ POS. اكتب أو احكي بأي لغة — نجاوبك.\n\n'
+            : 'Salam, je suis l’agent AZ POS. Écris ou parle dans n’importe quelle langue.\n\n') +
           tip,
       },
     ]
@@ -111,6 +123,13 @@ export function AgentPage({
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, pendingTeach])
+
+  useEffect(() => {
+    return () => {
+      listenRef.current?.stop()
+      stopSpeaking()
+    }
+  }, [])
 
   function handleResult(result: AgentResult) {
     if (result.nextState) onState(result.nextState)
@@ -136,6 +155,10 @@ export function AgentPage({
       setPendingTeach(null)
     }
     if (result.learned || result.intent) setMemTick((x) => x + 1)
+    if (voiceOn) {
+      const talkLang = detectChatLang(result.reply, lang === 'ar' ? 'ar' : 'fr')
+      speak(result.reply, talkLang)
+    }
   }
 
   function send(text: string) {
@@ -258,6 +281,42 @@ export function AgentPage({
           ))}
         </div>
 
+        <div className="btn-row" style={{ marginBottom: 8 }}>
+          <button
+            type="button"
+            className={`btn ${voiceOn ? '' : 'ghost'}`}
+            onClick={() => {
+              const next = !voiceOn
+              setVoiceOn(next)
+              setVoiceMuted(!next)
+              if (!next) stopSpeaking()
+            }}
+          >
+            {voiceOn ? t(lang, 'agentVoiceOn') : t(lang, 'agentVoiceOff')}
+          </button>
+          <button
+            type="button"
+            className={`btn ${voiceLang === 'fr' ? '' : 'ghost'}`}
+            onClick={() => setVoiceLang('fr')}
+          >
+            FR
+          </button>
+          <button
+            type="button"
+            className={`btn ${voiceLang === 'darja' ? '' : 'ghost'}`}
+            onClick={() => setVoiceLang('darja')}
+          >
+            دارجة
+          </button>
+          <button
+            type="button"
+            className={`btn ${voiceLang === 'ar' ? '' : 'ghost'}`}
+            onClick={() => setVoiceLang('ar')}
+          >
+            AR
+          </button>
+        </div>
+
         <div className="agent-input-row">
           <input
             value={input}
@@ -267,6 +326,43 @@ export function AgentPage({
               if (e.key === 'Enter') send(input)
             }}
           />
+          <button
+            type="button"
+            className={`btn ${listening ? 'secondary' : 'ghost'}`}
+            disabled={!isVoiceSupported()}
+            onClick={() => {
+              if (listening) {
+                listenRef.current?.stop()
+                listenRef.current = null
+                setListening(false)
+                return
+              }
+              if (!isVoiceSupported()) {
+                window.alert(t(lang, 'voiceUnsupported'))
+                return
+              }
+              setListening(true)
+              listenRef.current = startVoiceListen({
+                voiceLang,
+                onFinal: (text) => {
+                  listenRef.current?.stop()
+                  listenRef.current = null
+                  setListening(false)
+                  send(text)
+                },
+                onError: () => {
+                  listenRef.current = null
+                  setListening(false)
+                },
+                onEnd: () => {
+                  listenRef.current = null
+                  setListening(false)
+                },
+              })
+            }}
+          >
+            {listening ? `🎤 ${t(lang, 'agentMicOn')}` : `🎤 ${t(lang, 'agentMic')}`}
+          </button>
           <button className="btn" onClick={() => send(input)}>
             {t(lang, 'agentSend')}
           </button>

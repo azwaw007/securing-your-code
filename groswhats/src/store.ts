@@ -1,5 +1,6 @@
 import type {
   AppState,
+  CommerceMode,
   CashEntry,
   CashSession,
   Client,
@@ -29,6 +30,10 @@ import {
   type AgentPermissions,
 } from './agent/permissions'
 import { APP_BRAND } from './brand'
+import { countryByCode, convertPriceDa } from './data/countries'
+import { catalogFor } from './data/catalogs'
+import { domainById } from './data/domains'
+import { catalogImagePath } from './utils/productArt'
 
 const STORAGE_KEY = 'az-pos-v1'
 const LEGACY_STORAGE_KEYS = [
@@ -48,6 +53,11 @@ function defaultSettings(): ShopSettings {
     phone: '',
     city: '',
     language: 'fr',
+    setupDone: false,
+    countryCode: 'DZ',
+    commerceMode: 'gros',
+    domainId: 'gros-alimentaire',
+    currency: 'DA',
     nextInvoiceNumber: 1,
     stockAlertsEnabled: true,
     uiSoundsEnabled: true,
@@ -153,6 +163,16 @@ function migrate(raw: unknown): AppState {
       incoming.phone === '0555000000' || !incoming.phone ? '' : incoming.phone,
     city: cleanCity(incoming.city),
     language: incoming.language === 'ar' ? 'ar' : 'fr',
+    setupDone:
+      incoming.setupDone === true || (data.products?.length ?? 0) > 0,
+    countryCode: incoming.countryCode || defaults.countryCode,
+    commerceMode: (['gros', 'detail', 'sante', 'auto', 'services'] as const).includes(
+      incoming.commerceMode as CommerceMode,
+    )
+      ? (incoming.commerceMode as CommerceMode)
+      : defaults.commerceMode,
+    domainId: incoming.domainId || defaults.domainId,
+    currency: incoming.currency || defaults.currency,
     nextInvoiceNumber: incoming.nextInvoiceNumber ?? defaults.nextInvoiceNumber,
     stockAlertsEnabled: incoming.stockAlertsEnabled ?? true,
     uiSoundsEnabled: incoming.uiSoundsEnabled !== false,
@@ -349,6 +369,68 @@ export function saveState(state: AppState): void {
 
 export function updateSettings(state: AppState, settings: Partial<ShopSettings>): AppState {
   return { ...state, settings: { ...state.settings, ...settings } }
+}
+
+export type ShopSetupInput = {
+  countryCode: string
+  commerceMode: CommerceMode
+  domainId: string
+  shopName: string
+  phone: string
+  language: Language
+  replaceCatalog: boolean
+}
+
+export function applyShopSetup(state: AppState, input: ShopSetupInput): AppState {
+  const country = countryByCode(input.countryCode)
+  const domain = domainById(input.domainId)
+  const factor = country.priceFactor
+  const stock =
+    input.commerceMode === 'gros' ? 80 : input.commerceMode === 'detail' ? 16 : 40
+  const low = input.commerceMode === 'gros' ? 10 : 4
+  const products: Product[] = catalogFor(domain.catalog).map((seed) => {
+    const price = Math.max(0, convertPriceDa(seed.priceDa, factor))
+    const cost = Math.max(0, convertPriceDa(seed.costDa, factor))
+    const pack = seed.pack
+    const gros =
+      pack && pack > 1 ? convertPriceDa(seed.priceDa * pack * 0.88, factor) : undefined
+    return {
+      id: uid('p'),
+      name: seed.name,
+      category: seed.category,
+      unit: seed.unit,
+      priceDa: price,
+      costDa: cost,
+      stock,
+      lowStockAt: low,
+      piecesPerPack: pack,
+      demiGrosPriceDa: pack ? convertPriceDa(seed.priceDa * 0.94, factor) : undefined,
+      grosPriceDa: gros,
+      superGrosPriceDa: pack
+        ? convertPriceDa(seed.priceDa * pack * 0.8, factor)
+        : undefined,
+      packPriceDa: gros,
+      imageDataUrl: catalogImagePath(seed.name, seed.category),
+      createdAt: new Date().toISOString(),
+    }
+  })
+  const keep = !input.replaceCatalog && state.products.length > 0
+  return {
+    ...state,
+    settings: {
+      ...state.settings,
+      setupDone: true,
+      countryCode: country.code,
+      commerceMode: input.commerceMode,
+      domainId: domain.id,
+      currency: country.currency,
+      shopName: input.shopName.trim() || domain.nameFr,
+      phone: input.phone.trim(),
+      language: input.language,
+      showZakat: ['DZ', 'SA', 'AE', 'EG', 'MA', 'TN'].includes(country.code),
+    },
+    products: keep ? state.products : products,
+  }
 }
 
 export function addProduct(
