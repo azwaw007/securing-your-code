@@ -27,7 +27,7 @@ import { expertAdvice } from './expertise'
 import { executeTool } from './tools'
 
 import { runAgentic } from './orchestrator'
-import { chatReply } from './chat'
+import { answerAnything } from './chat'
 
 export type AgentAction =
   | { type: 'none' }
@@ -521,7 +521,7 @@ function tryTeachCommand(state: AppState, raw: string, lang: Language): AgentRes
 /**
  * Agent local + auto-apprentissage + boucle agentic (outils + permissions).
  */
-export function runAgent(state: AppState, userText: string): AgentResult {
+export async function runAgent(state: AppState, userText: string): Promise<AgentResult> {
   const lang = state.settings.language
   const raw = userText.trim()
   if (!raw) {
@@ -556,17 +556,18 @@ export function runAgent(state: AppState, userText: string): AgentResult {
   // Règles intégrées
   if (
     includesAny(text, [
-      'aide',
-      'help',
+      'aide az',
+      'aide moi',
+      'help me',
       'ayuda',
-      'que peux',
-      'what can',
-      'ماذا',
-      'ساعد',
+      'que peux tu',
+      'what can you',
+      'ماذا تقدر',
+      'ساعدني',
       'اوامر',
       '3aweni',
-      'كيفاش',
-    ])
+    ]) ||
+    /^(aide|help|ساعد)$/i.test(raw.trim())
   ) {
     return withLearn(raw, 'help', runIntent(state, 'help', raw))
   }
@@ -578,12 +579,10 @@ export function runAgent(state: AppState, userText: string): AgentResult {
       'vente rapide',
       'ouvre vente',
       'va vendre',
-      'sell',
       'open sell',
-      'vender',
       'افتح طلب',
       'طلب جديد',
-      'بيع',
+      'افتح بيع',
     ])
   ) {
     return withLearn(raw, 'nav_order', runIntent(state, 'nav_order', raw))
@@ -604,11 +603,10 @@ export function runAgent(state: AppState, userText: string): AgentResult {
   if (
     includesAny(text, [
       'ouvre stock',
-      'produit',
-      'inventory',
-      'products',
+      'ouvre produit',
+      'va stock',
       'افتح مخزون',
-      'المنتجات',
+      'افتح المنتجات',
     ])
   ) {
     return withLearn(raw, 'nav_products', runIntent(state, 'nav_products', raw))
@@ -619,7 +617,7 @@ export function runAgent(state: AppState, userText: string): AgentResult {
   if (includesAny(text, ['depense', 'gasoil', 'personnel', 'masarif', 'مصاريف', 'مازوط'])) {
     return withLearn(raw, 'nav_expenses', runIntent(state, 'nav_expenses', raw))
   }
-  if (includesAny(text, ['benefice', 'gain', 'marge', 'ربح'])) {
+  if (includesAny(text, ['benefice', 'gain', 'marge', 'ربح', 'rbe7', 'rbah', 'profits'])) {
     return withLearn(raw, 'benefice', runIntent(state, 'benefice', raw))
   }
   if (includesAny(text, ['arrivage', 'وصول', 'وافد'])) {
@@ -631,7 +629,24 @@ export function runAgent(state: AppState, userText: string): AgentResult {
   if (includesAny(text, ['reglage', 'parametre', 'اعداد', 'إعداد'])) {
     return withLearn(raw, 'nav_settings', runIntent(state, 'nav_settings', raw))
   }
-  if (includesAny(text, ['stock bas', 'rupture', 'alerte stock', 'نفاد', 'ناقص', 'منخفض'])) {
+  if (includesAny(text, ['ouvre caisse', 'va caisse', 'sandou9', 'افتح صندوق'])) {
+    return {
+      reply: lang === 'ar' ? 'أفتح الصندوق.' : 'OK, j’ouvre la caisse.',
+      action: { type: 'navigate', screen: 'caisse' },
+    }
+  }
+  if (
+    includesAny(text, [
+      'stock bas',
+      'rupture',
+      'alerte stock',
+      'نفاد',
+      'ناقص',
+      'منخفض',
+      'na9es',
+      'naqes',
+    ])
+  ) {
     return withLearn(raw, 'stock_bas', runIntent(state, 'stock_bas', raw))
   }
   if (
@@ -639,12 +654,22 @@ export function runAgent(state: AppState, userText: string): AgentResult {
   ) {
     return withLearn(raw, 'valeur_stock', runIntent(state, 'valeur_stock', raw))
   }
-  if (includesAny(text, ['credit', 'credits', 'qui doit', 'impay', 'دين', 'ديون'])) {
+  if (
+    includesAny(text, [
+      'credit',
+      'credits',
+      'qui doit',
+      'impay',
+      'دين',
+      'ديون',
+      'yekhlas',
+      'diyoune',
+      'chkoune',
+    ])
+  ) {
     return withLearn(raw, 'credits', runIntent(state, 'credits', raw))
   }
-  if (
-    includesAny(text, ['commande du jour', 'commandes du jour', 'aujourdhui', 'طلبات اليوم', 'اليوم'])
-  ) {
+  if (includesAny(text, ['commande du jour', 'commandes du jour', 'طلبات اليوم'])) {
     return withLearn(raw, 'commandes_jour', runIntent(state, 'commandes_jour', raw))
   }
   if (includesAny(text, ['combien recu', 'commandes recues', 'en attente', 'كم وارد', 'بالانتظار'])) {
@@ -677,7 +702,15 @@ export function runAgent(state: AppState, userText: string): AgentResult {
   ) {
     return withLearn(raw, 'commande_recue', runIntent(state, 'commande_recue', raw))
   }
-  if (includesAny(text, ['facture', 'invoice', 'فاتورة', 'فاتوره'])) {
+  if (
+    includesAny(text, [
+      'envoie facture',
+      'envoyer facture',
+      'send invoice',
+      'أرسل فاتورة',
+      'ارسل فاتورة',
+    ])
+  ) {
     return withLearn(raw, 'facture', runIntent(state, 'facture', raw))
   }
   if (
@@ -735,7 +768,7 @@ export function runAgent(state: AppState, userText: string): AgentResult {
   }
 
   return {
-    reply: chatReply(state, raw),
+    reply: await answerAnything(state, raw),
     intent: undefined,
   }
 }

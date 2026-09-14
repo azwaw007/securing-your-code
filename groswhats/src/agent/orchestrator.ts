@@ -167,45 +167,35 @@ export function runAgentic(state: AppState, userText: string): AgenticOutcome | 
     'organise',
     'organize',
     'agentic',
-    'range',
+    'range l app',
     'facilite',
-    'configure',
-    'regle',
-    'parametre',
-    'theme',
-    'permission',
-    'que peux',
+    'configure l app',
+    'theme nuit',
+    'theme bleu',
+    'theme vert',
+    'thème nuit',
     'tes droits',
-    'conseil',
-    'expert',
+    'conseil vente',
+    'conseil compta',
+    'conseil marketing',
+    'conseil gestion',
+    'expert vente',
+    'expert compta',
     'نظم',
     'رتب',
-    'سهّل',
     'سهل الكل',
-    'صلاح',
     'ثيم',
-    'اعداد',
     'نظّم',
     'resume du jour',
-    'ملخص',
-    'خبير',
-    'نصيحة',
-    'نصائح',
+    'خبير مبيعات',
+    'خبير محاسبة',
   ])
 
-  const calls = planTools(text, lang)
-  if (!wantAgentic && calls.length === 0) {
-    const domain = detectExpertDomain(text)
-    if (domain) {
-      calls.push({ name: 'expert_advice', args: { domain } })
-    } else {
-      return null
-    }
-  }
+  // Sans mot d’action (organiser / thème / expert magasin), laisser le chat général répondre
+  if (!wantAgentic) return null
 
-  if (calls.length === 0) {
-    calls.push({ name: 'list_capabilities' })
-  }
+  const calls = planTools(text, lang)
+  if (calls.length === 0) return null
 
   let cur = state
   const toolLogs: AgenticTrace['tools'] = []

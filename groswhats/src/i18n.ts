@@ -552,7 +552,7 @@ const fr: Dict = {
   uiSoundsHint: 'Bip au scan, clic sur boutons, son spécial à l’encaissement.',
   agent: 'Aide',
   agentHint:
-    'Écris ou parle dans n’importe quelle langue. L’agent répond et peut parler.',
+    'Comme un chat : magasin (vente, stock, dettes) et aussi n’importe quelle question (gratuit, Wikipédia).',
   agentPlaceholder: 'Écris ou appuie sur le micro…',
   agentMic: 'Parler',
   agentMicOn: 'J’écoute…',
@@ -1185,7 +1185,7 @@ const ar: Dict = {
   uiSoundsHint: 'صوت عند المسح، نقر الأزرار، وصوت خاص عند الدفع.',
   agent: 'مساعدة',
   agentHint:
-    'اكتب أو احكي بأي لغة. الوكيل يجاوب ويقدر يهدر.',
+    'كي الشات: المحل (بيع، مخزون، ديون) وأي سؤال عام (مجاني، ويكيبيديا).',
   agentPlaceholder: 'اكتب أو اضغط الميكرو…',
   agentMic: 'تكلّم',
   agentMicOn: 'راني نسمع…',

@@ -29,6 +29,7 @@ dist-ssr
 # Native builds
 ios
 release
+release-new
 dist-electron
 *.exe
 *.apk

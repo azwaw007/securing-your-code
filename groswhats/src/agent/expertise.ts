@@ -194,7 +194,7 @@ export function detectExpertDomain(text: string): ExpertDomain | null {
   if (/(informatique|ordinateur|wifi|معلوماتية|انترنت|خبير معلومات)/.test(n)) return 'it'
   if (/(developpeur|developpeur|code|coder|مطور|برمجة|خبير مطور)/.test(n)) return 'dev'
 
-  // Demande générique « conseil / expert / خبير »
+  // « conseil / expert » seulement si le métier est clair — sinon l’agent général répond
   if (/(conseil|نصيحة|نصائح|expert|خبير)/.test(n)) {
     if (/(vente|بيع|مبيع)/.test(n)) return 'sales'
     if (/(compta|bilan|محاسب)/.test(n)) return 'accounting'
@@ -202,7 +202,6 @@ export function detectExpertDomain(text: string): ExpertDomain | null {
     if (/(gestion|تسيير|ادارة)/.test(n)) return 'management'
     if (/(info|wifi|معلومات)/.test(n)) return 'it'
     if (/(dev|code|مطور|برمجة)/.test(n)) return 'dev'
-    return 'sales'
   }
   return null
 }

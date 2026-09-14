@@ -31,14 +31,13 @@ interface ChatMessage {
 }
 
 const SUGGESTIONS_FR = [
-  'conseil vente',
-  'conseil compta',
-  'organise l’app',
-  'thème nuit',
+  'c’est quoi Alger',
+  'qui est Messi',
+  'quelle heure',
   'résumé du jour',
   'stock bas',
   'crédits',
-  'mes gains',
+  'conseil vente',
   'aide',
 ]
 
@@ -55,13 +54,13 @@ const SUGGESTIONS_AR = [
 ]
 
 const SUGGESTIONS_DARJA = [
-  'conseil vente',
-  'nadem l’app',
-  'theme lil',
-  'resume lyoum',
+  'wesh labas',
+  'chhal rbe7',
   'stock na9es',
   'chkoune yekhlas',
-  'apprend khlass = stock bas',
+  'ouvre vente',
+  'resume lyoum',
+  'zakat',
   '3aweni',
 ]
 
@@ -88,6 +87,7 @@ export function AgentPage({
   const [pendingTeach, setPendingTeach] = useState<string | null>(null)
   const [memTick, setMemTick] = useState(0)
   const [listening, setListening] = useState(false)
+  const [busy, setBusy] = useState(false)
   const [voiceOn, setVoiceOn] = useState(() => !isVoiceMuted())
   const [voiceLang, setVoiceLang] = useState<VoiceLang>(lang === 'ar' ? 'darja' : 'fr')
   const listenRef = useRef<{ stop: () => void } | null>(null)
@@ -101,8 +101,8 @@ export function AgentPage({
         role: 'agent',
         text:
           (lang === 'ar'
-            ? 'مرحباً، أنا وكيل AZ POS. اكتب أو احكي بأي لغة — نجاوبك.\n\n'
-            : 'Salam, je suis l’agent AZ POS. Écris ou parle dans n’importe quelle langue.\n\n') +
+            ? 'مرحباً، أنا وكيل AZ POS (مجاني). نجاوب على المحل وعلى أي سؤال عام — كي الشات.\n\n'
+            : 'Salam, je suis l’agent AZ POS (gratuit). Magasin + n’importe quelle question — comme un chat.\n\n') +
           tip,
       },
     ]
@@ -122,7 +122,7 @@ export function AgentPage({
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, pendingTeach])
+  }, [messages, pendingTeach, busy])
 
   useEffect(() => {
     return () => {
@@ -161,13 +161,18 @@ export function AgentPage({
     }
   }
 
-  function send(text: string) {
+  async function send(text: string) {
     const value = text.trim()
-    if (!value) return
+    if (!value || busy) return
     setMessages((m) => [...m, { id: `u_${Date.now()}`, role: 'user', text: value }])
     setInput('')
-    const result = runAgent(stateRef.current, value)
-    handleResult(result)
+    setBusy(true)
+    try {
+      const result = await runAgent(stateRef.current, value)
+      handleResult(result)
+    } finally {
+      setBusy(false)
+    }
   }
 
   useEffect(() => {
@@ -252,6 +257,11 @@ export function AgentPage({
               <pre>{m.text}</pre>
             </div>
           ))}
+          {busy ? (
+            <div className="bubble agent">
+              <pre>{lang === 'ar' ? 'راني نفكّر…' : 'Je cherche…'}</pre>
+            </div>
+          ) : null}
           <div ref={endRef} />
         </div>
 
@@ -322,6 +332,7 @@ export function AgentPage({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder={t(lang, 'agentPlaceholder')}
+            disabled={busy}
             onKeyDown={(e) => {
               if (e.key === 'Enter') send(input)
             }}
@@ -363,8 +374,8 @@ export function AgentPage({
           >
             {listening ? `🎤 ${t(lang, 'agentMicOn')}` : `🎤 ${t(lang, 'agentMic')}`}
           </button>
-          <button className="btn" onClick={() => send(input)}>
-            {t(lang, 'agentSend')}
+          <button className="btn" disabled={busy} onClick={() => send(input)}>
+            {busy ? (lang === 'ar' ? '…' : '…') : t(lang, 'agentSend')}
           </button>
         </div>
         <span style={{ display: 'none' }}>{memTick}</span>
