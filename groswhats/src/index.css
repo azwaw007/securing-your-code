@@ -2495,3 +2495,43 @@ html.easy-mode .home-tile {
   border: 1px solid var(--line);
 }
 
+/* Gros = dépôt / cartons */
+.app-shell.mode-gros .sell-cta {
+  background: linear-gradient(135deg, #134e4a, #0f766e);
+  box-shadow: 0 12px 28px rgba(15, 118, 110, 0.35);
+}
+
+/* Détail = caisse boutique */
+.app-shell.mode-detail .sell-cta {
+  background: linear-gradient(135deg, #9a3412, #ea580c);
+  box-shadow: 0 12px 28px rgba(234, 88, 12, 0.35);
+}
+
+.app-shell.mode-detail .product-catalog {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.app-shell.mode-detail .product-card-img,
+.app-shell.mode-detail .product-card-img.placeholder {
+  min-height: 120px;
+}
+
+.app-shell.mode-gros .product-catalog {
+  grid-template-columns: 1fr;
+}
+
+.app-shell.mode-sante .sell-cta {
+  background: linear-gradient(135deg, #075985, #0284c7);
+  box-shadow: 0 12px 28px rgba(2, 132, 199, 0.35);
+}
+
+.app-shell.mode-auto .sell-cta {
+  background: linear-gradient(135deg, #1e3a5f, #334155);
+  box-shadow: 0 12px 28px rgba(30, 58, 95, 0.4);
+}
+
+.app-shell.mode-services .sell-cta {
+  background: linear-gradient(135deg, #5b21b6, #7c3aed);
+  box-shadow: 0 12px 28px rgba(124, 58, 237, 0.35);
+}
+

@@ -1,4 +1,4 @@
-import type { PriceTier, Product, Unit } from '../types'
+import type { CommerceMode, PriceTier, Product, Unit } from '../types'
 
 export function optPrice(n: unknown): number | undefined {
   return typeof n === 'number' && n > 0 ? n : undefined
@@ -35,7 +35,8 @@ export function priceForTier(p: Product, tier: PriceTier): number | null {
   return null
 }
 
-export function availableTiers(p: Product): PriceTier[] {
+export function availableTiers(p: Product, mode?: CommerceMode): PriceTier[] {
+  if (mode && mode !== 'gros') return ['piece']
   const list: PriceTier[] = ['piece']
   if (priceForTier(p, 'demi_gros') != null) list.push('demi_gros')
   if (priceForTier(p, 'gros') != null && (p.piecesPerPack ?? 0) > 0) {

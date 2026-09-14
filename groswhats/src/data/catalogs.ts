@@ -640,3 +640,20 @@ const FALLBACK = CATALOGS['alim-detail']
 export function catalogFor(catalogId: string): SeedSpec[] {
   return CATALOGS[catalogId] ?? FALLBACK
 }
+
+/** Emoji / fiche du catalogue pour un nom déjà en stock. */
+export function seedByName(name: string): SeedSpec | undefined {
+  const n = name.trim().toLowerCase()
+  if (!n) return undefined
+  for (const list of Object.values(CATALOGS)) {
+    const exact = list.find((x) => x.name.toLowerCase() === n)
+    if (exact) return exact
+  }
+  for (const list of Object.values(CATALOGS)) {
+    const part = list.find(
+      (x) => n.includes(x.name.toLowerCase()) || x.name.toLowerCase().includes(n),
+    )
+    if (part) return part
+  }
+  return undefined
+}

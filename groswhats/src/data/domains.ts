@@ -181,11 +181,65 @@ export function domainById(id: string): ShopDomain {
 }
 
 export function domainName(domain: ShopDomain, lang: Language): string {
-  return lang === 'ar' ? domain.nameAr : domain.nameFr
+  return lang === 'ar' || lang === 'darja' ? domain.nameAr : domain.nameFr
+}
+
+const MODE_I18N: Record<CommerceMode, Partial<Record<Language, string>>> = {
+  gros: { en: 'Wholesale', es: 'Mayorista', tr: 'Toptan', it: 'Ingrosso', de: 'Großhandel' },
+  detail: { en: 'Retail', es: 'Detalle', tr: 'Perakende', it: 'Dettaglio', de: 'Einzelhandel' },
+  sante: { en: 'Health', es: 'Salud', tr: 'Sağlık', it: 'Salute', de: 'Gesundheit' },
+  auto: { en: 'Auto', es: 'Auto', tr: 'Oto', it: 'Auto', de: 'Auto' },
+  services: { en: 'Services', es: 'Servicios', tr: 'Hizmetler', it: 'Servizi', de: 'Dienstleistungen' },
 }
 
 export function modeLabel(mode: CommerceMode, lang: Language): string {
   const m = COMMERCE_MODES.find((x) => x.id === mode)
   if (!m) return mode
-  return lang === 'ar' ? m.nameAr : m.nameFr
+  if (lang === 'ar' || lang === 'darja') return m.nameAr
+  return MODE_I18N[mode][lang] || m.nameFr
+}
+
+const MODE_HINT: Record<CommerceMode, Partial<Record<Language, string>>> = {
+  gros: {
+    en: 'Warehouse, cartons, deliveries',
+    es: 'Almacén, cajas, entregas',
+    tr: 'Depo, koli, teslimat',
+    it: 'Magazzino, cartoni, consegne',
+    de: 'Lager, Kartons, Lieferungen',
+  },
+  detail: {
+    en: 'Shop, checkout, small stock',
+    es: 'Tienda, caja, stock corto',
+    tr: 'Dükkan, kasa, az stok',
+    it: 'Negozio, cassa, scorte corte',
+    de: 'Laden, Kasse, kleiner Bestand',
+  },
+  sante: {
+    en: 'Clinic, lab, procedures',
+    es: 'Clínica, laboratorio, actos',
+    tr: 'Klinik, laboratuvar, işlem',
+    it: 'Studio, laboratorio, prestazioni',
+    de: 'Praxis, Labor, Leistungen',
+  },
+  auto: {
+    en: 'Rent, sell or repair',
+    es: 'Alquiler, venta o taller',
+    tr: 'Kiralama, satış, tamir',
+    it: 'Noleggio, vendita o officina',
+    de: 'Miete, Verkauf oder Werkstatt',
+  },
+  services: {
+    en: 'Jobs and appointments',
+    es: 'Servicios y citas',
+    tr: 'Hizmet ve randevu',
+    it: 'Prestazioni e appuntamenti',
+    de: 'Leistungen und Termine',
+  },
+}
+
+export function modeHint(mode: CommerceMode, lang: Language): string {
+  const m = COMMERCE_MODES.find((x) => x.id === mode)
+  if (!m) return ''
+  if (lang === 'ar' || lang === 'darja') return m.hintAr
+  return MODE_HINT[mode][lang] || m.hintFr
 }

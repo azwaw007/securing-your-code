@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type {
   AppState,
+  CommerceMode,
   Client,
   ExpenseCategory,
   Language,
@@ -67,12 +68,37 @@ import {
   orderRemainingDa,
 } from './store'
 import { isDecimalUnit, qtyStep, t, unitLabel } from './i18n'
-import { formatDa, formatQty, setActiveCurrency } from './utils/format'
-import { productImageSrc } from './utils/productArt'
+import { formatDa, formatQty, setActiveCurrency, setActiveLocale } from './utils/format'
+import { productDisplaySrc } from './utils/productArt'
 import { SetupWizard } from './SetupWizard'
 import { countryByCode } from './data/countries'
 import { domainById, domainName, modeLabel } from './data/domains'
-import { DzPhoneInput, WilayaSelect } from './DzFields'
+import { CityField, DzPhoneInput, WilayaSelect } from './DzFields'
+import {
+  defaultLang,
+  htmlLang,
+  isRtl,
+  langInCountry,
+  LANG_SHORT,
+  nextSuggestedLang,
+} from './locale/langs'
+import {
+  cashChipsFor,
+  cityLabel,
+  countryDisplayName,
+  isShopRetail,
+  isWholesale,
+  numberLocale,
+  preferClientOnSale,
+  shopVocab,
+  showDemiGros,
+  showDepotTools,
+  showGallery,
+  showHomeScan,
+  showReturns,
+  showWholesaleTiers,
+} from './locale/adapt'
+import { LanguagePicker } from './locale/LanguagePicker'
 import { applyUiTheme, themeLabel, THEME_PRESETS } from './utils/theme'
 import {
   DEFAULT_AGENT_PERMISSIONS,
@@ -145,29 +171,45 @@ import { classifyHomeScan } from './utils/clientQr'
 import { APP_BRAND } from './brand'
 import { APP_VERSION, activateLicense, getAccessStatus } from './license/license'
 
-const NAV_IDS: Screen[] = ['home', 'order', 'clients', 'products']
-const CASH_CHIPS = [500, 1000, 2000, 5000, 10000]
-const NAV_ICONS: Record<Screen, string> = {
-  home: '🏠',
-  order: '🛒',
-  products: '📦',
-  clients: '👥',
-  stock: '📈',
-  zakat: '🌙',
-  settings: '⚙️',
-  inbox: '📥',
-  arrivages: '🆕',
-  agent: '🤖',
-  expenses: '💸',
-  calculator: '🧮',
-  gallery: '🖼️',
-  delivery: '🗺️',
-  missions: '🚚',
-  history: '📜',
-  profits: '💰',
-  caisse: '💵',
-  returns: '↩️',
-  purchases: '🏭',
+function navItems(mode: CommerceMode | undefined): Array<{ id: Screen; icon: string }> {
+  if (mode === 'sante') {
+    return [
+      { id: 'home', icon: '🏠' },
+      { id: 'order', icon: '🩺' },
+      { id: 'clients', icon: '👤' },
+      { id: 'products', icon: '📋' },
+    ]
+  }
+  if (mode === 'auto') {
+    return [
+      { id: 'home', icon: '🏠' },
+      { id: 'order', icon: '🚗' },
+      { id: 'products', icon: '🔧' },
+      { id: 'clients', icon: '👥' },
+    ]
+  }
+  if (mode === 'services') {
+    return [
+      { id: 'home', icon: '🏠' },
+      { id: 'order', icon: '🧰' },
+      { id: 'clients', icon: '👥' },
+      { id: 'products', icon: '📝' },
+    ]
+  }
+  if (isWholesale(mode)) {
+    return [
+      { id: 'home', icon: '🏠' },
+      { id: 'order', icon: '📦' },
+      { id: 'clients', icon: '👥' },
+      { id: 'products', icon: '📦' },
+    ]
+  }
+  return [
+    { id: 'home', icon: '🏠' },
+    { id: 'order', icon: '🛒' },
+    { id: 'products', icon: '🛍️' },
+    { id: 'clients', icon: '👥' },
+  ]
 }
 
 const CATEGORIES: ProductCategory[] = [
@@ -190,6 +232,7 @@ export default function App() {
   const [focusProductId, setFocusProductId] = useState<string | null>(null)
   const [seedProductBarcode, setSeedProductBarcode] = useState<string | null>(null)
   const [seedProductQuery, setSeedProductQuery] = useState<string | null>(null)
+  const [seedSellProductId, setSeedSellProductId] = useState<string | null>(null)
   const [seedClientNotes, setSeedClientNotes] = useState<string | null>(null)
   const [historySeed, setHistorySeed] = useState<{
     from: string
@@ -198,6 +241,7 @@ export default function App() {
   const [agentSeed, setAgentSeed] = useState<string | null>(null)
   const [redoSetup, setRedoSetup] = useState(false)
   const lang = state.settings.language
+  const vocab = shopVocab(state.settings.commerceMode, lang)
 
   useEffect(() => {
     registerMuteAskHandler(null)
@@ -244,8 +288,8 @@ export default function App() {
   }, [state])
 
   useEffect(() => {
-    document.documentElement.lang = lang
-    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr'
+    document.documentElement.lang = htmlLang(lang)
+    document.documentElement.dir = isRtl(lang) ? 'rtl' : 'ltr'
   }, [lang])
 
   useEffect(() => {
@@ -324,13 +368,21 @@ export default function App() {
 
   useEffect(() => {
     setActiveCurrency(state.settings.currency || 'DA')
-  }, [state.settings.currency])
+    setActiveLocale(numberLocale(lang, state.settings.countryCode || 'DZ'))
+  }, [state.settings.currency, state.settings.countryCode, lang])
+
+  useEffect(() => {
+    const code = state.settings.countryCode || 'DZ'
+    if (!langInCountry(lang, code)) {
+      setState((s) => updateSettings(s, { language: defaultLang(code) }))
+    }
+  }, [state.settings.countryCode, lang])
 
   const needSetup = !state.settings.setupDone || redoSetup
 
   return (
     <div
-      className={`app-shell ${screen === 'delivery' ? 'map-mode' : ''} ${
+      className={`app-shell mode-${state.settings.commerceMode || 'gros'} ${screen === 'delivery' ? 'map-mode' : ''} ${
         state.settings.easyMode !== false ? 'easy-ui' : ''
       } ${isDriverMode ? 'driver-mode' : ''}`}
     >
@@ -405,14 +457,17 @@ export default function App() {
             onClick={() =>
               setState((s) =>
                 updateSettings(s, {
-                  language: s.settings.language === 'fr' ? 'ar' : 'fr',
+                  language: nextSuggestedLang(
+                    s.settings.language,
+                    s.settings.countryCode || 'DZ',
+                  ),
                 }),
               )
             }
-            aria-label={lang === 'fr' ? 'العربية' : 'Français'}
-            title={lang === 'fr' ? 'العربية' : 'Français'}
+            aria-label={t(lang, 'language')}
+            title={t(lang, 'language')}
           >
-            {lang === 'fr' ? 'عربي' : 'FR'}
+            {LANG_SHORT[lang]}
           </button>
           <button
             className={`settings-btn ${screen === 'settings' ? 'active' : ''}`}
@@ -495,6 +550,9 @@ export default function App() {
           onSeedNewClient={(note) => {
             setSeedClientNotes(note)
             setFocusClientId(null)
+          }}
+          onSeedSell={(productId) => {
+            setSeedSellProductId(productId)
           }}
           onOpenHistoryDates={(from, to) => {
             setHistorySeed({ from, to })
@@ -620,6 +678,8 @@ export default function App() {
         <OrderPage
           state={state}
           lang={lang}
+          seedProductId={seedSellProductId}
+          onSeedConsumed={() => setSeedSellProductId(null)}
           onGo={goTo}
           onCreate={(order) => {
             const next = createOrder(state, order)
@@ -947,14 +1007,22 @@ export default function App() {
 
       {!needSetup && !needRolePick && !isDriverMode ? (
       <nav className="bottom-nav" aria-label="Navigation">
-        {NAV_IDS.map((id) => (
+        {navItems(state.settings.commerceMode).map((item) => (
           <button
-            key={id}
-            className={`nav-btn ${screen === id ? 'active' : ''}`}
-            onClick={() => goTo(id, t(lang, id))}
+            key={item.id}
+            className={`nav-btn ${screen === item.id ? 'active' : ''}`}
+            onClick={() => goTo(item.id, t(lang, item.id))}
           >
-            <span className="nav-emoji">{NAV_ICONS[id]}</span>
-            <span className="nav-text">{t(lang, id)}</span>
+            <span className="nav-emoji">{item.icon}</span>
+            <span className="nav-text">
+              {item.id === 'order'
+                ? vocab.sell
+                : item.id === 'clients'
+                  ? vocab.client
+                  : item.id === 'products'
+                    ? vocab.product
+                    : t(lang, item.id)}
+            </span>
           </button>
         ))}
       </nav>
@@ -1048,6 +1116,10 @@ function SettingsPage({
   const [licenseInfo, setLicenseInfo] = useState('')
 
   useEffect(() => {
+    setLanguage(state.settings.language)
+  }, [state.settings.language])
+
+  useEffect(() => {
     void getAccessStatus().then((s) => {
       if (s.ok && s.mode === 'licensed') {
         setLicenseInfo(`Licence: ${s.customer} — expire ${s.expiresAt}`)
@@ -1122,20 +1194,18 @@ function SettingsPage({
 
         <div className="field">
           <label>{t(lang, 'language')}</label>
-          <div className="btn-row">
-            <button
-              className={`btn ${language === 'fr' ? '' : 'ghost'}`}
-              onClick={() => setLanguage('fr')}
-            >
-              {t(lang, 'french')}
-            </button>
-            <button
-              className={`btn ${language === 'ar' ? '' : 'ghost'}`}
-              onClick={() => setLanguage('ar')}
-            >
-              {t(lang, 'arabic')}
-            </button>
-          </div>
+          <p className="muted" style={{ margin: '0 0 8px' }}>
+            {countryDisplayName(state.settings.countryCode || 'DZ', lang)}
+          </p>
+          <LanguagePicker
+            lang={lang}
+            value={language}
+            countryCode={state.settings.countryCode}
+            onChange={(l) => {
+              setLanguage(l)
+              onSave({ language: l })
+            }}
+          />
         </div>
 
         <div className="field">
@@ -1378,7 +1448,7 @@ function SettingsPage({
         <h2>{t(lang, 'setupCommerceTitle')}</h2>
         <p className="muted">{t(lang, 'setupCurrent')}</p>
         <div className="notice" style={{ marginBottom: 12 }}>
-          {countryByCode(state.settings.countryCode || 'DZ')[lang === 'ar' ? 'nameAr' : 'nameFr']}
+          {countryDisplayName(state.settings.countryCode || 'DZ', lang)}
           {' · '}
           {modeLabel(state.settings.commerceMode || 'gros', lang)}
           {' · '}
@@ -1397,12 +1467,21 @@ function SettingsPage({
         </div>
         <div className="field">
           <label>{t(lang, 'phone')}</label>
-          <DzPhoneInput value={phone} onChange={setPhone} />
-          <div className="muted">{t(lang, 'phoneHint')}</div>
+          <DzPhoneInput
+            value={phone}
+            onChange={setPhone}
+            countryCode={state.settings.countryCode || 'DZ'}
+            placeholder={countryByCode(state.settings.countryCode || 'DZ').phoneHint}
+          />
+          <div className="muted">{countryByCode(state.settings.countryCode || 'DZ').phoneHint}</div>
         </div>
         <div className="field">
-          <label>{t(lang, 'city')}</label>
-          <WilayaSelect lang={lang} value={city} onChange={setCity} />
+          <label>{cityLabel(state.settings.countryCode || 'DZ', lang)}</label>
+          {(state.settings.countryCode || 'DZ') === 'DZ' ? (
+            <WilayaSelect lang={lang} value={city} onChange={setCity} />
+          ) : (
+            <input value={city} onChange={(e) => setCity(e.target.value)} />
+          )}
         </div>
         <button className="btn block" onClick={() => saveAll()}>
           {t(lang, 'save')}
@@ -1423,6 +1502,7 @@ function HomePage({
   onSeedNewProduct,
   onSeedProductSearch,
   onSeedNewClient,
+  onSeedSell,
   onOpenHistoryDates,
   onEnableAlerts,
   onWhatsapp,
@@ -1455,6 +1535,7 @@ function HomePage({
   onSeedNewProduct: (barcode: string) => void
   onSeedProductSearch: (query: string) => void
   onSeedNewClient: (note: string) => void
+  onSeedSell: (productId: string) => void
   onOpenHistoryDates: (from: string, to: string) => void
   onEnableAlerts: () => void
   onWhatsapp: (order: Order) => void
@@ -1462,6 +1543,7 @@ function HomePage({
   onBoth: (order: Order) => Promise<void>
   onInvoice: (order: Order) => void
 }) {
+  const vocab = shopVocab(state.settings.commerceMode, lang)
   const recent = (todayOrders(state).length > 0 ? todayOrders(state) : state.orders).slice(0, 4)
   const [scanOpen, setScanOpen] = useState(false)
   const [unknownCode, setUnknownCode] = useState<string | null>(null)
@@ -1487,33 +1569,93 @@ function HomePage({
       return
     }
     if (hit.kind === 'product' && hit.productId) {
-      onFocusProduct(hit.productId)
-      onGo('products', t(lang, 'appStock'))
+      if (isWholesale(state.settings.commerceMode)) {
+        onFocusProduct(hit.productId)
+        onGo('products', t(lang, 'appStock'))
+      } else {
+        onSeedSell(hit.productId)
+        onGo('order', vocab.sell)
+      }
       return
     }
     playBarcodeError()
     setUnknownCode(hit.code)
   }
 
+  const mode = state.settings.commerceMode
   const dailyApps: Array<{
     id: Screen
     label: string
     icon: string
     tone: string
     badge?: number
-  }> = [
-    { id: 'clients', label: t(lang, 'appClients'), icon: '👥', tone: 'navy' },
-    { id: 'caisse', label: t(lang, 'appCaisse'), icon: '💵', tone: 'amber' },
-    {
-      id: 'products',
-      label: t(lang, 'appStock'),
-      icon: '📦',
-      tone: 'blue',
-      badge: stats.lowStock,
-    },
-    { id: 'history', label: t(lang, 'appHistory'), icon: '📜', tone: 'slate' },
-  ]
+  }> =
+    mode === 'sante'
+      ? [
+          { id: 'clients', label: vocab.client, icon: '👤', tone: 'navy' },
+          {
+            id: 'products',
+            label: vocab.product,
+            icon: '📋',
+            tone: 'blue',
+            badge: stats.lowStock,
+          },
+          { id: 'caisse', label: t(lang, 'appCaisse'), icon: '💵', tone: 'amber' },
+          { id: 'history', label: t(lang, 'appHistory'), icon: '📜', tone: 'slate' },
+        ]
+      : mode === 'auto'
+        ? [
+            {
+              id: 'products',
+              label: vocab.product,
+              icon: '🔧',
+              tone: 'blue',
+              badge: stats.lowStock,
+            },
+            { id: 'clients', label: vocab.client, icon: '👥', tone: 'navy' },
+            { id: 'caisse', label: t(lang, 'appCaisse'), icon: '💵', tone: 'amber' },
+            { id: 'history', label: t(lang, 'appHistory'), icon: '📜', tone: 'slate' },
+          ]
+        : mode === 'services'
+          ? [
+              {
+                id: 'products',
+                label: vocab.product,
+                icon: '📝',
+                tone: 'blue',
+                badge: stats.lowStock,
+              },
+              { id: 'clients', label: vocab.client, icon: '👥', tone: 'navy' },
+              { id: 'caisse', label: t(lang, 'appCaisse'), icon: '💵', tone: 'amber' },
+              { id: 'history', label: t(lang, 'appHistory'), icon: '📜', tone: 'slate' },
+            ]
+          : isWholesale(mode)
+            ? [
+                { id: 'clients', label: vocab.client, icon: '👥', tone: 'navy' },
+                { id: 'caisse', label: t(lang, 'appCaisse'), icon: '💵', tone: 'amber' },
+                {
+                  id: 'products',
+                  label: vocab.product,
+                  icon: '📦',
+                  tone: 'blue',
+                  badge: stats.lowStock,
+                },
+                { id: 'history', label: t(lang, 'appHistory'), icon: '📜', tone: 'slate' },
+              ]
+            : [
+                {
+                  id: 'products',
+                  label: vocab.product,
+                  icon: '🛍️',
+                  tone: 'blue',
+                  badge: stats.lowStock,
+                },
+                { id: 'caisse', label: t(lang, 'appCaisse'), icon: '💵', tone: 'amber' },
+                { id: 'history', label: t(lang, 'appHistory'), icon: '📜', tone: 'slate' },
+                { id: 'clients', label: vocab.client, icon: '👥', tone: 'navy' },
+              ]
 
+  const depot = showDepotTools(state.settings.commerceMode)
   const moreApps: Array<{
     id: Screen
     label: string
@@ -1521,31 +1663,37 @@ function HomePage({
     tone: string
     badge?: number
   }> = [
-    { id: 'delivery', label: t(lang, 'appMaps'), icon: '🗺️', tone: 'teal' },
-    ...(state.team.multiPosteEnabled
+    ...(depot
       ? [
+          { id: 'delivery' as Screen, label: t(lang, 'appMaps'), icon: '🗺️', tone: 'teal' },
+          ...(state.team.multiPosteEnabled
+            ? [
+                {
+                  id: 'missions' as Screen,
+                  label: t(lang, 'appMissions'),
+                  icon: '🚚',
+                  tone: 'lime',
+                  badge: state.missions.filter((m) => m.status !== 'done').length || undefined,
+                },
+              ]
+            : []),
+          { id: 'purchases' as Screen, label: t(lang, 'appPurchases'), icon: '🏭', tone: 'steel' },
           {
-            id: 'missions' as Screen,
-            label: t(lang, 'appMissions'),
-            icon: '🚚',
-            tone: 'lime',
-            badge: state.missions.filter((m) => m.status !== 'done').length || undefined,
+            id: 'inbox' as Screen,
+            label: t(lang, 'appInbox'),
+            icon: '📥',
+            tone: 'coral',
+            badge: stats.pendingInbox,
           },
+          { id: 'arrivages' as Screen, label: t(lang, 'appArrivals'), icon: '🆕', tone: 'lime' },
         ]
       : []),
-    ...(state.settings.showGallery !== false
+    ...(state.settings.showGallery !== false && showGallery(state.settings.commerceMode)
       ? [{ id: 'gallery' as Screen, label: t(lang, 'appGallery'), icon: '🖼️', tone: 'blue' }]
       : []),
-    { id: 'returns', label: t(lang, 'appReturns'), icon: '↩️', tone: 'coral' },
-    { id: 'purchases', label: t(lang, 'appPurchases'), icon: '🏭', tone: 'steel' },
-    {
-      id: 'inbox',
-      label: t(lang, 'appInbox'),
-      icon: '📥',
-      tone: 'coral',
-      badge: stats.pendingInbox,
-    },
-    { id: 'arrivages', label: t(lang, 'appArrivals'), icon: '🆕', tone: 'lime' },
+    ...(showReturns(state.settings.commerceMode)
+      ? [{ id: 'returns' as Screen, label: t(lang, 'appReturns'), icon: '↩️', tone: 'coral' }]
+      : []),
     { id: 'agent', label: t(lang, 'appAgent'), icon: '🤖', tone: 'slate' },
     { id: 'expenses', label: t(lang, 'appExpenses'), icon: '💸', tone: 'rose' },
     { id: 'profits', label: t(lang, 'appProfits'), icon: '💰', tone: 'amber' },
@@ -1591,6 +1739,7 @@ function HomePage({
           onHit={handleHit}
           onOpenHistory={onOpenHistoryDates}
         />
+        {showHomeScan(state.settings.commerceMode) ? (
         <button
           type="button"
           className="scan-cta"
@@ -1604,15 +1753,44 @@ function HomePage({
         >
           <span className="sell-cta-emoji">📷</span>
           <span>
-            <strong>{t(lang, 'homeScanTitle')}</strong>
-            <small>{t(lang, 'homeScanHint')}</small>
+            <strong>
+              {t(
+                lang,
+                isWholesale(state.settings.commerceMode)
+                  ? 'homeScanTitleGros'
+                  : state.settings.commerceMode === 'auto'
+                    ? 'homeScanTitleAuto'
+                    : 'homeScanTitleRetail',
+              )}
+            </strong>
+            <small>
+              {t(
+                lang,
+                isWholesale(state.settings.commerceMode)
+                  ? 'homeScanHintGros'
+                  : state.settings.commerceMode === 'auto'
+                    ? 'homeScanHintAuto'
+                    : 'homeScanHintRetail',
+              )}
+            </small>
           </span>
         </button>
-        <button type="button" className="sell-cta" onClick={() => onGo('order', t(lang, 'sellNow'))}>
-          <span className="sell-cta-emoji">🛒</span>
+        ) : null}
+        <button type="button" className="sell-cta" onClick={() => onGo('order', vocab.sell)}>
+          <span className="sell-cta-emoji">
+            {state.settings.commerceMode === 'sante'
+              ? '🩺'
+              : state.settings.commerceMode === 'auto'
+                ? '🚗'
+                : state.settings.commerceMode === 'services'
+                  ? '🧰'
+                  : isWholesale(state.settings.commerceMode)
+                    ? '📦'
+                    : '🛒'}
+          </span>
           <span>
-            <strong>{t(lang, 'sellNow')}</strong>
-            <small>{t(lang, 'sellNowHint')}</small>
+            <strong>{vocab.sell}</strong>
+            <small>{vocab.sellHint}</small>
           </span>
         </button>
         <button
@@ -1652,7 +1830,7 @@ function HomePage({
               <strong>{stats.overdueCount}</strong>
             </div>
           ) : null}
-          {stats.pendingInbox > 0 ? (
+          {stats.pendingInbox > 0 && showDepotTools(state.settings.commerceMode) ? (
             <div className="home-chip warn">
               <span>📥 {t(lang, 'pendingIncoming')}</span>
               <strong>{stats.pendingInbox}</strong>
@@ -1664,17 +1842,21 @@ function HomePage({
       {needsSetup ? (
         <section className="start-guide" aria-label={t(lang, 'startHere')}>
           <h2>{t(lang, 'startHere')}</h2>
-          <button type="button" className="start-step" onClick={() => onGo('products', t(lang, 'newProduct'))}>
-            <strong>{t(lang, 'startAddProduct')}</strong>
-            <span className="muted">{t(lang, 'startAddProductHint')}</span>
+          <button type="button" className="start-step" onClick={() => onGo('products', vocab.product)}>
+            <strong>1. {vocab.product}</strong>
+            <span className="muted">{vocab.sellHint}</span>
           </button>
-          <button type="button" className="start-step" onClick={() => onGo('clients', t(lang, 'newClient'))}>
-            <strong>{t(lang, 'startAddClient')}</strong>
+          {!isShopRetail(state.settings.commerceMode) ? (
+          <button type="button" className="start-step" onClick={() => onGo('clients', vocab.client)}>
+            <strong>2. {vocab.client}</strong>
             <span className="muted">{t(lang, 'startAddClientHint')}</span>
           </button>
-          <button type="button" className="start-step" onClick={() => onGo('order', t(lang, 'sellNow'))}>
-            <strong>{t(lang, 'startSell')}</strong>
-            <span className="muted">{t(lang, 'startSellHint')}</span>
+          ) : null}
+          <button type="button" className="start-step" onClick={() => onGo('order', vocab.sell)}>
+            <strong>
+              {isShopRetail(state.settings.commerceMode) ? '2' : '3'}. {vocab.sell}
+            </strong>
+            <span className="muted">{vocab.sellHint}</span>
           </button>
         </section>
       ) : (
@@ -2205,11 +2387,7 @@ function GalleryPage({
               key={p.id}
               onClick={() => setPreviewId(p.id)}
             >
-              {p.imageDataUrl ? (
-                <img src={productImageSrc(p.imageDataUrl)} alt={p.name} />
-              ) : (
-                <div className="gallery-tile-ph">{t(lang, 'noPhoto')}</div>
-              )}
+              <img src={productDisplaySrc(p.name, p.category, p.imageDataUrl)} alt={p.name} />
               <div className="gallery-tile-meta">
                 <strong>{p.name}</strong>
                 <span>
@@ -2235,11 +2413,10 @@ function GalleryPage({
             className="gallery-lightbox-card"
             onClick={(e) => e.stopPropagation()}
           >
-            {preview.imageDataUrl ? (
-              <img src={productImageSrc(preview.imageDataUrl)} alt={preview.name} />
-            ) : (
-              <div className="gallery-tile-ph large">{t(lang, 'noPhoto')}</div>
-            )}
+            <img
+              src={productDisplaySrc(preview.name, preview.category, preview.imageDataUrl)}
+              alt={preview.name}
+            />
             <div className="gallery-lightbox-body">
               <h3>{preview.name}</h3>
               <p className="muted">
@@ -2340,8 +2517,10 @@ function ProductPricingFields({
   showLowStock,
   lowStockAt,
   setLowStockAt,
+  commerceMode,
 }: {
   lang: Language
+  commerceMode?: CommerceMode
   costDa: string
   setCostDa: (v: string) => void
   priceDa: string
@@ -2394,6 +2573,7 @@ function ProductPricingFields({
           </div>
         </div>
 
+        {showDemiGros(commerceMode) ? (
         <div className="pricing-row tone-demi">
           <div className="pricing-emoji">📦</div>
           <div className="field" style={{ margin: 0, flex: 1 }}>
@@ -2407,7 +2587,10 @@ function ProductPricingFields({
             <div className="muted">{t(lang, 'priceDemiGrosHint')}</div>
           </div>
         </div>
+        ) : null}
 
+        {showWholesaleTiers(commerceMode) ? (
+        <>
         <div className="pricing-row tone-carton">
           <div className="pricing-emoji">📦📦</div>
           <div style={{ flex: 1 }}>
@@ -2459,6 +2642,8 @@ function ProductPricingFields({
             ) : null}
           </div>
         </div>
+        </>
+        ) : null}
       </div>
 
       <div className={showLowStock ? 'grid-2' : undefined}>
@@ -2610,6 +2795,7 @@ function ProductsPage({
     return (
       <ProductEditCard
         lang={lang}
+        commerceMode={state.settings.commerceMode}
         product={editing}
         photoBusy={photoBusy}
         onPickPhoto={(file) =>
@@ -2639,8 +2825,12 @@ function ProductsPage({
           {t(lang, 'profitHint')}
         </div>
         <div className="product-photo-field">
-          {imageDataUrl ? (
-            <img className="product-thumb" src={productImageSrc(imageDataUrl)} alt="" />
+          {name.trim() || imageDataUrl ? (
+            <img
+              className="product-thumb"
+              src={productDisplaySrc(name || 'Produit', category, imageDataUrl)}
+              alt=""
+            />
           ) : (
             <div className="product-thumb placeholder">{t(lang, 'noPhoto')}</div>
           )}
@@ -2688,6 +2878,7 @@ function ProductsPage({
         </div>
         <ProductPricingFields
           lang={lang}
+          commerceMode={state.settings.commerceMode}
           costDa={costDa}
           setCostDa={setCostDa}
           priceDa={priceDa}
@@ -2778,11 +2969,11 @@ function ProductsPage({
           filteredProducts.map((p) => {
           return (
             <div className="list-item with-thumb" key={p.id}>
-              {p.imageDataUrl ? (
-                <img className="product-thumb" src={productImageSrc(p.imageDataUrl)} alt="" />
-              ) : (
-                <div className="product-thumb placeholder">{t(lang, 'noPhoto')}</div>
-              )}
+              <img
+                className="product-thumb"
+                src={productDisplaySrc(p.name, p.category, p.imageDataUrl)}
+                alt=""
+              />
               <div className="product-main">
                 <strong>{p.name}</strong>
                 <div className="muted">
@@ -2790,24 +2981,25 @@ function ProductsPage({
                 </div>
                 <div className="muted" style={{ marginTop: 4 }}>
                   {t(lang, 'buyPriceShort')} {formatDa(p.costDa || 0)} →{' '}
-                  {t(lang, 'tier_piece')} {formatDa(p.priceDa)}
-                  {p.demiGrosPriceDa
+                  {formatDa(p.priceDa)}
+                  {showWholesaleTiers(state.settings.commerceMode) && p.demiGrosPriceDa
                     ? ` · ${t(lang, 'tier_demi_gros')} ${formatDa(p.demiGrosPriceDa)}`
                     : ''}
-                  {p.piecesPerPack
+                  {showWholesaleTiers(state.settings.commerceMode) && p.piecesPerPack
                     ? ` · ${t(lang, 'packOf')}${p.piecesPerPack}`
                     : ''}
-                  {(p.grosPriceDa || p.packPriceDa)
+                  {showWholesaleTiers(state.settings.commerceMode) &&
+                  (p.grosPriceDa || p.packPriceDa)
                     ? ` · ${t(lang, 'tier_gros')} ${formatDa(p.grosPriceDa || p.packPriceDa || 0)}`
                     : ''}
-                  {p.superGrosPriceDa
+                  {showWholesaleTiers(state.settings.commerceMode) && p.superGrosPriceDa
                     ? ` · ${t(lang, 'tier_super_gros')} ${formatDa(p.superGrosPriceDa)}`
                     : ''}
                 </div>
                 <div className="btn-row" style={{ marginTop: 8 }}>
                   <span className={`badge ${p.stock <= p.lowStockAt ? 'warn' : ''}`}>
                     {formatQty(p.stock)} {unitLabel(lang, 'piece')}
-                    {p.piecesPerPack
+                    {showWholesaleTiers(state.settings.commerceMode) && p.piecesPerPack
                       ? ` · ${Math.floor(p.stock / p.piecesPerPack)} ${t(lang, 'cartonsLeft')}`
                       : ''}
                   </span>
@@ -2851,6 +3043,7 @@ function ProductsPage({
 
 function ProductEditCard({
   lang,
+  commerceMode,
   product,
   photoBusy,
   onPickPhoto,
@@ -2860,6 +3053,7 @@ function ProductEditCard({
   onDelete,
 }: {
   lang: Language
+  commerceMode?: CommerceMode
   product: Product
   photoBusy: boolean
   onPickPhoto: (file: File | null | undefined) => void
@@ -2899,11 +3093,11 @@ function ProductEditCard({
       <h2>{t(lang, 'editProduct')}</h2>
 
       <div className="product-photo-field">
-        {product.imageDataUrl ? (
-          <img className="product-thumb" src={productImageSrc(product.imageDataUrl)} alt="" />
-        ) : (
-          <div className="product-thumb placeholder">{t(lang, 'noPhoto')}</div>
-        )}
+        <img
+          className="product-thumb"
+          src={productDisplaySrc(product.name, product.category, product.imageDataUrl)}
+          alt=""
+        />
         <PhotoPickControls
           lang={lang}
           busy={photoBusy}
@@ -2949,6 +3143,7 @@ function ProductEditCard({
       </div>
       <ProductPricingFields
         lang={lang}
+        commerceMode={commerceMode}
         costDa={costDa}
         setCostDa={setCostDa}
         priceDa={priceDa}
@@ -3134,6 +3329,7 @@ function ClientsPage({
       return (
         <ClientEditCard
           lang={lang}
+          countryCode={state.settings.countryCode || 'DZ'}
           client={selected}
           onCancel={() => setEditing(false)}
           onSave={(patch) => {
@@ -3352,14 +3548,21 @@ function ClientsPage({
         </div>
         <div className="field">
           <label>WhatsApp</label>
-          <DzPhoneInput value={phone} onChange={setPhone} />
-          <div className="muted">{t(lang, 'phoneHint')}</div>
+          <DzPhoneInput
+            value={phone}
+            onChange={setPhone}
+            countryCode={state.settings.countryCode || 'DZ'}
+            placeholder={countryByCode(state.settings.countryCode || 'DZ').phoneHint}
+          />
+          <div className="muted">{countryByCode(state.settings.countryCode || 'DZ').phoneHint}</div>
         </div>
         <div className="grid-2">
-          <div className="field">
-            <label>{t(lang, 'city')}</label>
-            <WilayaSelect lang={lang} value={city} onChange={setCity} />
-          </div>
+          <CityField
+            lang={lang}
+            countryCode={state.settings.countryCode || 'DZ'}
+            value={city}
+            onChange={setCity}
+          />
           <div className="field">
             <label>{t(lang, 'clientAddress')}</label>
             <input
@@ -3598,6 +3801,7 @@ function ClientsPage({
 
 function ClientEditCard({
   lang,
+  countryCode,
   client,
   onCancel,
   onSave,
@@ -3606,6 +3810,7 @@ function ClientEditCard({
   onClearGps,
 }: {
   lang: Language
+  countryCode: string
   client: Client
   onCancel: () => void
   onSave: (patch: Partial<Omit<Client, 'id' | 'createdAt'>>) => void
@@ -3632,14 +3837,21 @@ function ClientEditCard({
       </div>
       <div className="field">
         <label>WhatsApp</label>
-        <DzPhoneInput value={phone} onChange={setPhone} />
-        <div className="muted">{t(lang, 'phoneHint')}</div>
+        <DzPhoneInput
+          value={phone}
+          onChange={setPhone}
+          countryCode={countryCode}
+          placeholder={countryByCode(countryCode).phoneHint}
+        />
+        <div className="muted">{countryByCode(countryCode).phoneHint}</div>
       </div>
       <div className="grid-2">
-        <div className="field">
-          <label>{t(lang, 'city')}</label>
-          <WilayaSelect lang={lang} value={city} onChange={setCity} />
-        </div>
+        <CityField
+          lang={lang}
+          countryCode={countryCode}
+          value={city}
+          onChange={setCity}
+        />
         <div className="field">
           <label>{t(lang, 'clientAddress')}</label>
           <input value={address} onChange={(e) => setAddress(e.target.value)} />
@@ -3705,6 +3917,8 @@ function ClientEditCard({
 function OrderPage({
   state,
   lang,
+  seedProductId,
+  onSeedConsumed,
   onCreate,
   onWhatsapp,
   onPrint,
@@ -3714,6 +3928,8 @@ function OrderPage({
 }: {
   state: AppState
   lang: Language
+  seedProductId?: string | null
+  onSeedConsumed?: () => void
   onCreate: (
     order: Omit<Order, 'id' | 'createdAt' | 'whatsappSent' | 'invoiceNumber'>,
   ) => Order
@@ -3724,7 +3940,13 @@ function OrderPage({
   onGo: (s: Screen, spokenLabel?: string) => void
 }) {
   const QUICK = '__quick__'
-  const [clientId, setClientId] = useState(QUICK)
+  const mode = state.settings.commerceMode
+  const wholesale = isWholesale(mode)
+  const vocab = shopVocab(mode, lang)
+  const clientFirst = preferClientOnSale(mode)
+  const [clientId, setClientId] = useState(
+    clientFirst && state.clients[0] ? state.clients[0].id : QUICK,
+  )
   /** clé = `${productId}::${tier}` */
   const [qtyMap, setQtyMap] = useState<Record<string, number>>({})
   const [tierMap, setTierMap] = useState<Record<string, PriceTier>>({})
@@ -3740,6 +3962,7 @@ function OrderPage({
   const [verseInput, setVerseInput] = useState('')
   const [dueDays, setDueDays] = useState(15)
   const [invoiceDraft, setInvoiceDraft] = useState('')
+  const [showClientBook, setShowClientBook] = useState(clientFirst)
 
   const isQuick = clientId === QUICK
   const productSuggestions = useMemo(() => {
@@ -3846,6 +4069,13 @@ function OrderPage({
     })
   }
 
+  useEffect(() => {
+    if (!seedProductId) return
+    const p = state.products.find((x) => x.id === seedProductId)
+    if (p) bump(p, 'piece', qtyStep(p.unit))
+    onSeedConsumed?.()
+  }, [seedProductId])
+
   function finishSale(paidDa: number) {
     if (!canValidate) return
     if (paidDa < total - 0.001 && isQuick) {
@@ -3883,7 +4113,9 @@ function OrderPage({
       <div className="pos-shell">
         <div className="pos-main">
       <div className="card">
-        <h2>🛒 {t(lang, 'newOrder')}</h2>
+        <h2>{wholesale ? `📦 ${t(lang, 'newOrderGros')}` : `🛒 ${vocab.sell}`}</h2>
+        {wholesale || showClientBook ? (
+        <>
         <div className="choice-grid">
           <button
             type="button"
@@ -3958,15 +4190,32 @@ function OrderPage({
             ⚠️ {t(lang, 'clientBalance')} : <strong>{formatDa(clientDebt)}</strong>
           </div>
         ) : null}
+        </>
+        ) : (
+          <button
+            type="button"
+            className="btn ghost block"
+            onClick={() => setShowClientBook(true)}
+          >
+            👤 {t(lang, 'retailClientBook')}
+          </button>
+        )}
       </div>
 
       <div className="card">
-        <h2>📦 {t(lang, 'productCatalog')}</h2>
+        <h2>
+          {wholesale
+            ? `📦 ${t(lang, 'productCatalog')}`
+            : isShopRetail(mode)
+              ? `🛍️ ${t(lang, 'productCatalogRetail')}`
+              : `${mode === 'sante' ? '📋' : mode === 'auto' ? '🔧' : '📝'} ${vocab.product}`}
+        </h2>
         {!isQuick && client ? (
           <div className="muted" style={{ marginBottom: 10 }}>
             {t(lang, 'catalogForClient')} : <strong>{client.name}</strong>
           </div>
         ) : null}
+        {showHomeScan(mode) ? (
         <BarcodeScanInput
           lang={lang}
           onScan={(code) => {
@@ -3982,6 +4231,7 @@ function OrderPage({
             }
           }}
         />
+        ) : null}
         <SmartSearchBar
           lang={lang}
           value={productQuery}
@@ -4011,7 +4261,7 @@ function OrderPage({
         ) : (
           <div className="product-catalog">
             {filteredProducts.map((p) => {
-              const tiers = availableTiers(p)
+              const tiers = availableTiers(p, state.settings.commerceMode)
               const tier = tierOf(p.id)
               const key = lineKey(p.id, tier)
               const qty = qtyMap[key] ?? 0
@@ -4030,11 +4280,11 @@ function OrderPage({
                   className={`product-card ${qty > 0 ? 'selected' : ''}`}
                   key={p.id}
                 >
-                  {p.imageDataUrl ? (
-                    <img className="product-card-img" src={productImageSrc(p.imageDataUrl)} alt={p.name} />
-                  ) : (
-                    <div className="product-card-img placeholder">📷</div>
-                  )}
+                  <img
+                    className="product-card-img"
+                    src={productDisplaySrc(p.name, p.category, p.imageDataUrl)}
+                    alt={p.name}
+                  />
                   <div className="product-card-body">
                     <strong>{p.name}</strong>
                     {p.barcode ? (
@@ -4166,7 +4416,7 @@ function OrderPage({
                     {t(lang, 'cashQuick')}
                   </div>
                   <div className="tier-row" style={{ marginTop: 6 }}>
-                    {CASH_CHIPS.map((n) => (
+                    {cashChipsFor(state.settings.countryCode || 'DZ').map((n) => (
                       <button
                         key={n}
                         type="button"

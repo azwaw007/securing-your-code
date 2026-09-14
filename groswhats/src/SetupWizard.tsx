@@ -5,13 +5,18 @@ import {
   COMMERCE_MODES,
   domainsForMode,
   domainName,
+  modeHint,
+  modeLabel,
 } from './data/domains'
 import { t } from './i18n'
 import { DzPhoneInput } from './DzFields'
+import { LanguagePicker } from './locale/LanguagePicker'
+import { countryByCode } from './data/countries'
+import { defaultLang, isRtl, LANG_SHORT } from './locale/langs'
 import type { ShopSetupInput } from './store'
 import { catalogFor } from './data/catalogs'
 import { domainById } from './data/domains'
-import { productImageSrc, catalogImagePath } from './utils/productArt'
+import { productDisplaySrc } from './utils/productArt'
 
 export function SetupWizard({
   lang,
@@ -103,10 +108,15 @@ export function SetupWizard({
                   key={c.code}
                   type="button"
                   className={`choice-card ${countryCode === c.code ? 'active' : ''}`}
-                  onClick={() => setCountryCode(c.code)}
+                  onClick={() => {
+                    setCountryCode(c.code)
+                    setLanguage(defaultLang(c.code))
+                  }}
                 >
-                  <strong>{language === 'ar' ? c.nameAr : c.nameFr}</strong>
-                  <span className="muted">{c.currency}</span>
+                  <strong>{isRtl(language) ? c.nameAr : c.nameFr}</strong>
+                  <span className="muted">
+                    {c.currency} · {c.langs.map((l) => LANG_SHORT[l]).join(' · ')}
+                  </span>
                 </button>
               ))}
             </div>
@@ -129,10 +139,8 @@ export function SetupWizard({
                   onClick={() => nextFromMode(m.id)}
                 >
                   <span className="choice-emoji">{m.icon}</span>
-                  <strong>{language === 'ar' ? m.nameAr : m.nameFr}</strong>
-                  <span className="muted">
-                    {language === 'ar' ? m.hintAr : m.hintFr}
-                  </span>
+                  <strong>{modeLabel(m.id, language)}</strong>
+                  <span className="muted">{modeHint(m.id, language)}</span>
                 </button>
               ))}
             </div>
@@ -169,7 +177,7 @@ export function SetupWizard({
               {preview.map((p) => (
                 <img
                   key={p.name}
-                  src={productImageSrc(catalogImagePath(p.name, p.category))}
+                  src={productDisplaySrc(p.name, p.category)}
                   alt={p.name}
                 />
               ))}
@@ -196,26 +204,21 @@ export function SetupWizard({
             </div>
             <div className="field">
               <label>{t(language, 'phone')}</label>
-              <DzPhoneInput value={phone} onChange={setPhone} />
+              <DzPhoneInput
+                value={phone}
+                onChange={setPhone}
+                countryCode={countryCode}
+                placeholder={countryByCode(countryCode).phoneHint}
+              />
             </div>
             <div className="field">
               <label>{t(language, 'language')}</label>
-              <div className="btn-row">
-                <button
-                  type="button"
-                  className={`btn ${language === 'fr' ? '' : 'ghost'}`}
-                  onClick={() => setLanguage('fr')}
-                >
-                  FR
-                </button>
-                <button
-                  type="button"
-                  className={`btn ${language === 'ar' ? '' : 'ghost'}`}
-                  onClick={() => setLanguage('ar')}
-                >
-                  عربي
-                </button>
-              </div>
+              <LanguagePicker
+                lang={language}
+                value={language}
+                countryCode={countryCode}
+                onChange={setLanguage}
+              />
             </div>
             {existingProducts > 0 ? (
               <label className="field check-row">

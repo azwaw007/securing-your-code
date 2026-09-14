@@ -34,6 +34,8 @@ import { countryByCode, convertPriceDa } from './data/countries'
 import { catalogFor } from './data/catalogs'
 import { domainById } from './data/domains'
 import { catalogImagePath } from './utils/productArt'
+import { parseLanguage } from './locale/langs'
+import { defaultZakatOn } from './locale/adapt'
 
 const STORAGE_KEY = 'az-pos-v1'
 const LEGACY_STORAGE_KEYS = [
@@ -162,7 +164,7 @@ function migrate(raw: unknown): AppState {
     phone:
       incoming.phone === '0555000000' || !incoming.phone ? '' : incoming.phone,
     city: cleanCity(incoming.city),
-    language: incoming.language === 'ar' ? 'ar' : 'fr',
+    language: parseLanguage(incoming.language),
     setupDone:
       incoming.setupDone === true || (data.products?.length ?? 0) > 0,
     countryCode: incoming.countryCode || defaults.countryCode,
@@ -391,9 +393,12 @@ export function applyShopSetup(state: AppState, input: ShopSetupInput): AppState
   const products: Product[] = catalogFor(domain.catalog).map((seed) => {
     const price = Math.max(0, convertPriceDa(seed.priceDa, factor))
     const cost = Math.max(0, convertPriceDa(seed.costDa, factor))
-    const pack = seed.pack
+    const wholesale = input.commerceMode === 'gros'
+    const pack = wholesale ? seed.pack : undefined
     const gros =
-      pack && pack > 1 ? convertPriceDa(seed.priceDa * pack * 0.88, factor) : undefined
+      wholesale && pack && pack > 1
+        ? convertPriceDa(seed.priceDa * pack * 0.88, factor)
+        : undefined
     return {
       id: uid('p'),
       name: seed.name,
@@ -404,11 +409,13 @@ export function applyShopSetup(state: AppState, input: ShopSetupInput): AppState
       stock,
       lowStockAt: low,
       piecesPerPack: pack,
-      demiGrosPriceDa: pack ? convertPriceDa(seed.priceDa * 0.94, factor) : undefined,
+      demiGrosPriceDa:
+        wholesale && pack ? convertPriceDa(seed.priceDa * 0.94, factor) : undefined,
       grosPriceDa: gros,
-      superGrosPriceDa: pack
-        ? convertPriceDa(seed.priceDa * pack * 0.8, factor)
-        : undefined,
+      superGrosPriceDa:
+        wholesale && pack
+          ? convertPriceDa(seed.priceDa * pack * 0.8, factor)
+          : undefined,
       packPriceDa: gros,
       imageDataUrl: catalogImagePath(seed.name, seed.category),
       createdAt: new Date().toISOString(),
@@ -427,7 +434,7 @@ export function applyShopSetup(state: AppState, input: ShopSetupInput): AppState
       shopName: input.shopName.trim() || domain.nameFr,
       phone: input.phone.trim(),
       language: input.language,
-      showZakat: ['DZ', 'SA', 'AE', 'EG', 'MA', 'TN'].includes(country.code),
+      showZakat: defaultZakatOn(country.code),
     },
     products: keep ? state.products : products,
   }

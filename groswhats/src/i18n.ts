@@ -1,4 +1,5 @@
 ﻿import type { Language, Unit } from './types'
+import { EXTRA_DICTS } from './i18n/extra'
 
 export function isDecimalUnit(unit: Unit): boolean {
   return (
@@ -62,7 +63,7 @@ const fr: Dict = {
   startSell: '3. Vendre',
   startSellHint: 'Quand tu as un produit',
   setupCountry: 'Quel pays ?',
-  setupCountryHint: 'Prix et monnaie adaptés à ton pays.',
+  setupCountryHint: 'Prix, monnaie et langues selon ton pays.',
   setupMode: 'Quel commerce ?',
   setupModeHint: 'Gros, détail, santé, auto ou services.',
   setupDomain: 'Quel domaine ?',
@@ -502,6 +503,14 @@ const fr: Dict = {
   unit_L: 'Litre (L)',
   french: 'Français',
   arabic: 'العربية',
+  lang_fr: 'Français',
+  lang_ar: 'العربية',
+  lang_darja: 'دارجة',
+  lang_en: 'English',
+  lang_es: 'Español',
+  lang_tr: 'Türkçe',
+  lang_it: 'Italiano',
+  lang_de: 'Deutsch',
   inbox: 'Messages',
   arrivages: 'Arrivages',
   stockAlertTitle: 'Alertes rupture de stock',
@@ -586,6 +595,17 @@ const fr: Dict = {
   cancel: 'Annuler',
   homeScanTitle: 'Scanner QR / code-barres',
   homeScanHint: 'Client (QR) ou produit',
+  homeScanTitleGros: 'Scanner QR / carton',
+  homeScanHintGros: 'QR client → fiche · code-barres → stock',
+  homeScanTitleRetail: 'Scanner un produit',
+  homeScanHintRetail: 'Le produit va dans la caisse',
+  homeScanTitleAuto: 'Scanner une pièce',
+  homeScanHintAuto: 'La pièce va sur la facture',
+  startSellRetail: '2. Ouvrir la caisse',
+  startSellRetailHint: 'Scanner, +/−, encaisser',
+  newOrderGros: 'Nouvelle commande',
+  productCatalogRetail: 'Rayon',
+  retailClientBook: 'Carnet client (optionnel)',
   homeScanCamHint: 'QR client → fiche · code-barres → produit. Sinon on te propose d’ajouter.',
   scanUnknownTitle: 'Code inconnu',
   scanUnknownHint: 'Pas trouvé. Ajoute un produit / client, ou cherche à la main.',
@@ -695,7 +715,7 @@ const ar: Dict = {
   startSell: '3. بيع',
   startSellHint: 'كي يكون عندك منتج',
   setupCountry: 'أي بلد؟',
-  setupCountryHint: 'الأسعار والعملة حسب بلدك.',
+  setupCountryHint: 'الأسعار والعملة واللغة حسب بلدك.',
   setupMode: 'أي نوع تجارة؟',
   setupModeHint: 'جملة، تجزئة، صحة، سيارات أو خدمات.',
   setupDomain: 'أي مجال؟',
@@ -1135,6 +1155,14 @@ const ar: Dict = {
   unit_L: 'لتر (ل)',
   french: 'Français',
   arabic: 'العربية',
+  lang_fr: 'Français',
+  lang_ar: 'العربية',
+  lang_darja: 'دارجة',
+  lang_en: 'English',
+  lang_es: 'Español',
+  lang_tr: 'Türkçe',
+  lang_it: 'Italiano',
+  lang_de: 'Deutsch',
   inbox: 'رسائل',
   arrivages: 'وصول',
   stockAlertTitle: 'تنبيهات نفاد المخزون',
@@ -1219,6 +1247,17 @@ const ar: Dict = {
   cancel: 'إلغاء',
   homeScanTitle: 'مسح QR / باركود',
   homeScanHint: 'زبون (QR) أو منتج',
+  homeScanTitleGros: 'مسح QR / كرتون',
+  homeScanHintGros: 'QR الزبون → بطاقته · الباركود → المخزون',
+  homeScanTitleRetail: 'مسح منتج',
+  homeScanHintRetail: 'المنتج يدخل للصندوق',
+  homeScanTitleAuto: 'مسح قطعة',
+  homeScanHintAuto: 'القطعة تدخل في الفاتورة',
+  startSellRetail: '2. افتح الصندوق',
+  startSellRetailHint: 'مسح، +/−، تحصيل',
+  newOrderGros: 'طلب جديد',
+  productCatalogRetail: 'الرف',
+  retailClientBook: 'دفتر الزبون (اختياري)',
   homeScanCamHint: 'QR الزبون → بطاقته · الباركود → المنتج. وإلا نقترح الإضافة.',
   scanUnknownTitle: 'رمز غير معروف',
   scanUnknownHint: 'غير موجود. أضف منتجاً / زبون أو ابحث يدوياً.',
@@ -1285,22 +1324,26 @@ const ar: Dict = {
   voiceTip: 'إذا ما فهمتش، اختار المعنى من الأسفل. أو اكتب: يعني عبارتي = مخزون ناقص',
 }
 
-const dictionaries: Record<Language, Dict> = { fr, ar }
-
 export function t(lang: Language, key: string): string {
-  return dictionaries[lang][key] ?? dictionaries.fr[key] ?? key
+  if (lang === 'darja') {
+    return EXTRA_DICTS.darja?.[key] ?? ar[key] ?? fr[key] ?? key
+  }
+  if (lang === 'ar') return ar[key] ?? fr[key] ?? key
+  return EXTRA_DICTS[lang]?.[key] ?? fr[key] ?? key
 }
 
 export function unitLabel(lang: Language, unit: Unit): string {
-  const short: Record<Unit, { fr: string; ar: string }> = {
-    piece: { fr: 'pièce', ar: 'قطعة' },
-    carton: { fr: 'carton', ar: 'كرتون' },
-    kg: { fr: 'kg', ar: 'كغ' },
-    g: { fr: 'g', ar: 'غ' },
-    m: { fr: 'm', ar: 'م' },
-    cm: { fr: 'cm', ar: 'سم' },
-    ml: { fr: 'ml', ar: 'مل' },
-    L: { fr: 'L', ar: 'ل' },
+  const short: Record<Unit, { fr: string; ar: string; en: string }> = {
+    piece: { fr: 'pièce', ar: 'قطعة', en: 'pc' },
+    carton: { fr: 'carton', ar: 'كرتون', en: 'pack' },
+    kg: { fr: 'kg', ar: 'كغ', en: 'kg' },
+    g: { fr: 'g', ar: 'غ', en: 'g' },
+    m: { fr: 'm', ar: 'م', en: 'm' },
+    cm: { fr: 'cm', ar: 'سم', en: 'cm' },
+    ml: { fr: 'ml', ar: 'مل', en: 'ml' },
+    L: { fr: 'L', ar: 'ل', en: 'L' },
   }
-  return short[unit][lang]
+  if (lang === 'ar' || lang === 'darja') return short[unit].ar
+  if (lang === 'en') return short[unit].en
+  return short[unit].fr
 }

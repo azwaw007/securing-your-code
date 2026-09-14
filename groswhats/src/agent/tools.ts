@@ -309,12 +309,27 @@ export const AGENT_TOOLS: ToolDef[] = [
     descriptionAr: 'اللغة',
     run: (state, args, _lang) => {
       const raw = String(args.language || args.lang || '').toLowerCase()
-      const language: Language = raw.startsWith('ar') || raw.includes('arab') ? 'ar' : 'fr'
+      const language: Language =
+        raw.includes('darja') || raw.includes('darija')
+          ? 'darja'
+          : raw.startsWith('ar') || raw.includes('arab')
+            ? 'ar'
+            : raw.startsWith('en') || raw.includes('english') || raw.includes('anglais')
+              ? 'en'
+              : raw.startsWith('es') || raw.includes('espan') || raw.includes('spanish')
+                ? 'es'
+                : raw.startsWith('tr') || raw.includes('turc')
+                  ? 'tr'
+                  : raw.startsWith('it') || raw.includes('italien')
+                    ? 'it'
+                    : raw.startsWith('de') || raw.includes('deutsch') || raw.includes('allemand')
+                      ? 'de'
+                      : 'fr'
       const next = updateSettings(state, { language })
       return {
         ok: true,
         nextState: next,
-        message: language === 'ar' ? '✅ اللغة: العربية' : '✅ Langue : français',
+        message: `✅ ${language}`,
       }
     },
   },
