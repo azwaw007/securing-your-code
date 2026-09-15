@@ -14,8 +14,8 @@ export const SELLER_BRAND = {
   campagneUrl: '/seller/campagne.html',
   /** WhatsApp vendeur — à personnaliser dans la campagne */
   defaultWhatsapp: '',
-  prixDetail: 'Licence annuelle — tarif boutique',
-  prixPro: 'Sur devis (selon nombre de magasins)',
+  prixDetail: '12 000 DA / an',
+  prixPro: '25 000 DA / an (jusqu’à 3 dépôts) · +5 000 DA / dépôt / an',
 } as const
 
 export type StorySlot = 'matin' | 'midi' | 'soir'
@@ -143,7 +143,7 @@ Prix : ${SELLER_BRAND.prixPro}`,
 • محل نشط في الصندوق
 • تحويل بين المخازن
 
-السعر: حسب العرض`,
+السعر: ${SELLER_BRAND.prixPro}`,
     ctaFr: 'Lien Pro en bio / story',
   },
   {
@@ -172,18 +172,16 @@ export const AUTO_REPLIES: AutoReplyRule[] = [
     id: 'prix',
     match: /(prix|tarif|bchhal|بصحال|كم السعر|سعر|devis|عرض)/i,
     replyFr: `Salam 👋 Merci pour ton message.
-${SELLER_BRAND.produit} (1 magasin) : licence annuelle boutique.
+${SELLER_BRAND.produit} (1 magasin) : ${SELLER_BRAND.prixDetail}.
 ${SELLER_BRAND.produitPro} (multi-magasins) : ${SELLER_BRAND.prixPro}.
 
 Dis-moi : combien de magasins / dépôts ?
-Je te fais un devis en 2 minutes.
 Démo : ${SELLER_BRAND.demoUrl}`,
     replyAr: `السلام 👋 شكرا على الرسالة.
-${SELLER_BRAND.produit} (محل واحد): رخصة سنوية.
-${SELLER_BRAND.produitPro} (عدة محلات): حسب العرض.
+${SELLER_BRAND.produit} (محل واحد): ${SELLER_BRAND.prixDetail}.
+${SELLER_BRAND.produitPro} (عدة محلات): ${SELLER_BRAND.prixPro}.
 
 قولي: شحال من محل / مخزن؟
-نجهزلك العرض في دقيقتين.
 تجربة: ${SELLER_BRAND.demoUrl}`,
   },
   {

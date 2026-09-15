@@ -101,8 +101,8 @@ export function AgentPage({
         role: 'agent',
         text:
           (lang === 'ar'
-            ? 'مرحباً، أنا وكيل AZ POS (مجاني). نجاوب على المحل وعلى أي سؤال عام — كي الشات.\n\n'
-            : 'Salam, je suis l’agent AZ POS (gratuit). Magasin + n’importe quelle question — comme un chat.\n\n') +
+            ? 'مرحباً، أنا وكيل AZ POS + حملة AZ Soft.\nجرّب: ابدأ حملة · ستوري اليوم · زيد prospect اسم,0555…,ولاية · relance prospects 3\n\n'
+            : 'Salam, je suis l’agent AZ POS + campagne AZ Soft.\nEssaie : lance campagne · story du jour · ajoute prospect Nom,0555…,Ville · relance prospects 3\n\n') +
           tip,
       },
     ]

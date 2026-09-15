@@ -167,14 +167,33 @@
       </div>
 
       <div class="card">
+        <h2>Audience — sans CSV</h2>
+        <p class="muted">
+          Tu n’as pas de fichier ? Construis la liste à la main (cartes de visite, salons, gens qui ont demandé la démo).
+        </p>
+        <ol class="steps">
+          <li>Dans l’app → <strong>Agent</strong></li>
+          <li>Écris : <code>ajoute prospect Epicerie Amel,0555123456,Alger</code></li>
+          <li>Ou colle plusieurs lignes : <code>colle prospects</code> puis les lignes</li>
+          <li>Puis : <code>relance prospects 5</code> (WhatsApp s’ouvre un par un)</li>
+        </ol>
+        <p class="muted">Exemple à coller (1 magasin = 1 ligne) :</p>
+        <div class="copy-box" id="pasteExample">Epicerie Amel,0555123456,Alger
+Depot Oran,0777001122,Oran
+Superette Nour,0566987654,Constantine</div>
+        <button class="btn" type="button" id="copyPasteEx">Copier l’exemple</button>
+        <a class="btn ghost" href="./prospects-modele.csv" download>Télécharger modèle CSV (optionnel)</a>
+      </div>
+
+      <div class="card">
         <h2>Agent dans l’app</h2>
         <p class="muted">Ouvre AZ POS → Agent, puis écris :</p>
         <ul>
           <li><code>lance campagne</code> — file 7 jours stories/posts</li>
-          <li><code>story du jour</code> / <code>post du jour</code></li>
-          <li><code>réponds → bchhal Pro ?</code> — réponse auto</li>
-          <li><code>devis 3 magasin</code> — pitch Pro</li>
-          <li><code>statut campagne</code></li>
+          <li><code>ajoute prospect Nom,0555…,Ville</code></li>
+          <li><code>colle prospects</code> + lignes nom,tél,ville</li>
+          <li><code>relance prospects 5</code> · <code>prospects statut</code></li>
+          <li><code>story du jour</code> / <code>réponds → bchhal Pro ?</code></li>
           <li><code>whatsapp vendeur 0555…</code></li>
         </ul>
       </div>
@@ -229,6 +248,7 @@
       }
       document.getElementById('copyStory').onclick = () => copy('story')
       document.getElementById('copyPost').onclick = () => copy('post')
+      document.getElementById('copyPasteEx').onclick = () => copy('pasteExample')
     </script>
   </body>
 </html>
