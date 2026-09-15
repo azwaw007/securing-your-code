@@ -66,6 +66,16 @@ import {
   formatDueDateLabel,
   daysUntilDue,
   orderRemainingDa,
+  displayStock,
+  stockAt,
+  activeLocationId,
+  activeLocation,
+  addLocation,
+  updateLocation,
+  deleteLocation,
+  setActiveLocation,
+  setMultiLocationEnabled,
+  transferStock,
 } from './store'
 import { isDecimalUnit, qtyStep, t, unitLabel } from './i18n'
 import { formatDa, formatQty, setActiveCurrency, setActiveLocale } from './utils/format'
@@ -450,6 +460,11 @@ export default function App() {
           </div>
         </div>
         <div className="topbar-actions">
+          {state.settings.multiLocationEnabled && activeLocation(state) ? (
+            <span className="location-pill" title={t(lang, 'activeLocation')}>
+              🏪 {activeLocation(state)?.name}
+            </span>
+          ) : null}
           {toast ? <div className="badge">{toast}</div> : null}
           <button
             type="button"
@@ -998,6 +1013,29 @@ export default function App() {
               setScreen('home')
             }
           }}
+          onToggleMultiLocation={(enabled) => {
+            setState((s) => setMultiLocationEnabled(s, enabled))
+            flash(enabled ? 'multiLocationOn' : 'multiLocationOff')
+          }}
+          onAddLocation={(name) => {
+            setState((s) => addLocation(s, name))
+          }}
+          onRenameLocation={(id, name) => {
+            setState((s) => updateLocation(s, id, { name }))
+          }}
+          onDeleteLocation={(id) => {
+            setState((s) => deleteLocation(s, id))
+          }}
+          onSetActiveLocation={(id) => {
+            setState((s) => setActiveLocation(s, id))
+          }}
+          onTransfer={(productId, fromId, toId, qty) => {
+            const before = state.products.find((p) => p.id === productId)
+            const fromBefore = before ? stockAt(before, fromId) : 0
+            setState((s) => transferStock(s, productId, fromId, toId, qty))
+            const ok = fromBefore >= qty && qty > 0 && fromId !== toId
+            flash(ok ? 'transferDone' : 'transferFail')
+          }}
           onGo={goTo}
         />
         </div>
@@ -1073,6 +1111,12 @@ function SettingsPage({
   lang,
   onSave,
   onToggleMultiPoste,
+  onToggleMultiLocation,
+  onAddLocation,
+  onRenameLocation,
+  onDeleteLocation,
+  onSetActiveLocation,
+  onTransfer,
   onGo,
   onRedoSetup,
 }: {
@@ -1080,6 +1124,17 @@ function SettingsPage({
   lang: Language
   onSave: (patch: Partial<AppState['settings']>) => void
   onToggleMultiPoste: (enabled: boolean) => void
+  onToggleMultiLocation: (enabled: boolean) => void
+  onAddLocation: (name: string) => void
+  onRenameLocation: (id: string, name: string) => void
+  onDeleteLocation: (id: string) => void
+  onSetActiveLocation: (id: string) => void
+  onTransfer: (
+    productId: string,
+    fromId: string,
+    toId: string,
+    qty: number,
+  ) => void
   onGo: (s: Screen) => void
   onRedoSetup: () => void
 }) {
@@ -1114,10 +1169,27 @@ function SettingsPage({
   const [useBt, setUseBt] = useState(getPreferBluetoothPrinter())
   const [licenseKey, setLicenseKey] = useState('')
   const [licenseInfo, setLicenseInfo] = useState('')
+  const [newLocName, setNewLocName] = useState('')
+  const [xferProductId, setXferProductId] = useState(
+    state.products[0]?.id || '',
+  )
+  const [xferFrom, setXferFrom] = useState(activeLocationId(state))
+  const [xferTo, setXferTo] = useState(
+    state.locations.find((l) => l.id !== activeLocationId(state))?.id ||
+      state.locations[0]?.id ||
+      '',
+  )
+  const [xferQty, setXferQty] = useState('1')
 
   useEffect(() => {
     setLanguage(state.settings.language)
   }, [state.settings.language])
+
+  useEffect(() => {
+    setXferFrom(activeLocationId(state))
+    const other = state.locations.find((l) => l.id !== activeLocationId(state))
+    if (other) setXferTo(other.id)
+  }, [state.settings.activeLocationId, state.locations])
 
   useEffect(() => {
     void getAccessStatus().then((s) => {
@@ -1162,6 +1234,17 @@ function SettingsPage({
         <div className="muted">{APP_BRAND.name} v{APP_VERSION}</div>
         <div className="notice" style={{ marginTop: 8 }}>
           {licenseInfo || '…'}
+        </div>
+        <div className="notice pro-upsell">
+          <strong>{t(lang, 'proUpsell')}</strong>
+          <span style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <a href="/seller/pro.html" target="_blank" rel="noreferrer">
+              {t(lang, 'proUpsellLink')}
+            </a>
+            <a href="/seller/campagne.html" target="_blank" rel="noreferrer">
+              Campagne AZ Soft
+            </a>
+          </span>
         </div>
         <div className="field">
           <label>Clé de licence</label>
@@ -1389,6 +1472,142 @@ function SettingsPage({
             >
               🚚 {t(lang, 'missions')}
             </button>
+          </div>
+        ) : null}
+
+        <label className="field check-row">
+          <input
+            type="checkbox"
+            checked={state.settings.multiLocationEnabled === true}
+            onChange={(e) => onToggleMultiLocation(e.target.checked)}
+          />
+          <span>
+            <strong>{t(lang, 'multiLocation')}</strong>
+            <div className="muted">{t(lang, 'multiLocationHint')}</div>
+          </span>
+        </label>
+
+        {state.settings.multiLocationEnabled ? (
+          <div className="locations-block">
+            <h3 style={{ margin: '8px 0' }}>{t(lang, 'locationsTitle')}</h3>
+            <div className="field">
+              <label>{t(lang, 'activeLocation')}</label>
+              <select
+                value={activeLocationId(state)}
+                onChange={(e) => onSetActiveLocation(e.target.value)}
+              >
+                {state.locations.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {state.locations.map((l) => (
+              <div className="list-item location-row" key={l.id}>
+                <input
+                  value={l.name}
+                  onChange={(e) => onRenameLocation(l.id, e.target.value)}
+                  aria-label={t(lang, 'locationName')}
+                />
+                {state.locations.length > 1 ? (
+                  <button
+                    type="button"
+                    className="btn danger"
+                    onClick={() => onDeleteLocation(l.id)}
+                  >
+                    {t(lang, 'deleteLocation')}
+                  </button>
+                ) : null}
+              </div>
+            ))}
+            <div className="btn-row" style={{ marginTop: 8 }}>
+              <input
+                value={newLocName}
+                onChange={(e) => setNewLocName(e.target.value)}
+                placeholder={t(lang, 'locationName')}
+                style={{ flex: 1 }}
+              />
+              <button
+                type="button"
+                className="btn secondary"
+                disabled={!newLocName.trim()}
+                onClick={() => {
+                  onAddLocation(newLocName)
+                  setNewLocName('')
+                }}
+              >
+                {t(lang, 'addLocation')}
+              </button>
+            </div>
+
+            {state.locations.length > 1 && state.products.length > 0 ? (
+              <div className="transfer-block">
+                <h3 style={{ margin: '14px 0 6px' }}>{t(lang, 'transferTitle')}</h3>
+                <div className="muted" style={{ marginBottom: 8 }}>
+                  {t(lang, 'transferHint')}
+                </div>
+                <div className="field">
+                  <label>{t(lang, 'product')}</label>
+                  <select
+                    value={xferProductId}
+                    onChange={(e) => setXferProductId(e.target.value)}
+                  >
+                    {state.products.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="grid-2">
+                  <div className="field">
+                    <label>{t(lang, 'transferFrom')}</label>
+                    <select
+                      value={xferFrom}
+                      onChange={(e) => setXferFrom(e.target.value)}
+                    >
+                      {state.locations.map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label>{t(lang, 'transferTo')}</label>
+                    <select
+                      value={xferTo}
+                      onChange={(e) => setXferTo(e.target.value)}
+                    >
+                      {state.locations.map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="field">
+                  <label>{t(lang, 'transferQty')}</label>
+                  <input
+                    inputMode="decimal"
+                    value={xferQty}
+                    onChange={(e) => setXferQty(e.target.value)}
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="btn block"
+                  onClick={() => {
+                    const qty = Number(xferQty) || 0
+                    onTransfer(xferProductId, xferFrom, xferTo, qty)
+                  }}
+                >
+                  {t(lang, 'transferDo')}
+                </button>
+              </div>
+            ) : null}
           </div>
         ) : null}
 
@@ -2394,7 +2613,10 @@ function GalleryPage({
                   {formatDa(p.priceDa)} / {unitLabel(lang, p.unit)}
                 </span>
                 <span className="muted">
-                  {t(lang, 'stockQty')} : {formatQty(p.stock)}
+                  {t(lang, 'stockQty')} : {formatQty(displayStock(state, p))}
+                  {state.settings.multiLocationEnabled
+                    ? ` · ${t(lang, 'stockTotal')} ${formatQty(p.stock)}`
+                    : ''}
                 </span>
               </div>
             </button>
@@ -2424,8 +2646,11 @@ function GalleryPage({
                 {formatDa(preview.priceDa)} / {unitLabel(lang, preview.unit)}
               </p>
               <p>
-                {t(lang, 'stockQty')} : {formatQty(preview.stock)}{' '}
+                {t(lang, 'stockQty')} : {formatQty(displayStock(state, preview))}{' '}
                 {unitLabel(lang, preview.unit)}
+                {state.settings.multiLocationEnabled
+                  ? ` · ${t(lang, 'stockTotal')} ${formatQty(preview.stock)}`
+                  : ''}
               </p>
               <div className="btn-row">
                 <button className="btn" onClick={onOrder}>
@@ -2797,6 +3022,7 @@ function ProductsPage({
         lang={lang}
         commerceMode={state.settings.commerceMode}
         product={editing}
+        stockValue={displayStock(state, editing)}
         photoBusy={photoBusy}
         onPickPhoto={(file) =>
           void pickPhoto(file, (url) => {
@@ -2997,17 +3223,20 @@ function ProductsPage({
                     : ''}
                 </div>
                 <div className="btn-row" style={{ marginTop: 8 }}>
-                  <span className={`badge ${p.stock <= p.lowStockAt ? 'warn' : ''}`}>
-                    {formatQty(p.stock)} {unitLabel(lang, 'piece')}
+                  <span className={`badge ${displayStock(state, p) <= p.lowStockAt ? 'warn' : ''}`}>
+                    {formatQty(displayStock(state, p))} {unitLabel(lang, 'piece')}
+                    {state.settings.multiLocationEnabled
+                      ? ` · ${t(lang, 'stockTotal')} ${formatQty(p.stock)}`
+                      : ''}
                     {showWholesaleTiers(state.settings.commerceMode) && p.piecesPerPack
-                      ? ` · ${Math.floor(p.stock / p.piecesPerPack)} ${t(lang, 'cartonsLeft')}`
+                      ? ` · ${Math.floor(displayStock(state, p) / p.piecesPerPack)} ${t(lang, 'cartonsLeft')}`
                       : ''}
                   </span>
                   <button
                     className="btn ghost"
                     onClick={() =>
                       onUpdate(p.id, {
-                        stock: +(p.stock + qtyStep(p.unit)).toFixed(3),
+                        stock: +(displayStock(state, p) + qtyStep(p.unit)).toFixed(3),
                       })
                     }
                   >
@@ -3017,7 +3246,10 @@ function ProductsPage({
                     className="btn ghost"
                     onClick={() =>
                       onUpdate(p.id, {
-                        stock: Math.max(0, +(p.stock - qtyStep(p.unit)).toFixed(3)),
+                        stock: Math.max(
+                          0,
+                          +(displayStock(state, p) - qtyStep(p.unit)).toFixed(3),
+                        ),
                       })
                     }
                   >
@@ -3045,6 +3277,7 @@ function ProductEditCard({
   lang,
   commerceMode,
   product,
+  stockValue,
   photoBusy,
   onPickPhoto,
   onRemovePhoto,
@@ -3055,6 +3288,7 @@ function ProductEditCard({
   lang: Language
   commerceMode?: CommerceMode
   product: Product
+  stockValue: number
   photoBusy: boolean
   onPickPhoto: (file: File | null | undefined) => void
   onRemovePhoto: () => void
@@ -3081,7 +3315,7 @@ function ProductEditCard({
   const [piecesPerPack, setPiecesPerPack] = useState(
     product.piecesPerPack ? String(product.piecesPerPack) : '',
   )
-  const [stock, setStock] = useState(String(product.stock))
+  const [stock, setStock] = useState(String(stockValue))
   const [lowStockAt, setLowStockAt] = useState(String(product.lowStockAt))
   const [barcode, setBarcode] = useState(product.barcode || '')
 
@@ -4045,7 +4279,7 @@ function OrderPage({
 
   function bump(product: Product, tier: PriceTier, delta: number) {
     const key = lineKey(product.id, tier)
-    const max = maxQtyForTier(product, tier)
+    const max = maxQtyForTier(product, tier, displayStock(state, product))
     setQtyMap((m) => {
       const current = m[key] ?? 0
       const next = Math.max(0, Math.min(max, +(current + delta).toFixed(3)))
@@ -4320,7 +4554,10 @@ function OrderPage({
                         ? ` · ${p.piecesPerPack}×`
                         : ''}
                       {' · '}
-                      {t(lang, 'stockQty')} {formatQty(p.stock)}
+                      {t(lang, 'stockQty')} {formatQty(displayStock(state, p))}
+                      {state.settings.multiLocationEnabled
+                        ? ` (${t(lang, 'stockTotal')} ${formatQty(p.stock)})`
+                        : ''}
                     </div>
                     <div className="qty-row catalog-qty big-qty">
                       <button type="button" onClick={() => bump(p, tier, -step)}>
@@ -4865,15 +5102,23 @@ function StockPage({
 
       <div className="card" style={{ marginTop: 12 }}>
         <h2>{t(lang, 'stockDetail')}</h2>
+        {state.settings.multiLocationEnabled && activeLocation(state) ? (
+          <div className="notice" style={{ marginBottom: 8 }}>
+            🏪 {t(lang, 'activeLocation')} : <strong>{activeLocation(state)?.name}</strong>
+          </div>
+        ) : null}
         {state.products.map((p) => {
+          const here = displayStock(state, p)
           const margin = (p.priceDa - (p.costDa || 0)) * p.stock
           return (
             <div className="list-item" key={p.id}>
               <div>
                 <strong>{p.name}</strong>
                 <div className="muted">
-                  {formatQty(p.stock)} {unitLabel(lang, p.unit)} ·{' '}
-                  {t(lang, 'buyPriceShort')} {formatDa(p.costDa || 0)} →{' '}
+                  {state.settings.multiLocationEnabled
+                    ? `${t(lang, 'stockHere')} ${formatQty(here)} · ${t(lang, 'stockTotal')} ${formatQty(p.stock)}`
+                    : `${formatQty(p.stock)} ${unitLabel(lang, p.unit)}`}{' '}
+                  · {t(lang, 'buyPriceShort')} {formatDa(p.costDa || 0)} →{' '}
                   {t(lang, 'sellPriceShort')} {formatDa(p.priceDa)}
                 </div>
               </div>
@@ -4882,7 +5127,7 @@ function StockPage({
                 <div className="muted">
                   {t(lang, 'margin')} {formatDa(margin)}
                 </div>
-                {p.stock <= p.lowStockAt ? (
+                {here <= p.lowStockAt ? (
                   <div className="badge warn">{t(lang, 'lowStock')}</div>
                 ) : null}
               </div>

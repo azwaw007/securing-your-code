@@ -68,11 +68,16 @@ export function stockUnitsForTier(
   return qty
 }
 
-export function maxQtyForTier(p: Product, tier: PriceTier): number {
+export function maxQtyForTier(
+  p: Product,
+  tier: PriceTier,
+  availableStock?: number,
+): number {
+  const stock = availableStock ?? p.stock
   if (isCartonTier(tier) && p.piecesPerPack && p.piecesPerPack > 0) {
-    return Math.floor(p.stock / p.piecesPerPack)
+    return Math.floor(stock / p.piecesPerPack)
   }
-  return p.stock
+  return stock
 }
 
 /** Coût d’achat pour 1 unité vendue (pièce ou carton) */
