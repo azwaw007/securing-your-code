@@ -3138,7 +3138,9 @@ function ProductPricingFields({
 
       <div className="pricing-board">
         <h3 className="pricing-board-title">💰 {t(lang, 'pricingBoardTitle')}</h3>
-        <p className="muted pricing-board-hint">{t(lang, 'pricingBoardHint')}</p>
+        {showWholesaleTiers(commerceMode) ? (
+          <p className="muted pricing-board-hint">{t(lang, 'pricingBoardHint')}</p>
+        ) : null}
 
         <div className="pricing-row tone-piece">
           <div className="pricing-emoji">1️⃣</div>
