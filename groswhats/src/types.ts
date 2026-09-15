@@ -150,6 +150,24 @@ export interface SaleReturn {
   createdAt: string
 }
 
+export type AppointmentRemindStage = '24h' | '2h'
+
+/** RDV médecin / clinique — rappels WhatsApp auto */
+export interface Appointment {
+  id: string
+  clientId: string
+  clientName: string
+  clientPhone: string
+  /** Date-heure ISO du rendez-vous */
+  at: string
+  note: string
+  status: 'planned' | 'done' | 'cancelled'
+  /** Stages de rappel déjà envoyés */
+  remindStages: AppointmentRemindStage[]
+  remindedAt?: string
+  createdAt: string
+}
+
 export interface Client {
   id: string
   name: string
@@ -274,6 +292,8 @@ export interface ShopSettings {
   multiLocationEnabled?: boolean
   /** Magasin actif à la caisse / stock */
   activeLocationId?: string
+  /** Santé : ouvrir WhatsApp auto à l’approche du RDV (défaut true) */
+  appointmentAutoRemind?: boolean
 }
 
 export interface ZakatRecord {
@@ -376,6 +396,8 @@ export interface AppState {
   purchases: Purchase[]
   cashSessions: CashSession[]
   returns: SaleReturn[]
+  /** Agenda RDV (santé / clinique) */
+  appointments: Appointment[]
 }
 
 export const ALL_UNITS: Unit[] = [

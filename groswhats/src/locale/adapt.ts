@@ -101,6 +101,11 @@ export function showHomeScan(mode: CommerceMode | undefined): boolean {
   return mode === 'gros' || mode === 'detail' || mode === 'auto'
 }
 
+/** Agenda RDV + rappels WhatsApp (médecins / cliniques). */
+export function showClinicAgenda(mode: CommerceMode | undefined): boolean {
+  return mode === 'sante'
+}
+
 export function showReturns(mode: CommerceMode | undefined): boolean {
   return mode === 'gros' || mode === 'detail' || mode === 'auto'
 }

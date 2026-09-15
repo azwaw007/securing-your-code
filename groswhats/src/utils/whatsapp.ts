@@ -95,3 +95,69 @@ export function buildArrivalsMessage(
     .filter(Boolean)
     .join('\n')
 }
+
+export function buildAppointmentReminder(
+  settings: ShopSettings,
+  apt: {
+    clientName: string
+    at: string
+    note?: string
+  },
+  stage: '24h' | '2h' | 'manual',
+): string {
+  const when = formatAppointmentWhen(apt.at, settings.language)
+  const shop = settings.shopName || 'Cabinet'
+  if (settings.language === 'ar') {
+    const head =
+      stage === '2h'
+        ? `تذكير: موعدك بعد قليل — ${shop}`
+        : stage === '24h'
+          ? `تذكير: موعدك غداً / خلال 24 ساعة — ${shop}`
+          : `تذكير بموعدك — ${shop}`
+    return [
+      head,
+      '',
+      `المريض : ${apt.clientName}`,
+      `الموعد : ${when}`,
+      apt.note ? `ملاحظة : ${apt.note}` : '',
+      settings.phone ? `للتواصل : ${settings.phone}` : '',
+      '',
+      'ننتظركم 🙏',
+    ]
+      .filter(Boolean)
+      .join('\n')
+  }
+  const head =
+    stage === '2h'
+      ? `Rappel : votre RDV approche — ${shop}`
+      : stage === '24h'
+        ? `Rappel : votre RDV dans les 24 h — ${shop}`
+        : `Rappel de rendez-vous — ${shop}`
+  return [
+    head,
+    '',
+    `Patient : ${apt.clientName}`,
+    `Quand : ${when}`,
+    apt.note ? `Note : ${apt.note}` : '',
+    settings.phone ? `Contact : ${settings.phone}` : '',
+    '',
+    'À bientôt 🙏',
+  ]
+    .filter(Boolean)
+    .join('\n')
+}
+
+function formatAppointmentWhen(iso: string, lang: string): string {
+  try {
+    const d = new Date(iso)
+    return d.toLocaleString(lang === 'ar' ? 'ar-DZ' : 'fr-DZ', {
+      weekday: 'short',
+      day: '2-digit',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch {
+    return iso
+  }
+}

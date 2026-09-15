@@ -105,6 +105,7 @@ import {
   showDepotTools,
   showGallery,
   showHomeScan,
+  showClinicAgenda,
   showReturns,
   showWholesaleTiers,
 } from './locale/adapt'
@@ -181,6 +182,7 @@ import {
 } from './PosOps'
 import { ProductBarcodeField, BarcodeCameraModal, isBarcodeCameraSupported } from './BarcodeCamera'
 import { ClientQrCard } from './ClientQrCard'
+import { ClinicAgendaPanel } from './ClinicAgendaPanel'
 import { classifyHomeScan } from './utils/clientQr'
 import { APP_BRAND } from './brand'
 import { APP_VERSION, activateLicense, getAccessStatus } from './license/license'
@@ -363,6 +365,10 @@ export default function App() {
 
   function flash(key: string) {
     setToast(t(lang, key))
+  }
+
+  function toastMsg(msg: string) {
+    setToast(msg)
   }
 
   const low = lowStockProducts(state)
@@ -607,6 +613,8 @@ export default function App() {
             setState((s) => markInvoiceSent(s, order.id))
             flash('invoiceSent')
           }}
+          onAgendaState={(next) => setState(next)}
+          onAgendaToast={toastMsg}
         />
         </div>
       ) : null}
@@ -1735,6 +1743,8 @@ function HomePage({
   onPrint,
   onBoth,
   onInvoice,
+  onAgendaState,
+  onAgendaToast,
 }: {
   state: AppState
   stats: {
@@ -1768,8 +1778,11 @@ function HomePage({
   onPrint: (order: Order) => Promise<void>
   onBoth: (order: Order) => Promise<void>
   onInvoice: (order: Order) => void
+  onAgendaState: (next: AppState) => void
+  onAgendaToast: (msg: string) => void
 }) {
   const vocab = shopVocab(state.settings.commerceMode, lang)
+  const clinicMode = showClinicAgenda(state.settings.commerceMode)
   const recent = (todayOrders(state).length > 0 ? todayOrders(state) : state.orders).slice(0, 4)
   const [scanOpen, setScanOpen] = useState(false)
   const [unknownCode, setUnknownCode] = useState<string | null>(null)
@@ -1965,6 +1978,14 @@ function HomePage({
           onHit={handleHit}
           onOpenHistory={onOpenHistoryDates}
         />
+        {clinicMode ? (
+          <ClinicAgendaPanel
+            state={state}
+            lang={lang}
+            onState={onAgendaState}
+            onFlash={onAgendaToast}
+          />
+        ) : null}
         {showHomeScan(state.settings.commerceMode) ? (
         <button
           type="button"

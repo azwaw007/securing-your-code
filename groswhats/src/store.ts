@@ -19,6 +19,8 @@ import type {
   PurchaseLine,
   ReturnLine,
   SaleReturn,
+  Appointment,
+  AppointmentRemindStage,
   ShopLocation,
   ShopSettings,
   StopStatus,
@@ -80,6 +82,7 @@ function defaultSettings(): ShopSettings {
     agentPermissions: { ...DEFAULT_AGENT_PERMISSIONS },
     multiLocationEnabled: false,
     activeLocationId: DEFAULT_LOCATION_ID,
+    appointmentAutoRemind: true,
   }
 }
 
@@ -332,6 +335,7 @@ function seedState(): AppState {
     purchases: [],
     cashSessions: [],
     returns: [],
+    appointments: [],
   }
 }
 
@@ -353,6 +357,7 @@ function migrate(raw: unknown): AppState {
     purchases?: Purchase[]
     cashSessions?: CashSession[]
     returns?: SaleReturn[]
+    appointments?: Appointment[]
   }
   const incoming = data.settings ?? {}
   const defaults = defaultSettings()
@@ -396,6 +401,7 @@ function migrate(raw: unknown): AppState {
       typeof incoming.activeLocationId === 'string' && incoming.activeLocationId
         ? incoming.activeLocationId
         : defaults.activeLocationId,
+    appointmentAutoRemind: incoming.appointmentAutoRemind !== false,
   }
   const teamDefaults = defaultTeam()
   const team: TeamSettings = {
@@ -575,6 +581,25 @@ function migrate(raw: unknown): AppState {
       note: typeof r.note === 'string' ? r.note : '',
       createdAt: r.createdAt || new Date().toISOString(),
     })),
+    appointments: (data.appointments ?? [])
+      .filter((a) => a && typeof a.clientId === 'string' && a.at)
+      .map((a) => ({
+        id: a.id || uid('rdv'),
+        clientId: a.clientId,
+        clientName: a.clientName || '',
+        clientPhone: typeof a.clientPhone === 'string' ? a.clientPhone : '',
+        at: a.at,
+        note: typeof a.note === 'string' ? a.note : '',
+        status:
+          a.status === 'done' || a.status === 'cancelled' ? a.status : 'planned',
+        remindStages: Array.isArray(a.remindStages)
+          ? a.remindStages.filter(
+              (s): s is AppointmentRemindStage => s === '24h' || s === '2h',
+            )
+          : [],
+        remindedAt: typeof a.remindedAt === 'string' ? a.remindedAt : undefined,
+        createdAt: a.createdAt || new Date().toISOString(),
+      })),
   }
   return ensureDefaultLocation(base)
 }
@@ -768,6 +793,118 @@ export function updateClient(
 
 export function deleteClient(state: AppState, id: string): AppState {
   return { ...state, clients: state.clients.filter((c) => c.id !== id) }
+}
+
+export function addAppointment(
+  state: AppState,
+  input: {
+    clientId: string
+    at: string
+    note?: string
+  },
+): AppState {
+  const client = state.clients.find((c) => c.id === input.clientId)
+  if (!client || !input.at) return state
+  const item: Appointment = {
+    id: uid('rdv'),
+    clientId: client.id,
+    clientName: client.name,
+    clientPhone: client.phone,
+    at: input.at,
+    note: (input.note || '').trim(),
+    status: 'planned',
+    remindStages: [],
+    createdAt: new Date().toISOString(),
+  }
+  return {
+    ...state,
+    appointments: [item, ...(state.appointments ?? [])].slice(0, 500),
+  }
+}
+
+export function updateAppointment(
+  state: AppState,
+  id: string,
+  patch: Partial<Omit<Appointment, 'id' | 'createdAt'>>,
+): AppState {
+  return {
+    ...state,
+    appointments: (state.appointments ?? []).map((a) =>
+      a.id === id ? { ...a, ...patch } : a,
+    ),
+  }
+}
+
+export function deleteAppointment(state: AppState, id: string): AppState {
+  return {
+    ...state,
+    appointments: (state.appointments ?? []).filter((a) => a.id !== id),
+  }
+}
+
+export function upcomingAppointments(
+  state: AppState,
+  limit = 20,
+  now = new Date(),
+): Appointment[] {
+  const t0 = now.getTime() - 30 * 60_000
+  return (state.appointments ?? [])
+    .filter((a) => a.status === 'planned' && new Date(a.at).getTime() >= t0)
+    .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime())
+    .slice(0, limit)
+}
+
+export type AppointmentRemindNeed = {
+  appointment: Appointment
+  stage: AppointmentRemindStage
+}
+
+/** RDV planifiés à rappeler : fenêtre 24h puis 2h avant. */
+export function appointmentsNeedingReminder(
+  state: AppState,
+  now = new Date(),
+): AppointmentRemindNeed[] {
+  const tNow = now.getTime()
+  const out: AppointmentRemindNeed[] = []
+  for (const a of state.appointments ?? []) {
+    if (a.status !== 'planned') continue
+    const tAt = new Date(a.at).getTime()
+    if (!Number.isFinite(tAt)) continue
+    const msLeft = tAt - tNow
+    // trop tard (>15 min après) → skip
+    if (msLeft < -15 * 60_000) continue
+    const stages = a.remindStages || []
+    if (msLeft <= 2 * 60 * 60_000 && !stages.includes('2h')) {
+      out.push({ appointment: a, stage: '2h' })
+    } else if (msLeft <= 24 * 60 * 60_000 && !stages.includes('24h')) {
+      out.push({ appointment: a, stage: '24h' })
+    }
+  }
+  out.sort(
+    (x, y) =>
+      new Date(x.appointment.at).getTime() - new Date(y.appointment.at).getTime(),
+  )
+  return out
+}
+
+export function markAppointmentReminded(
+  state: AppState,
+  id: string,
+  stage: AppointmentRemindStage,
+): AppState {
+  return {
+    ...state,
+    appointments: (state.appointments ?? []).map((a) => {
+      if (a.id !== id) return a
+      const stages = a.remindStages || []
+      if (stages.includes(stage)) return a
+      return {
+        ...a,
+        remindStages: [...stages, stage],
+        remindedAt: new Date().toISOString(),
+      }
+    }),
+  }
 }
 
 /** Normalise paidDa / remainingDa (anciennes factures paye|credit). */
