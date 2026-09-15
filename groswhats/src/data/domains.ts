@@ -181,7 +181,7 @@ export function domainById(id: string): ShopDomain {
 }
 
 export function domainName(domain: ShopDomain, lang: Language): string {
-  return lang === 'ar' || lang === 'darja' ? domain.nameAr : domain.nameFr
+  return lang === 'ar' ? domain.nameAr : domain.nameFr
 }
 
 const MODE_I18N: Record<CommerceMode, Partial<Record<Language, string>>> = {
@@ -195,7 +195,7 @@ const MODE_I18N: Record<CommerceMode, Partial<Record<Language, string>>> = {
 export function modeLabel(mode: CommerceMode, lang: Language): string {
   const m = COMMERCE_MODES.find((x) => x.id === mode)
   if (!m) return mode
-  if (lang === 'ar' || lang === 'darja') return m.nameAr
+  if (lang === 'ar') return m.nameAr
   return MODE_I18N[mode][lang] || m.nameFr
 }
 
@@ -240,6 +240,6 @@ const MODE_HINT: Record<CommerceMode, Partial<Record<Language, string>>> = {
 export function modeHint(mode: CommerceMode, lang: Language): string {
   const m = COMMERCE_MODES.find((x) => x.id === mode)
   if (!m) return ''
-  if (lang === 'ar' || lang === 'darja') return m.hintAr
+  if (lang === 'ar') return m.hintAr
   return MODE_HINT[mode][lang] || m.hintFr
 }

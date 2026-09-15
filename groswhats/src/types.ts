@@ -1,4 +1,4 @@
-export type Language = 'fr' | 'ar' | 'darja' | 'en' | 'es' | 'tr' | 'it' | 'de'
+export type Language = 'fr' | 'ar' | 'en' | 'es' | 'tr' | 'it' | 'de'
 
 export type CommerceMode = 'gros' | 'detail' | 'sante' | 'auto' | 'services'
 

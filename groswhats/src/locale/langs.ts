@@ -4,7 +4,6 @@ import { countryByCode } from '../data/countries'
 export const ALL_LANGS: Language[] = [
   'fr',
   'ar',
-  'darja',
   'en',
   'es',
   'tr',
@@ -15,7 +14,6 @@ export const ALL_LANGS: Language[] = [
 export const LANG_LABEL: Record<Language, string> = {
   fr: 'Français',
   ar: 'العربية',
-  darja: 'دارجة',
   en: 'English',
   es: 'Español',
   tr: 'Türkçe',
@@ -26,7 +24,6 @@ export const LANG_LABEL: Record<Language, string> = {
 export const LANG_SHORT: Record<Language, string> = {
   fr: 'FR',
   ar: 'ع',
-  darja: 'DZ',
   en: 'EN',
   es: 'ES',
   tr: 'TR',
@@ -35,16 +32,17 @@ export const LANG_SHORT: Record<Language, string> = {
 }
 
 export function isRtl(lang: Language): boolean {
-  return lang === 'ar' || lang === 'darja'
+  return lang === 'ar'
 }
 
 export function htmlLang(lang: Language): string {
-  if (lang === 'darja') return 'ar-DZ'
   if (lang === 'ar') return 'ar'
   return lang
 }
 
+/** Migre l’ancienne valeur `darja` → `ar`. */
 export function parseLanguage(raw: unknown, fallback: Language = 'fr'): Language {
+  if (raw === 'darja' || raw === 'darija' || raw === 'dardja') return 'ar'
   return ALL_LANGS.includes(raw as Language) ? (raw as Language) : fallback
 }
 

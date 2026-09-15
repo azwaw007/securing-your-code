@@ -1110,14 +1110,6 @@ button {
   margin-bottom: 8px;
 }
 
-.agent-welcome-darja {
-  font-size: 1.15rem;
-  font-weight: 700;
-  text-align: center;
-  direction: rtl;
-  margin: 8px 0 12px;
-}
-
 .ticket-preview {
   white-space: pre-wrap;
   background: #f7f2e8;

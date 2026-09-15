@@ -1,10 +1,8 @@
-﻿export type VoiceLang = 'fr' | 'ar' | 'darja'
+﻿export type VoiceLang = 'fr' | 'ar'
 
 export const VOICE_LANG_CODE: Record<VoiceLang, string> = {
   fr: 'fr-FR',
   ar: 'ar-SA',
-  /** Plus proche dispo pour darja Algérie */
-  darja: 'ar-DZ',
 }
 
 type SpeechRec = {
@@ -118,7 +116,7 @@ export function startVoiceListen(options: {
   }
 }
 
-/** Oui / ih / ey… en darja / FR / AR */
+/** Oui / ih / ey… en FR / AR */
 export function isVoiceYes(text: string): boolean {
   const s = text
     .toLowerCase()
@@ -161,7 +159,7 @@ export function isVoiceStop(text: string): boolean {
   )
 }
 
-/** Normalise darja / arabe dialectal / typos pour l’agent AZ POS */
+/** Normalise variantes orales / typos pour l’agent AZ POS */
 export function normalizeDarjaHints(text: string): string {
   let s = text.toLowerCase()
 

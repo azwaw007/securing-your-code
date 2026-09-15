@@ -56,19 +56,6 @@ const SUGGESTIONS_AR = [
   'خبير مبيعات',
 ]
 
-const SUGGESTIONS_DARJA = [
-  '3aweni',
-  'lance campagne',
-  'story du jour',
-  'ajoute prospect Epicerie Amel,0555123456,Alger',
-  'prospects statut',
-  'relance prospects 3',
-  'stock na9es',
-  'chhal rbe7',
-  'ouvre vente',
-  'resume lyoum',
-]
-
 export function AgentPage({
   state,
   lang,
@@ -86,15 +73,13 @@ export function AgentPage({
   initialUtterance?: string | null
 }) {
   const [input, setInput] = useState('')
-  const [suggestMode, setSuggestMode] = useState<'fr' | 'ar' | 'darja'>(
-    lang === 'ar' ? 'ar' : 'darja',
-  )
+  const [suggestMode, setSuggestMode] = useState<'fr' | 'ar'>(lang === 'ar' ? 'ar' : 'fr')
   const [pendingTeach, setPendingTeach] = useState<string | null>(null)
   const [memTick, setMemTick] = useState(0)
   const [listening, setListening] = useState(false)
   const [busy, setBusy] = useState(false)
   const [voiceOn, setVoiceOn] = useState(() => !isVoiceMuted())
-  const [voiceLang, setVoiceLang] = useState<VoiceLang>(lang === 'ar' ? 'darja' : 'fr')
+  const [voiceLang, setVoiceLang] = useState<VoiceLang>(lang === 'ar' ? 'ar' : 'fr')
   const listenRef = useRef<{ stop: () => void } | null>(null)
   const stateRef = useRef(state)
   const seededRef = useRef(false)
@@ -113,12 +98,7 @@ export function AgentPage({
     ]
   })
   const endRef = useRef<HTMLDivElement>(null)
-  const suggestions =
-    suggestMode === 'darja'
-      ? SUGGESTIONS_DARJA
-      : suggestMode === 'ar'
-        ? SUGGESTIONS_AR
-        : SUGGESTIONS_FR
+  const suggestions = suggestMode === 'ar' ? SUGGESTIONS_AR : SUGGESTIONS_FR
   const stats = memoryStats()
 
   useEffect(() => {
@@ -241,13 +221,6 @@ export function AgentPage({
             >
               العربية
             </button>
-            <button
-              type="button"
-              className={`btn ${suggestMode === 'darja' ? '' : 'ghost'}`}
-              onClick={() => setSuggestMode('darja')}
-            >
-              دارجة
-            </button>
           </div>
         </div>
 
@@ -315,13 +288,6 @@ export function AgentPage({
             onClick={() => setVoiceLang('fr')}
           >
             FR
-          </button>
-          <button
-            type="button"
-            className={`btn ${voiceLang === 'darja' ? '' : 'ghost'}`}
-            onClick={() => setVoiceLang('darja')}
-          >
-            دارجة
           </button>
           <button
             type="button"
