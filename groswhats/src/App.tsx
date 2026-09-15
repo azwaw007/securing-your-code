@@ -4589,6 +4589,7 @@ function OrderPage({
   const [clientDateTo, setClientDateTo] = useState('')
   const [productDateFrom, setProductDateFrom] = useState('')
   const [productDateTo, setProductDateTo] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState<'all' | ProductCategory>('all')
   /** Après le panier : choisir Payé / Versé */
   const [payStep, setPayStep] = useState(false)
   const [verseInput, setVerseInput] = useState('')
@@ -4626,6 +4627,7 @@ function OrderPage({
     const q = productQuery.trim().toLowerCase()
     return state.products.filter((p) => {
       if (!inDateRange(p.createdAt, productDateFrom, productDateTo)) return false
+      if (categoryFilter !== 'all' && p.category !== categoryFilter) return false
       if (!q) return true
       return (
         p.name.toLowerCase().includes(q) ||
@@ -4633,7 +4635,19 @@ function OrderPage({
         t(lang, `cat_${p.category}`).toLowerCase().includes(q)
       )
     })
-  }, [state.products, productQuery, productDateFrom, productDateTo, lang])
+  }, [
+    state.products,
+    productQuery,
+    productDateFrom,
+    productDateTo,
+    categoryFilter,
+    lang,
+  ])
+
+  const retailCategories = useMemo(() => {
+    const present = new Set(state.products.map((p) => p.category))
+    return CATEGORIES.filter((c) => present.has(c))
+  }, [state.products])
 
   function lineKey(productId: string, tier: PriceTier) {
     return `${productId}::${tier}`
@@ -4876,6 +4890,27 @@ function OrderPage({
           onDateFrom={setProductDateFrom}
           onDateTo={setProductDateTo}
         />
+        {isShopRetail(mode) && retailCategories.length > 0 ? (
+          <div className="chip-row retail-cat-chips" role="tablist" aria-label={t(lang, 'retailCategories')}>
+            <button
+              type="button"
+              className={`chip ${categoryFilter === 'all' ? 'active' : ''}`}
+              onClick={() => setCategoryFilter('all')}
+            >
+              {t(lang, 'cat_all')}
+            </button>
+            {retailCategories.map((c) => (
+              <button
+                key={c}
+                type="button"
+                className={`chip ${categoryFilter === c ? 'active' : ''}`}
+                onClick={() => setCategoryFilter(c)}
+              >
+                {t(lang, `cat_${c}`)}
+              </button>
+            ))}
+          </div>
+        ) : null}
         {filteredProducts.length === 0 ? (
           <div className="empty">
             <div>{state.products.length === 0 ? t(lang, 'emptyCatalogHint') : t(lang, 'noProductFound')}</div>

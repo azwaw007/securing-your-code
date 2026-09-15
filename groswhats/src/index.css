@@ -2637,7 +2637,7 @@ html.easy-mode .home-tile {
   box-shadow: 0 12px 28px rgba(15, 118, 110, 0.35);
 }
 
-/* Détail = caisse boutique */
+/* Détail = caisse boutique (grille dense type Easy Management) */
 .app-shell.mode-detail .sell-cta {
   background: linear-gradient(135deg, #9a3412, #ea580c);
   box-shadow: 0 12px 28px rgba(234, 88, 12, 0.35);
@@ -2645,11 +2645,92 @@ html.easy-mode .home-tile {
 
 .app-shell.mode-detail .product-catalog {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (min-width: 720px) {
+  .app-shell.mode-detail .product-catalog {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 980px) {
+  .app-shell.mode-detail .product-catalog {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.app-shell.easy-ui.mode-detail .product-catalog {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (min-width: 720px) {
+  .app-shell.easy-ui.mode-detail .product-catalog {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .app-shell.mode-detail .product-card-img,
 .app-shell.mode-detail .product-card-img.placeholder {
-  min-height: 120px;
+  min-height: 100px;
+}
+
+.app-shell.mode-detail .retail-cat-chips {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 8px 0 12px;
+  margin: 0 0 4px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.app-shell.mode-detail .retail-cat-chips .chip {
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.app-shell.mode-detail .retail-cat-chips .chip.active {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+
+/* Rayons spécialisés détail */
+.app-shell.metier-grocery .product-catalog,
+.app-shell.metier-bakery .product-catalog,
+.app-shell.metier-butcher .product-catalog {
+  gap: 8px;
+}
+
+.app-shell.metier-restaurant .product-catalog,
+.app-shell.metier-cafe .product-catalog {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (min-width: 720px) {
+  .app-shell.metier-restaurant .product-catalog,
+  .app-shell.metier-cafe .product-catalog {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.app-shell.metier-salon .product-catalog,
+.app-shell.metier-pressing .product-catalog {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 600px) {
+  .app-shell.metier-salon .product-catalog,
+  .app-shell.metier-pressing .product-catalog {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .app-shell.mode-gros .product-catalog {
