@@ -3291,8 +3291,17 @@ function ProductsPage({
   onSeedConsumed?: () => void
 }) {
   const [name, setName] = useState('')
-  const [category, setCategory] = useState<ProductCategory>('alimentaire')
-  const [aisleId, setAisleId] = useState('')
+  const [category, setCategory] = useState<ProductCategory>(() =>
+    defaultCategoryForAisle(
+      state.settings.domainId,
+      retailChipRayons(state.settings.domainId, state.settings, lang)[0]?.id,
+    ),
+  )
+  const [aisleId, setAisleId] = useState(
+    () =>
+      retailChipRayons(state.settings.domainId, state.settings, lang)[0]?.id ||
+      '',
+  )
   const [imei, setImei] = useState('')
   const [size, setSize] = useState('')
   const [color, setColor] = useState('')
@@ -3567,7 +3576,15 @@ function ProductsPage({
             })
             setName('')
             setBarcode('')
-            setAisleId('')
+            setAisleId(
+              retailChipRayons(domainId, state.settings, lang)[0]?.id || '',
+            )
+            setCategory(
+              defaultCategoryForAisle(
+                domainId,
+                retailChipRayons(domainId, state.settings, lang)[0]?.id,
+              ),
+            )
             setImei('')
             setSize('')
             setColor('')
