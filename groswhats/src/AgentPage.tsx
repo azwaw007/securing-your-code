@@ -31,37 +31,42 @@ interface ChatMessage {
 }
 
 const SUGGESTIONS_FR = [
-  'c’est quoi Alger',
-  'qui est Messi',
-  'quelle heure',
-  'résumé du jour',
+  'aide',
+  'lance campagne',
+  'story du jour',
+  'ajoute prospect Epicerie Amel,0555123456,Alger',
+  'prospects statut',
+  'relance prospects 3',
+  'stratégie',
   'stock bas',
   'crédits',
   'conseil vente',
-  'aide',
 ]
 
 const SUGGESTIONS_AR = [
-  'خبير مبيعات',
-  'خبير محاسبة',
-  'نظّم التطبيق',
-  'ثيم الليل',
-  'ملخص اليوم',
+  'مساعدة',
+  'ابدأ حملة',
+  'ستوري اليوم',
+  'زيد prospect محل أمال,0555123456,الجزائر',
+  'prospects statut',
+  'relance prospects 3',
+  'خطة تسويق',
   'مخزون ناقص',
   'الديون',
-  'أرباحي',
-  'مساعدة',
+  'خبير مبيعات',
 ]
 
 const SUGGESTIONS_DARJA = [
-  'wesh labas',
-  'chhal rbe7',
+  '3aweni',
+  'lance campagne',
+  'story du jour',
+  'ajoute prospect Epicerie Amel,0555123456,Alger',
+  'prospects statut',
+  'relance prospects 3',
   'stock na9es',
-  'chkoune yekhlas',
+  'chhal rbe7',
   'ouvre vente',
   'resume lyoum',
-  'zakat',
-  '3aweni',
 ]
 
 export function AgentPage({
