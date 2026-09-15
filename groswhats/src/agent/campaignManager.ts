@@ -20,10 +20,23 @@ import {
   saveCampaignState,
   seedWeekQueue,
 } from '../marketing/scheduler'
+import {
+  addProspect,
+  loadProspects,
+  outreachMessage,
+  parseProspectsCsv,
+  parseProspectsPaste,
+  prospectsStats,
+  sampleCsv,
+} from '../marketing/prospects'
 
 export type CampaignAgentAction =
   | { type: 'open_whatsapp'; phone: string; message: string }
-  | { type: 'navigate'; screen: 'agent' | 'inbox' | 'settings' }
+  | {
+      type: 'broadcast_prospects'
+      items: Array<{ phone: string; message: string; id: string }>
+    }
+  | { type: 'navigate'; screen: 'agent' | 'inbox' | 'settings' | 'clients' }
   | { type: 'none' }
 
 export interface CampaignAgentResult {
@@ -214,6 +227,53 @@ export function runCampaignCommand(
   )
   if (waSet) return setSellerWhatsapp(waSet[1], lang)
 
+  // ajoute prospect Nom,0555...,Ville
+  const addPr = text.match(
+    /(?:ajoute prospect|add prospect|زيد prospect)\s+(.+)/i,
+  )
+  if (addPr) {
+    const parts = addPr[1].split(/[,;]/).map((x) => x.trim()).filter(Boolean)
+    const res = addProspect({
+      name: parts[0] || '',
+      phone: parts[1] || '',
+      city: parts[2] || '',
+      email: parts[3] || '',
+    })
+    if (!res.ok) {
+      return {
+        reply: isAr(lang)
+          ? `تعذّر الإضافة (${res.reason}). مثال: زيد prospect محل أمال,0555123456,الجزائر`
+          : `Ajout impossible (${res.reason}). Ex. : ajoute prospect Epicerie Amel,0555123456,Alger`,
+      }
+    }
+    const st = prospectsStats()
+    return {
+      reply: isAr(lang)
+        ? `✅ تمت إضافة ${res.prospect?.name}. المجموع: ${st.total} prospects.`
+        : `✅ ${res.prospect?.name} ajouté. Total : ${st.total} prospects.`,
+    }
+  }
+
+  // colle prospects (plusieurs lignes)
+  if (/(colle prospects?|paste prospects?|الصق prospects?)/i.test(t)) {
+    const payload = text
+      .replace(/^(colle prospects?|paste prospects?|الصق prospects?)\s*/i, '')
+      .trim()
+    if (payload.length < 5) {
+      return {
+        reply: isAr(lang)
+          ? 'الصق بعد الأمر، سطر لكل محل:\nمحل أمال,0555123456,الجزائر'
+          : 'Colle après la commande, 1 ligne = 1 magasin :\nEpicerie Amel,0555123456,Alger',
+      }
+    }
+    const res = parseProspectsPaste(payload)
+    return {
+      reply: isAr(lang)
+        ? `✅ استيراد: +${res.added} · تجاهل ${res.skipped}. اكتب «relance prospects 5».`
+        : `✅ Import : +${res.added} · ignorés ${res.skipped}. Écris « relance prospects 5 ».`,
+    }
+  }
+
   const shops = t.match(
     /(?:devis|عرض|pitch)\s*(\d{1,2})\s*(?:magasin|محل|shop)?/i,
   )
@@ -239,25 +299,72 @@ export function runCampaignCommand(
         ? [
             `🏪 البوتيك: ${SELLER_BRAND.boutique}`,
             `المنتج: ${SELLER_BRAND.produit} / ${SELLER_BRAND.produitPro}`,
-            '1) يومياً: ستوري جاهزة (اكتب story du jour)',
-            '2) واتساب: رد آلي على السعر/تجربة/Pro',
-            '3) مجموعات: رسالة واحدة / يوم كحد أقصى',
-            '4) هدف الأسبوع: 10 تجار يجربون الديمو',
-            `صفحة الحملة: ${SELLER_BRAND.campagneUrl}`,
+            '1) بلا CSV: «زيد prospect اسم,0555…,ولاية» أو «الصق prospects»',
+            '2) يومياً: ستوري (story du jour)',
+            '3) «relance prospects 5» — واتساب (≈20/يوم كحد)',
+            '4) رد آلي: «رد → رسالة»',
+            `نموذج لاحقاً: /seller/prospects-modele.csv`,
           ].join('\n')
         : [
             `🏪 Boutique : ${SELLER_BRAND.boutique}`,
             `Produit : ${SELLER_BRAND.produit} / ${SELLER_BRAND.produitPro}`,
-            '1) Chaque jour : story prête (« story du jour »)',
-            '2) WhatsApp : réponses auto prix / démo / Pro',
-            '3) Groupes : 1 message / jour max',
-            '4) Objectif semaine : 10 commerçants testent la démo',
-            `Page campagne : ${SELLER_BRAND.campagneUrl}`,
+            '1) Sans CSV : « ajoute prospect Nom,0555…,Ville » ou « colle prospects » + lignes',
+            '2) Chaque jour : story (« story du jour »)',
+            '3) « relance prospects 5 » — WhatsApp (max ~20/jour)',
+            '4) Réponses : « réponds → message »',
+            `Modèle si tu veux Excel plus tard : /seller/prospects-modele.csv`,
           ].join('\n'),
+    }
+  }
+
+  if (/(prospects|audience|mes leads|قائمة|المستوردين)/i.test(t) &&
+      /(combien|statut|liste|شحال|عدد|stats)/i.test(t)) {
+    const st = prospectsStats()
+    return {
+      reply: isAr(lang)
+        ? `👥 Prospects: ${st.total} · جدد ${st.neu} · تم التواصل ${st.contacted} · بإيميل ${st.withEmail}`
+        : `👥 Prospects : ${st.total} · nouveaux ${st.neu} · contactés ${st.contacted} · avec e-mail ${st.withEmail}`,
+    }
+  }
+
+  if (/(modele csv|modèle csv|sample csv|نموذج csv)/i.test(t)) {
+    return {
+      reply:
+        (isAr(lang) ? '📄 نموذج CSV:\n\n' : '📄 Modèle CSV :\n\n') + sampleCsv(),
+      action: { type: 'navigate', screen: 'clients' },
+    }
+  }
+
+  const relance = t.match(
+    /(?:relance prospects?|lance prospects?|whatsapp prospects?|راسل prospects?|راسل الجمهور)\s*(\d{1,3})?/i,
+  )
+  if (relance) {
+    const limit = Math.min(30, Math.max(1, Number(relance[1] || 10)))
+    const list = loadProspects()
+      .filter((p) => p.status === 'new' && p.phone)
+      .slice(0, limit)
+    if (list.length === 0) {
+      return {
+        reply: isAr(lang)
+          ? 'لا يوجد prospects جدد. استورد CSV أولاً (صفحة الحملة أو Clients).'
+          : 'Aucun prospect nouveau. Importe d’abord un CSV (page campagne ou Clients).',
+        action: { type: 'navigate', screen: 'clients' },
+      }
+    }
+    const items = list.map((p) => ({
+      id: p.id,
+      phone: p.phone,
+      message: outreachMessage(p, isAr(lang) ? 'ar' : 'fr'),
+    }))
+    return {
+      reply: isAr(lang)
+        ? `📤 سأفتح واتساب لـ ${items.length} prospect (تأخير بين الرسائل).\nلا ترسل لأكثر من ~20/يوم.\nاكتب «prospects statut» للمتابعة.`
+        : `📤 J’ouvre WhatsApp pour ${items.length} prospects (délai entre chaque).\nMax conseillé ~20 / jour.\nÉcris « prospects statut » pour suivre.`,
+      action: { type: 'broadcast_prospects', items },
     }
   }
 
   return null
 }
 
-export { SELLER_BRAND, AUTO_REPLIES }
+export { SELLER_BRAND, AUTO_REPLIES, parseProspectsCsv, loadProspects, prospectsStats }

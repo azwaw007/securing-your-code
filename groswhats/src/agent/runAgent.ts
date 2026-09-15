@@ -36,6 +36,10 @@ export type AgentAction =
   | { type: 'open_whatsapp'; phone: string; message: string }
   | { type: 'send_invoice_last' }
   | { type: 'broadcast_arrivages'; message: string }
+  | {
+      type: 'broadcast_prospects'
+      items: Array<{ phone: string; message: string; id: string }>
+    }
 
 export interface AgentResult {
   reply: string
@@ -107,7 +111,8 @@ function help(lang: Language): string {
     '• stock bas / valeur stock / crédits / résumé du jour',
     '• organise l’app / thème nuit / gros texte / mode facile',
     '• conseil vente · conseil compta · marketing · gestion',
-    '• campagne : lance campagne · story du jour · post du jour · statut campagne',
+    '• campagne : lance campagne · story du jour · ajoute prospect Nom,0555…,Ville',
+    '• prospects : colle prospects · relance prospects 5 · prospects statut',
     '• réponses : « réponds → message client » · devis 3 magasin',
     '• ouvre clients / ventes / gains / caisse / paramètres',
     '• ajoute client / calcule zakat / dépenses',
@@ -546,6 +551,11 @@ export async function runAgent(state: AppState, userText: string): Promise<Agent
             phone: campaign.action.phone,
             message: campaign.action.message,
           }
+        : campaign.action && campaign.action.type === 'broadcast_prospects'
+          ? {
+              type: 'broadcast_prospects' as const,
+              items: campaign.action.items,
+            }
         : campaign.action && campaign.action.type === 'navigate'
           ? { type: 'navigate' as const, screen: campaign.action.screen as Screen }
           : { type: 'none' as const }
@@ -828,6 +838,34 @@ export function applyAgentSideEffect(
   if (action.type === 'broadcast_arrivages') {
     state.clients.forEach((c, i) => {
       window.setTimeout(() => openWhatsappText(c.phone, action.message), i * 600)
+    })
+  }
+  if (action.type === 'broadcast_prospects') {
+    action.items.forEach((item, i) => {
+      window.setTimeout(() => {
+        openWhatsappText(item.phone, item.message)
+        try {
+          const raw = localStorage.getItem('az-pos-prospects-v1')
+          if (!raw) return
+          const list = JSON.parse(raw) as Array<{
+            id: string
+            status: string
+            lastContactAt?: string
+          }>
+          const next = list.map((p) =>
+            p.id === item.id
+              ? {
+                  ...p,
+                  status: 'contacted',
+                  lastContactAt: new Date().toISOString(),
+                }
+              : p,
+          )
+          localStorage.setItem('az-pos-prospects-v1', JSON.stringify(next))
+        } catch {
+          /* ignore */
+        }
+      }, i * 900)
     })
   }
 }
