@@ -8,10 +8,10 @@ export function buildInvoiceText(order: Order, settings: ShopSettings): string {
   const invoiceNo = order.invoiceNumber ?? order.id.slice(-6).toUpperCase()
   const date = new Date(order.createdAt).toLocaleString(lang === 'ar' ? 'ar-DZ' : 'fr-DZ')
   const lines = order.lines
-    .map(
-      (l) =>
-        `${formatQty(l.qty)} ${unitLabel(lang, l.unit)} ${l.name} — ${formatDa(l.lineTotalDa)}`,
-    )
+    .map((l) => {
+      const base = `${formatQty(l.qty)} ${unitLabel(lang, l.unit)} ${l.name} — ${formatDa(l.lineTotalDa)}`
+      return l.imei ? `${base}\n  IMEI ${l.imei}` : base
+    })
     .join('\n')
   const pay = paymentSummaryLines(order, lang)
 

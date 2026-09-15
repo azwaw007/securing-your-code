@@ -7,10 +7,10 @@ export function buildTicketText(order: Order, settings: ShopSettings): string {
   const lang = settings.language
   const date = new Date(order.createdAt).toLocaleString(lang === 'ar' ? 'ar-DZ' : 'fr-DZ')
   const lines = order.lines
-    .map(
-      (l) =>
-        `${formatQty(l.qty)} ${unitLabel(lang, l.unit)} ${l.name}\n  ${formatDa(l.lineTotalDa)}`,
-    )
+    .map((l) => {
+      const base = `${formatQty(l.qty)} ${unitLabel(lang, l.unit)} ${l.name}\n  ${formatDa(l.lineTotalDa)}`
+      return l.imei ? `${base}\n  IMEI ${l.imei}` : base
+    })
     .join('\n')
   const pay = paymentSummaryLines(order, lang)
 

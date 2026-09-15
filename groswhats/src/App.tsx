@@ -115,6 +115,14 @@ import {
 } from './locale/adapt'
 import { metierCopy, metierPackFor } from './locale/metierPacks'
 import { specialtyProfileFor } from './locale/specialtyParams'
+import {
+  defaultCategoryForAisle,
+  retailChipRayons,
+  resolveRetailRayons,
+  rayonLabel,
+  showImeiTracking,
+  showRetailVariants,
+} from './locale/retailRayons'
 import { LanguagePicker } from './locale/LanguagePicker'
 import { applyEffectiveTheme, applyUiTheme, themeLabel, THEME_PRESETS } from './utils/theme'
 import {
@@ -1870,6 +1878,84 @@ function SettingsPage({
         </button>
       </div>
 
+      {isShopRetail(state.settings.commerceMode) ? (
+        <div className="card">
+          <h2>{t(lang, 'retailRayonsTitle')}</h2>
+          <p className="muted">{t(lang, 'retailRayonsHint')}</p>
+          {resolveRetailRayons(
+            state.settings.domainId,
+            state.settings,
+            lang,
+          ).map((r) => {
+            const overrides = state.settings.retailRayons || []
+            const current = overrides.find((o) => o.id === r.id)
+            const labelValue =
+              lang === 'ar'
+                ? current?.labelAr ?? r.labelAr
+                : current?.labelFr ?? r.labelFr
+            return (
+              <div className="field" key={r.id} style={{ marginBottom: 10 }}>
+                <label className="check-row">
+                  <input
+                    type="checkbox"
+                    checked={r.enabled}
+                    onChange={(e) => {
+                      const enabled = e.target.checked
+                      const next = resolveRetailRayons(
+                        state.settings.domainId,
+                        state.settings,
+                        lang,
+                      ).map((x) => {
+                        const prev = overrides.find((o) => o.id === x.id)
+                        return {
+                          id: x.id,
+                          enabled: x.id === r.id ? enabled : x.enabled,
+                          labelFr: prev?.labelFr,
+                          labelAr: prev?.labelAr,
+                        }
+                      })
+                      onSave({ retailRayons: next })
+                    }}
+                  />
+                  <span>
+                    {r.emoji ? `${r.emoji} ` : ''}
+                    <strong>{r.label}</strong>
+                    <div className="muted">{t(lang, 'retailRayonEnabled')}</div>
+                  </span>
+                </label>
+                <input
+                  value={labelValue}
+                  placeholder={t(lang, 'retailRayonLabel')}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    const next = resolveRetailRayons(
+                      state.settings.domainId,
+                      state.settings,
+                      lang,
+                    ).map((x) => {
+                      const prev = overrides.find((o) => o.id === x.id)
+                      return {
+                        id: x.id,
+                        enabled: x.enabled,
+                        labelFr:
+                          x.id === r.id && lang !== 'ar'
+                            ? v
+                            : prev?.labelFr,
+                        labelAr:
+                          x.id === r.id && lang === 'ar'
+                            ? v
+                            : prev?.labelAr,
+                      }
+                    })
+                    onSave({ retailRayons: next })
+                  }}
+                />
+              </div>
+            )
+          })}
+        </div>
+      ) : null}
+
       <div className="card">
         <h2>{t(lang, 'shopInfo')}</h2>
         <div className="field">
@@ -3206,6 +3292,10 @@ function ProductsPage({
 }) {
   const [name, setName] = useState('')
   const [category, setCategory] = useState<ProductCategory>('alimentaire')
+  const [aisleId, setAisleId] = useState('')
+  const [imei, setImei] = useState('')
+  const [size, setSize] = useState('')
+  const [color, setColor] = useState('')
   const [unit, setUnit] = useState<Unit>('piece')
   const [costDa, setCostDa] = useState('')
   const [priceDa, setPriceDa] = useState('')
@@ -3243,6 +3333,11 @@ function ProductsPage({
   }, [initialProductId, seedBarcode, seedQuery, onSeedConsumed])
 
   const editing = state.products.find((p) => p.id === editId) ?? null
+  const domainId = state.settings.domainId
+  const retailMode = isShopRetail(state.settings.commerceMode)
+  const aisleOptions = retailChipRayons(domainId, state.settings, lang)
+  const trackImei = showImeiTracking(domainId)
+  const trackVariants = showRetailVariants(domainId)
 
   const productSuggestions = useMemo(() => {
     const names = [
@@ -3291,6 +3386,8 @@ function ProductsPage({
       <ProductEditCard
         lang={lang}
         commerceMode={state.settings.commerceMode}
+        domainId={state.settings.domainId}
+        settings={state.settings}
         product={editing}
         stockValue={displayStock(state, editing)}
         photoBusy={photoBusy}
@@ -3372,6 +3469,50 @@ function ProductsPage({
             </select>
           </div>
         </div>
+        {retailMode && aisleOptions.length > 0 ? (
+          <div className="field">
+            <label>{t(lang, 'retailAisle')}</label>
+            <select
+              value={aisleId}
+              onChange={(e) => {
+                const id = e.target.value
+                setAisleId(id)
+                if (id) setCategory(defaultCategoryForAisle(domainId, id))
+              }}
+            >
+              <option value="">—</option>
+              {aisleOptions.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.emoji ? `${a.emoji} ` : ''}
+                  {a.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
+        {trackImei ? (
+          <div className="field">
+            <label>{t(lang, 'productImei')}</label>
+            <input
+              value={imei}
+              onChange={(e) => setImei(e.target.value)}
+              placeholder="35…"
+            />
+            <div className="muted">{t(lang, 'productImeiHint')}</div>
+          </div>
+        ) : null}
+        {trackVariants ? (
+          <div className="grid-2">
+            <div className="field">
+              <label>{t(lang, 'productSize')}</label>
+              <input value={size} onChange={(e) => setSize(e.target.value)} />
+            </div>
+            <div className="field">
+              <label>{t(lang, 'productColor')}</label>
+              <input value={color} onChange={(e) => setColor(e.target.value)} />
+            </div>
+          </div>
+        ) : null}
         <ProductPricingFields
           lang={lang}
           commerceMode={state.settings.commerceMode}
@@ -3407,6 +3548,7 @@ function ProductsPage({
             onAdd({
               name: name.trim(),
               category,
+              aisleId: aisleId || undefined,
               unit,
               costDa: Number(costDa) || 0,
               priceDa: Number(priceDa) || 0,
@@ -3419,9 +3561,16 @@ function ProductsPage({
               packPriceDa: ppp > 0 && gros > 0 ? gros : undefined,
               imageDataUrl,
               barcode: barcode.trim() || undefined,
+              imei: imei.trim() || undefined,
+              size: size.trim() || undefined,
+              color: color.trim() || undefined,
             })
             setName('')
             setBarcode('')
+            setAisleId('')
+            setImei('')
+            setSize('')
+            setColor('')
             setCostDa('')
             setPriceDa('')
             setDemiGrosPriceDa('')
@@ -3473,7 +3622,13 @@ function ProductsPage({
               <div className="product-main">
                 <strong>{p.name}</strong>
                 <div className="muted">
-                  {t(lang, `cat_${p.category}`)} · {unitLabel(lang, p.unit)}
+                  {p.aisleId
+                    ? rayonLabel(p.aisleId, domainId, lang, state.settings)
+                    : t(lang, `cat_${p.category}`)}{' '}
+                  · {unitLabel(lang, p.unit)}
+                  {p.imei ? ` · IMEI ${p.imei}` : ''}
+                  {p.size ? ` · ${p.size}` : ''}
+                  {p.color ? ` · ${p.color}` : ''}
                 </div>
                 <div className="muted" style={{ marginTop: 4 }}>
                   {t(lang, 'buyPriceShort')} {formatDa(p.costDa || 0)} →{' '}
@@ -3625,6 +3780,8 @@ function ProductsPage({
 function ProductEditCard({
   lang,
   commerceMode,
+  domainId,
+  settings,
   product,
   stockValue,
   photoBusy,
@@ -3636,6 +3793,8 @@ function ProductEditCard({
 }: {
   lang: Language
   commerceMode?: CommerceMode
+  domainId?: string
+  settings?: AppState['settings']
   product: Product
   stockValue: number
   photoBusy: boolean
@@ -3647,6 +3806,10 @@ function ProductEditCard({
 }) {
   const [name, setName] = useState(product.name)
   const [category, setCategory] = useState<ProductCategory>(product.category)
+  const [aisleId, setAisleId] = useState(product.aisleId || '')
+  const [imei, setImei] = useState(product.imei || '')
+  const [size, setSize] = useState(product.size || '')
+  const [color, setColor] = useState(product.color || '')
   const [unit, setUnit] = useState<Unit>(product.unit)
   const [costDa, setCostDa] = useState(String(product.costDa || 0))
   const [priceDa, setPriceDa] = useState(String(product.priceDa))
@@ -3667,6 +3830,11 @@ function ProductEditCard({
   const [stock, setStock] = useState(String(stockValue))
   const [lowStockAt, setLowStockAt] = useState(String(product.lowStockAt))
   const [barcode, setBarcode] = useState(product.barcode || '')
+
+  const retailMode = isShopRetail(commerceMode)
+  const aisleOptions = retailChipRayons(domainId, settings, lang)
+  const trackImei = showImeiTracking(domainId)
+  const trackVariants = showRetailVariants(domainId)
 
   return (
     <div className="card">
@@ -3724,6 +3892,46 @@ function ProductEditCard({
           </select>
         </div>
       </div>
+      {retailMode && aisleOptions.length > 0 ? (
+        <div className="field">
+          <label>{t(lang, 'retailAisle')}</label>
+          <select
+            value={aisleId}
+            onChange={(e) => {
+              const id = e.target.value
+              setAisleId(id)
+              if (id) setCategory(defaultCategoryForAisle(domainId, id))
+            }}
+          >
+            <option value="">—</option>
+            {aisleOptions.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.emoji ? `${a.emoji} ` : ''}
+                {a.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
+      {trackImei ? (
+        <div className="field">
+          <label>{t(lang, 'productImei')}</label>
+          <input value={imei} onChange={(e) => setImei(e.target.value)} />
+          <div className="muted">{t(lang, 'productImeiHint')}</div>
+        </div>
+      ) : null}
+      {trackVariants ? (
+        <div className="grid-2">
+          <div className="field">
+            <label>{t(lang, 'productSize')}</label>
+            <input value={size} onChange={(e) => setSize(e.target.value)} />
+          </div>
+          <div className="field">
+            <label>{t(lang, 'productColor')}</label>
+            <input value={color} onChange={(e) => setColor(e.target.value)} />
+          </div>
+        </div>
+      ) : null}
       <ProductPricingFields
         lang={lang}
         commerceMode={commerceMode}
@@ -3760,6 +3968,7 @@ function ProductEditCard({
           onSave({
             name: name.trim(),
             category,
+            aisleId: aisleId || undefined,
             unit,
             costDa: Number(costDa) || 0,
             priceDa: Number(priceDa) || 0,
@@ -3771,6 +3980,9 @@ function ProductEditCard({
             superGrosPriceDa: ppp > 0 && superG > 0 ? superG : undefined,
             packPriceDa: ppp > 0 && gros > 0 ? gros : undefined,
             barcode: barcode.trim() || undefined,
+            imei: imei.trim() || undefined,
+            size: size.trim() || undefined,
+            color: color.trim() || undefined,
           })
         }}
       >
@@ -4589,7 +4801,8 @@ function OrderPage({
   const [clientDateTo, setClientDateTo] = useState('')
   const [productDateFrom, setProductDateFrom] = useState('')
   const [productDateTo, setProductDateTo] = useState('')
-  const [categoryFilter, setCategoryFilter] = useState<'all' | ProductCategory>('all')
+  const [categoryFilter, setCategoryFilter] = useState<'all' | string>('all')
+  const [imeiMap, setImeiMap] = useState<Record<string, string>>({})
   /** Après le panier : choisir Payé / Versé */
   const [payStep, setPayStep] = useState(false)
   const [verseInput, setVerseInput] = useState('')
@@ -4627,11 +4840,15 @@ function OrderPage({
     const q = productQuery.trim().toLowerCase()
     return state.products.filter((p) => {
       if (!inDateRange(p.createdAt, productDateFrom, productDateTo)) return false
-      if (categoryFilter !== 'all' && p.category !== categoryFilter) return false
+      if (categoryFilter !== 'all') {
+        const aisle = p.aisleId || p.category
+        if (aisle !== categoryFilter) return false
+      }
       if (!q) return true
       return (
         p.name.toLowerCase().includes(q) ||
         (p.barcode || '').toLowerCase().includes(q) ||
+        (p.imei || '').toLowerCase().includes(q) ||
         t(lang, `cat_${p.category}`).toLowerCase().includes(q)
       )
     })
@@ -4644,10 +4861,10 @@ function OrderPage({
     lang,
   ])
 
-  const retailCategories = useMemo(() => {
-    const present = new Set(state.products.map((p) => p.category))
-    return CATEGORIES.filter((c) => present.has(c))
-  }, [state.products])
+  const retailRayonChips = useMemo(() => {
+    if (!isShopRetail(mode)) return []
+    return retailChipRayons(domainId, state.settings, lang)
+  }, [mode, domainId, state.settings, lang])
 
   function lineKey(productId: string, tier: PriceTier) {
     return `${productId}::${tier}`
@@ -4666,6 +4883,7 @@ function OrderPage({
       if (!p) return []
       const unitPrice = priceForTier(p, tier)
       if (unitPrice == null) return []
+      const lineImei = imeiMap[key] || p.imei
       return [
         {
           productId: p.id,
@@ -4676,6 +4894,7 @@ function OrderPage({
           unitCostDa: costForTier(p, tier),
           lineTotalDa: +(qty * unitPrice).toFixed(2),
           priceTier: tier,
+          imei: lineImei,
         },
       ]
     })
@@ -4692,12 +4911,30 @@ function OrderPage({
   function bump(product: Product, tier: PriceTier, delta: number) {
     const key = lineKey(product.id, tier)
     const max = maxQtyForTier(product, tier, displayStock(state, product))
+    const needsImei =
+      showImeiTracking(domainId) &&
+      (product.aisleId === 'smartphones' ||
+        /smartphone|iphone|samsung|xiaomi|infinix|oppo|phone/i.test(product.name))
+    if (delta > 0 && needsImei && !(imeiMap[key] || product.imei)) {
+      const entered = window.prompt(t(lang, 'imeiPrompt'), '')
+      if (!entered || !entered.trim()) {
+        speak(t(lang, 'imeiRequired'), lang)
+        return
+      }
+      setImeiMap((m) => ({ ...m, [key]: entered.trim() }))
+    }
     setQtyMap((m) => {
       const current = m[key] ?? 0
       const next = Math.max(0, Math.min(max, +(current + delta).toFixed(3)))
       const copy = { ...m }
-      if (next <= 0) delete copy[key]
-      else copy[key] = next
+      if (next <= 0) {
+        delete copy[key]
+        setImeiMap((im) => {
+          const n = { ...im }
+          delete n[key]
+          return n
+        })
+      } else copy[key] = next
       return copy
     })
   }
@@ -4743,6 +4980,7 @@ function OrderPage({
     setInvoiceDraft(buildInvoiceText(created, state.settings))
     setQtyMap({})
     setTierMap({})
+    setImeiMap({})
     setPayStep(false)
     setVerseInput('')
     setDueDays(15)
@@ -4890,7 +5128,7 @@ function OrderPage({
           onDateFrom={setProductDateFrom}
           onDateTo={setProductDateTo}
         />
-        {isShopRetail(mode) && retailCategories.length > 0 ? (
+        {isShopRetail(mode) && retailRayonChips.length > 0 ? (
           <div className="chip-row retail-cat-chips" role="tablist" aria-label={t(lang, 'retailCategories')}>
             <button
               type="button"
@@ -4899,14 +5137,15 @@ function OrderPage({
             >
               {t(lang, 'cat_all')}
             </button>
-            {retailCategories.map((c) => (
+            {retailRayonChips.map((c) => (
               <button
-                key={c}
+                key={c.id}
                 type="button"
-                className={`chip ${categoryFilter === c ? 'active' : ''}`}
-                onClick={() => setCategoryFilter(c)}
+                className={`chip ${categoryFilter === c.id ? 'active' : ''}`}
+                onClick={() => setCategoryFilter(c.id)}
               >
-                {t(lang, `cat_${c}`)}
+                {c.emoji ? `${c.emoji} ` : ''}
+                {c.label}
               </button>
             ))}
           </div>
@@ -4957,6 +5196,14 @@ function OrderPage({
                     {p.barcode ? (
                       <div className="muted">⬛ {p.barcode}</div>
                     ) : null}
+                    {p.imei ? (
+                      <div className="muted">📱 IMEI {p.imei}</div>
+                    ) : null}
+                    {(p.size || p.color) && (
+                      <div className="muted">
+                        {[p.size, p.color].filter(Boolean).join(' · ')}
+                      </div>
+                    )}
                     {tiers.length > 1 ? (
                       <div className="tier-row">
                         {tiers.map((tr) => (
@@ -5022,6 +5269,11 @@ function OrderPage({
                   ? ` (${t(lang, `tier_${l.priceTier}`)})`
                   : ''}{' '}
                 × {formatQty(l.qty)} = {formatDa(l.lineTotalDa)}
+                {l.imei ? (
+                  <div className="muted" style={{ fontSize: '0.85em' }}>
+                    IMEI {l.imei}
+                  </div>
+                ) : null}
               </li>
             ))}
           </ul>

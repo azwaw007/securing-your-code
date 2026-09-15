@@ -427,6 +427,27 @@ function migrate(raw: unknown): AppState {
         ? incoming.clinicStation
         : undefined,
     clinicStationChosen: incoming.clinicStationChosen === true,
+    retailRayons: Array.isArray(incoming.retailRayons)
+      ? incoming.retailRayons
+          .filter(
+            (r): r is NonNullable<ShopSettings['retailRayons']>[number] =>
+              !!r &&
+              typeof (r as { id?: string }).id === 'string' &&
+              (r as { id: string }).id.length > 0,
+          )
+          .map((r) => ({
+            id: String((r as { id: string }).id),
+            enabled: (r as { enabled?: boolean }).enabled !== false,
+            labelFr:
+              typeof (r as { labelFr?: string }).labelFr === 'string'
+                ? (r as { labelFr: string }).labelFr
+                : undefined,
+            labelAr:
+              typeof (r as { labelAr?: string }).labelAr === 'string'
+                ? (r as { labelAr: string }).labelAr
+                : undefined,
+          }))
+      : undefined,
   }
   const teamDefaults = defaultTeam()
   const team: TeamSettings = {
@@ -484,6 +505,22 @@ function migrate(raw: unknown): AppState {
         barcode:
           typeof (p as Product).barcode === 'string'
             ? (p as Product).barcode!.trim()
+            : undefined,
+        aisleId:
+          typeof (p as Product).aisleId === 'string' && (p as Product).aisleId!.trim()
+            ? (p as Product).aisleId!.trim()
+            : undefined,
+        imei:
+          typeof (p as Product).imei === 'string' && (p as Product).imei!.trim()
+            ? (p as Product).imei!.trim()
+            : undefined,
+        size:
+          typeof (p as Product).size === 'string' && (p as Product).size!.trim()
+            ? (p as Product).size!.trim()
+            : undefined,
+        color:
+          typeof (p as Product).color === 'string' && (p as Product).color!.trim()
+            ? (p as Product).color!.trim()
             : undefined,
         demiGrosPriceDa:
           typeof p.demiGrosPriceDa === 'number' && p.demiGrosPriceDa > 0
@@ -787,6 +824,7 @@ export function applyShopSetup(state: AppState, input: ShopSetupInput): AppState
       id: uid('p'),
       name: seed.name,
       category: seed.category,
+      aisleId: seed.aisleId,
       unit: seed.unit,
       priceDa: price,
       costDa: cost,
@@ -824,6 +862,7 @@ export function applyShopSetup(state: AppState, input: ShopSetupInput): AppState
       clinicShareEnabled: domain.mode === 'sante',
       clinicStationChosen: false,
       clinicStation: undefined,
+      retailRayons: undefined,
     },
     products: keep ? state.products : products,
   })

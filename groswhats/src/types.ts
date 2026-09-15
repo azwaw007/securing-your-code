@@ -64,6 +64,11 @@ export interface Product {
   id: string
   name: string
   category: ProductCategory
+  /**
+   * Rayon caisse détail (spécialité boutique).
+   * Ex. smartphones, laitiers, pain — distinct de ProductCategory.
+   */
+  aisleId?: string
   unit: Unit
   /** Prix pièce (DA) — tarif unitaire */
   priceDa: number
@@ -87,6 +92,12 @@ export interface Product {
   imageDataUrl?: string
   /** Code-barres / EAN / code interne */
   barcode?: string
+  /** IMEI / N° série (téléphonie, électro) */
+  imei?: string
+  /** Taille / pointure (prêt-à-porter, chaussures) */
+  size?: string
+  /** Couleur / variante */
+  color?: string
   createdAt: string
 }
 
@@ -347,6 +358,8 @@ export interface OrderLine {
   lineTotalDa: number
   /** Tarif appliqué (pièce / demi-gros / gros / super-gros) */
   priceTier?: PriceTier
+  /** IMEI saisi à la caisse (téléphonie) */
+  imei?: string
 }
 
 export interface Order {
@@ -444,6 +457,16 @@ export interface ShopSettings {
   clinicStation?: ClinicStation
   /** Choix médecin / réception déjà fait */
   clinicStationChosen?: boolean
+  /**
+   * Paramétrage rayons caisse détail (activer / renommer).
+   * Absent = tous les rayons du métier sont actifs avec libellés par défaut.
+   */
+  retailRayons?: Array<{
+    id: string
+    enabled: boolean
+    labelFr?: string
+    labelAr?: string
+  }>
 }
 
 export interface ZakatRecord {
