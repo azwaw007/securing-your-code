@@ -30,8 +30,8 @@ const MED = {
   ar: { client: 'مريض', product: 'عمل', sell: 'تحصيل', sellHint: 'عمل طبي + دفع' },
 }
 const CAR = {
-  fr: { client: 'Client', product: 'Véhicule / service', sell: 'Facturer', sellHint: 'Location, vente ou réparation' },
-  ar: { client: 'زبون', product: 'مركبة / خدمة', sell: 'فوترة', sellHint: 'كراء أو بيع أو تصليح' },
+  fr: { client: 'Client', product: 'Véhicule / service', sell: 'Facturer', sellHint: 'Location ou réparation' },
+  ar: { client: 'زبون', product: 'مركبة / خدمة', sell: 'فوترة', sellHint: 'كراء أو تصليح' },
 }
 
 function d(
@@ -57,8 +57,15 @@ export const COMMERCE_MODES: Array<{
   { id: 'gros', icon: '📦', nameFr: 'Gros', nameAr: 'جملة', hintFr: 'Dépôt, carton, livraisons', hintAr: 'مستودع، كرتون، توصيل' },
   { id: 'detail', icon: '🛒', nameFr: 'Détail', nameAr: 'تجزئة', hintFr: 'Boutique, superette, caisse', hintAr: 'محل، سوبرات، صندوق' },
   { id: 'sante', icon: '🩺', nameFr: 'Santé', nameAr: 'صحة', hintFr: 'Cabinet, clinique, labo', hintAr: 'عيادة، مصحة، مخبر' },
-  { id: 'auto', icon: '🚗', nameFr: 'Auto', nameAr: 'سيارات', hintFr: 'Location, vente, garage', hintAr: 'كراء، بيع، ورشة' },
-  { id: 'services', icon: '🧰', nameFr: 'Services', nameAr: 'خدمات', hintFr: 'Prestations et rendez-vous', hintAr: 'خدمات ومواعيد' },
+  { id: 'auto', icon: '🚗', nameFr: 'Auto', nameAr: 'سيارات', hintFr: 'Location, garage, pièces', hintAr: 'كراء، ورشة، قطع' },
+  {
+    id: 'services',
+    icon: '🧰',
+    nameFr: 'Services',
+    nameAr: 'خدمات',
+    hintFr: 'Prestations, rendez-vous, facturation',
+    hintAr: 'خدمات، مواعيد، فوترة',
+  },
 ]
 
 export const DOMAINS: ShopDomain[] = [
@@ -222,11 +229,11 @@ const MODE_HINT: Record<CommerceMode, Partial<Record<Language, string>>> = {
     de: 'Praxis, Labor, Leistungen',
   },
   auto: {
-    en: 'Rent, sell or repair',
-    es: 'Alquiler, venta o taller',
-    tr: 'Kiralama, satış, tamir',
-    it: 'Noleggio, vendita o officina',
-    de: 'Miete, Verkauf oder Werkstatt',
+    en: 'Rent or repair',
+    es: 'Alquiler o taller',
+    tr: 'Kiralama veya tamir',
+    it: 'Noleggio o officina',
+    de: 'Miete oder Werkstatt',
   },
   services: {
     en: 'Jobs and appointments',
