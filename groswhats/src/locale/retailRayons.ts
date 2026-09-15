@@ -187,6 +187,17 @@ const VARIANT_DOMAINS = new Set([
   'gros-lingerie',
 ])
 
+/** Réf. constructeur / OEM. */
+const OEM_DOMAINS = new Set([
+  'detail-quincaillerie',
+  'detail-electro',
+  'gros-electro',
+  'gros-quincaillerie',
+  'gros-pieces-auto',
+  'auto-pieces',
+  'auto-garage',
+])
+
 export function retailRayonsFor(domainId: string | undefined): RetailRayon[] {
   if (!domainId) return GENERIC
   if (BY_DOMAIN[domainId]) return BY_DOMAIN[domainId]
@@ -200,6 +211,17 @@ export function showImeiTracking(domainId: string | undefined): boolean {
 
 export function showRetailVariants(domainId: string | undefined): boolean {
   return !!domainId && VARIANT_DOMAINS.has(domainId)
+}
+
+export function showOemRef(domainId: string | undefined): boolean {
+  if (!domainId) return false
+  if (OEM_DOMAINS.has(domainId)) return true
+  return (
+    domainId.includes('quincaillerie') ||
+    domainId.includes('electro') ||
+    domainId.includes('pieces') ||
+    domainId.includes('piece')
+  )
 }
 
 export function isDetailRetailDomain(domainId: string | undefined): boolean {

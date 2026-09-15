@@ -32,7 +32,9 @@ import type {
   StopStatus,
   Supplier,
   TeamSettings,
+  HeldSale,
   ZakatRecord,
+  PriceTier,
 } from './types'
 import {
   DEFAULT_AGENT_PERMISSIONS,
@@ -350,6 +352,7 @@ function seedState(): AppState {
     employees: [],
     employeeLeaves: [],
     staffLedger: [],
+    heldSales: [],
   }
 }
 
@@ -522,6 +525,11 @@ function migrate(raw: unknown): AppState {
           typeof (p as Product).color === 'string' && (p as Product).color!.trim()
             ? (p as Product).color!.trim()
             : undefined,
+        oemRef:
+          typeof (p as Product).oemRef === 'string' && (p as Product).oemRef!.trim()
+            ? (p as Product).oemRef!.trim()
+            : undefined,
+        favorite: (p as Product).favorite === true,
         demiGrosPriceDa:
           typeof p.demiGrosPriceDa === 'number' && p.demiGrosPriceDa > 0
             ? p.demiGrosPriceDa
@@ -763,6 +771,32 @@ function migrate(raw: unknown): AppState {
         periodLabel: typeof s.periodLabel === 'string' ? s.periodLabel : undefined,
         createdAt: s.createdAt || new Date().toISOString(),
       })),
+    heldSales: Array.isArray((data as { heldSales?: HeldSale[] }).heldSales)
+      ? ((data as { heldSales: HeldSale[] }).heldSales)
+          .filter((h) => h && typeof h.id === 'string')
+          .map((h) => ({
+            id: h.id || uid('hold'),
+            label: typeof h.label === 'string' && h.label.trim() ? h.label.trim() : 'En attente',
+            clientId: typeof h.clientId === 'string' ? h.clientId : '',
+            qtyMap:
+              h.qtyMap && typeof h.qtyMap === 'object'
+                ? (h.qtyMap as Record<string, number>)
+                : {},
+            tierMap:
+              h.tierMap && typeof h.tierMap === 'object'
+                ? (h.tierMap as Record<string, PriceTier>)
+                : {},
+            imeiMap:
+              h.imeiMap && typeof h.imeiMap === 'object'
+                ? (h.imeiMap as Record<string, string>)
+                : undefined,
+            discountPercent:
+              typeof h.discountPercent === 'number' && h.discountPercent > 0
+                ? h.discountPercent
+                : undefined,
+            createdAt: h.createdAt || new Date().toISOString(),
+          }))
+      : [],
   }
   return ensureDefaultLocation(base)
 }
@@ -903,6 +937,28 @@ export function updateProduct(state: AppState, id: string, patch: Partial<Produc
 
 export function deleteProduct(state: AppState, id: string): AppState {
   return { ...state, products: state.products.filter((p) => p.id !== id) }
+}
+
+export function holdSale(
+  state: AppState,
+  input: Omit<HeldSale, 'id' | 'createdAt'>,
+): AppState {
+  const held: HeldSale = {
+    ...input,
+    id: uid('hold'),
+    createdAt: new Date().toISOString(),
+  }
+  return {
+    ...state,
+    heldSales: [held, ...(state.heldSales || [])].slice(0, 30),
+  }
+}
+
+export function removeHeldSale(state: AppState, id: string): AppState {
+  return {
+    ...state,
+    heldSales: (state.heldSales || []).filter((h) => h.id !== id),
+  }
 }
 
 export function addClient(

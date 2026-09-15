@@ -77,6 +77,8 @@ import {
   setActiveLocation,
   setMultiLocationEnabled,
   transferStock,
+  holdSale,
+  removeHeldSale,
   setClinicStation,
 } from './store'
 import { isDecimalUnit, qtyStep, t, unitLabel } from './i18n'
@@ -121,6 +123,7 @@ import {
   resolveRetailRayons,
   rayonLabel,
   showImeiTracking,
+  showOemRef,
   showRetailVariants,
 } from './locale/retailRayons'
 import { LanguagePicker } from './locale/LanguagePicker'
@@ -791,6 +794,10 @@ export default function App() {
           seedProductId={seedSellProductId}
           onSeedConsumed={() => setSeedSellProductId(null)}
           onGo={goTo}
+          onFlash={flash}
+          onUpdateProduct={(id, patch) => setState((s) => updateProduct(s, id, patch))}
+          onHoldSale={(input) => setState((s) => holdSale(s, input))}
+          onRemoveHeld={(id) => setState((s) => removeHeldSale(s, id))}
           onCreate={(order) => {
             const next = createOrder(state, order)
             setState(next)
@@ -3307,6 +3314,8 @@ function ProductsPage({
   const [imei, setImei] = useState('')
   const [size, setSize] = useState('')
   const [color, setColor] = useState('')
+  const [oemRef, setOemRef] = useState('')
+  const [favorite, setFavorite] = useState(false)
   const [unit, setUnit] = useState<Unit>('piece')
   const [costDa, setCostDa] = useState('')
   const [priceDa, setPriceDa] = useState('')
@@ -3349,6 +3358,7 @@ function ProductsPage({
   const aisleOptions = retailChipRayons(domainId, state.settings, lang)
   const trackImei = showImeiTracking(domainId)
   const trackVariants = showRetailVariants(domainId)
+  const trackOem = showOemRef(domainId)
 
   const productSuggestions = useMemo(() => {
     const names = [
@@ -3524,6 +3534,30 @@ function ProductsPage({
             </div>
           </div>
         ) : null}
+        {trackOem ? (
+          <div className="field">
+            <label>{t(lang, 'productOemRef')}</label>
+            <input
+              value={oemRef}
+              onChange={(e) => setOemRef(e.target.value)}
+              placeholder="OEM…"
+            />
+            <div className="muted">{t(lang, 'productOemRefHint')}</div>
+          </div>
+        ) : null}
+        {retailMode ? (
+          <label className="field check-row">
+            <input
+              type="checkbox"
+              checked={favorite}
+              onChange={(e) => setFavorite(e.target.checked)}
+            />
+            <span>
+              <strong>{t(lang, 'productFavorite')}</strong>
+              <div className="muted">{t(lang, 'productFavoriteHint')}</div>
+            </span>
+          </label>
+        ) : null}
         <ProductPricingFields
           lang={lang}
           commerceMode={state.settings.commerceMode}
@@ -3575,6 +3609,8 @@ function ProductsPage({
               imei: imei.trim() || undefined,
               size: size.trim() || undefined,
               color: color.trim() || undefined,
+              oemRef: oemRef.trim() || undefined,
+              favorite: favorite || undefined,
             })
             setName('')
             setBarcode('')
@@ -3590,6 +3626,8 @@ function ProductsPage({
             setImei('')
             setSize('')
             setColor('')
+            setOemRef('')
+            setFavorite(false)
             setCostDa('')
             setPriceDa('')
             setDemiGrosPriceDa('')
@@ -3829,6 +3867,8 @@ function ProductEditCard({
   const [imei, setImei] = useState(product.imei || '')
   const [size, setSize] = useState(product.size || '')
   const [color, setColor] = useState(product.color || '')
+  const [oemRef, setOemRef] = useState(product.oemRef || '')
+  const [favorite, setFavorite] = useState(product.favorite === true)
   const [unit, setUnit] = useState<Unit>(product.unit)
   const [costDa, setCostDa] = useState(String(product.costDa || 0))
   const [priceDa, setPriceDa] = useState(String(product.priceDa))
@@ -3854,6 +3894,7 @@ function ProductEditCard({
   const aisleOptions = retailChipRayons(domainId, settings, lang)
   const trackImei = showImeiTracking(domainId)
   const trackVariants = showRetailVariants(domainId)
+  const trackOem = showOemRef(domainId)
 
   return (
     <div className="card">
@@ -3951,6 +3992,26 @@ function ProductEditCard({
           </div>
         </div>
       ) : null}
+      {trackOem ? (
+        <div className="field">
+          <label>{t(lang, 'productOemRef')}</label>
+          <input value={oemRef} onChange={(e) => setOemRef(e.target.value)} />
+          <div className="muted">{t(lang, 'productOemRefHint')}</div>
+        </div>
+      ) : null}
+      {retailMode ? (
+        <label className="field check-row">
+          <input
+            type="checkbox"
+            checked={favorite}
+            onChange={(e) => setFavorite(e.target.checked)}
+          />
+          <span>
+            <strong>{t(lang, 'productFavorite')}</strong>
+            <div className="muted">{t(lang, 'productFavoriteHint')}</div>
+          </span>
+        </label>
+      ) : null}
       <ProductPricingFields
         lang={lang}
         commerceMode={commerceMode}
@@ -4002,6 +4063,8 @@ function ProductEditCard({
             imei: imei.trim() || undefined,
             size: size.trim() || undefined,
             color: color.trim() || undefined,
+            oemRef: oemRef.trim() || undefined,
+            favorite: favorite || undefined,
           })
         }}
       >
@@ -4787,6 +4850,10 @@ function OrderPage({
   onBoth,
   onInvoice,
   onGo,
+  onFlash,
+  onUpdateProduct,
+  onHoldSale,
+  onRemoveHeld,
 }: {
   state: AppState
   lang: Language
@@ -4800,11 +4867,18 @@ function OrderPage({
   onBoth: (order: Order, customText?: string) => Promise<void>
   onInvoice: (order: Order, customText?: string) => void
   onGo: (s: Screen, spokenLabel?: string) => void
+  onFlash: (key: string) => void
+  onUpdateProduct: (id: string, patch: Partial<Product>) => void
+  onHoldSale: (
+    input: Omit<import('./types').HeldSale, 'id' | 'createdAt'>,
+  ) => void
+  onRemoveHeld: (id: string) => void
 }) {
   const QUICK = '__quick__'
   const mode = state.settings.commerceMode
   const domainId = state.settings.domainId
   const wholesale = isWholesale(mode)
+  const retail = isShopRetail(mode)
   const vocab = shopVocab(mode, lang, domainId)
   const clientFirst = preferClientOnSale(mode, domainId)
   const [clientId, setClientId] = useState(
@@ -4822,6 +4896,8 @@ function OrderPage({
   const [productDateTo, setProductDateTo] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<'all' | string>('all')
   const [imeiMap, setImeiMap] = useState<Record<string, string>>({})
+  const [discountPercent, setDiscountPercent] = useState('')
+  const [showHeld, setShowHeld] = useState(false)
   /** Après le panier : choisir Payé / Versé */
   const [payStep, setPayStep] = useState(false)
   const [verseInput, setVerseInput] = useState('')
@@ -4830,6 +4906,10 @@ function OrderPage({
   const [showClientBook, setShowClientBook] = useState(clientFirst)
 
   const isQuick = clientId === QUICK
+  const favorites = useMemo(
+    () => state.products.filter((p) => p.favorite),
+    [state.products],
+  )
   const productSuggestions = useMemo(() => {
     const names = [
       ...state.products.map((p) => p.name),
@@ -4918,7 +4998,13 @@ function OrderPage({
       ]
     })
 
-  const total = lines.reduce((s, l) => s + l.lineTotalDa, 0)
+  const subtotal = lines.reduce((s, l) => s + l.lineTotalDa, 0)
+  const discPct = Math.min(
+    100,
+    Math.max(0, Number(String(discountPercent).replace(',', '.')) || 0),
+  )
+  const discountDa = discPct > 0 ? +((subtotal * discPct) / 100).toFixed(2) : 0
+  const total = Math.max(0, +(subtotal - discountDa).toFixed(2))
   const client = state.clients.find((c) => c.id === clientId)
   const clientDebt = client ? clientCreditDa(state, client.id) : 0
   const canValidate = lines.length > 0 && (isQuick || !!client)
@@ -4926,6 +5012,47 @@ function OrderPage({
   const verseOk =
     Number.isFinite(verseParsed) && verseParsed >= 0 && verseParsed <= total
   const verseRemaining = verseOk ? Math.max(0, +(total - verseParsed).toFixed(2)) : 0
+
+  function clearCart() {
+    setQtyMap({})
+    setTierMap({})
+    setImeiMap({})
+    setDiscountPercent('')
+    setPayStep(false)
+    setVerseInput('')
+    setDueDays(15)
+  }
+
+  function parkCurrentSale() {
+    if (lines.length === 0) return
+    const clientName = isQuick
+      ? t(lang, 'walkInClient')
+      : state.clients.find((c) => c.id === clientId)?.name || '—'
+    onHoldSale({
+      label: `${clientName} · ${formatDa(total)}`,
+      clientId: isQuick ? '' : clientId,
+      qtyMap: { ...qtyMap },
+      tierMap: { ...tierMap },
+      imeiMap: { ...imeiMap },
+      discountPercent: discPct > 0 ? discPct : undefined,
+    })
+    clearCart()
+    onFlash('holdSaleDone')
+  }
+
+  function resumeHeld(id: string) {
+    const h = (state.heldSales || []).find((x) => x.id === id)
+    if (!h) return
+    setQtyMap({ ...h.qtyMap })
+    setTierMap({ ...h.tierMap })
+    setImeiMap({ ...(h.imeiMap || {}) })
+    setDiscountPercent(h.discountPercent ? String(h.discountPercent) : '')
+    setClientId(h.clientId || QUICK)
+    setShowClientBook(!!h.clientId)
+    setPayStep(false)
+    onRemoveHeld(id)
+    setShowHeld(false)
+  }
 
   function bump(product: Product, tier: PriceTier, delta: number) {
     const key = lineKey(product.id, tier)
@@ -4991,18 +5118,16 @@ function OrderPage({
       clientPhone: isQuick ? '' : client!.phone,
       lines,
       totalDa: total,
+      subtotalDa: subtotal,
+      discountPercent: discPct > 0 ? discPct : undefined,
+      discountDa: discountDa > 0 ? discountDa : undefined,
       ...pay,
       dueDate:
         pay.remainingDa > 0.001 ? dueDateFromDays(dueDays) : undefined,
     })
     setLastOrder(created)
     setInvoiceDraft(buildInvoiceText(created, state.settings))
-    setQtyMap({})
-    setTierMap({})
-    setImeiMap({})
-    setPayStep(false)
-    setVerseInput('')
-    setDueDays(15)
+    clearCart()
     speak(
       lang === 'ar'
         ? `تم. ${Math.round(total)} دينار`
@@ -5147,6 +5272,23 @@ function OrderPage({
           onDateFrom={setProductDateFrom}
           onDateTo={setProductDateTo}
         />
+        {isShopRetail(mode) && favorites.length > 0 ? (
+          <div className="chip-row retail-fav-chips" aria-label={t(lang, 'retailFavorites')}>
+            <span className="muted" style={{ alignSelf: 'center', marginInlineEnd: 4 }}>
+              ⭐ {t(lang, 'retailFavorites')}
+            </span>
+            {favorites.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className="chip fav-chip"
+                onClick={() => bump(p, tierOf(p.id), qtyStep(p.unit))}
+              >
+                {p.name}
+              </button>
+            ))}
+          </div>
+        ) : null}
         {isShopRetail(mode) && retailRayonChips.length > 0 ? (
           <div className="chip-row retail-cat-chips" role="tablist" aria-label={t(lang, 'retailCategories')}>
             <button
@@ -5200,11 +5342,29 @@ function OrderPage({
                     : tier === 'gros'
                       ? '📦📦'
                       : '🏭'
+              const stockNow = displayStock(state, p)
+              const low = stockNow <= (p.lowStockAt || 0)
               return (
                 <div
-                  className={`product-card ${qty > 0 ? 'selected' : ''}`}
+                  className={`product-card ${qty > 0 ? 'selected' : ''} ${low ? 'low-stock' : ''}`}
                   key={p.id}
                 >
+                  {retail ? (
+                    <button
+                      type="button"
+                      className={`fav-toggle ${p.favorite ? 'on' : ''}`}
+                      title={t(lang, 'productFavorite')}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onUpdateProduct(p.id, { favorite: !p.favorite })
+                      }}
+                    >
+                      {p.favorite ? '⭐' : '☆'}
+                    </button>
+                  ) : null}
+                  {low ? (
+                    <span className="stock-low-badge">{t(lang, 'lowStockBadge')}</span>
+                  ) : null}
                   <img
                     className="product-card-img"
                     src={productDisplaySrc(p.name, p.category, p.imageDataUrl)}
@@ -5214,6 +5374,9 @@ function OrderPage({
                     <strong>{p.name}</strong>
                     {p.barcode ? (
                       <div className="muted">⬛ {p.barcode}</div>
+                    ) : null}
+                    {p.oemRef ? (
+                      <div className="muted">🔧 {p.oemRef}</div>
                     ) : null}
                     {p.imei ? (
                       <div className="muted">📱 IMEI {p.imei}</div>
@@ -5247,13 +5410,13 @@ function OrderPage({
                     <div className="price-big">
                       {tierIcon} {formatDa(unitPrice)}
                     </div>
-                    <div className="muted">
+                    <div className={`muted ${low ? 'warn-text' : ''}`}>
                       {unitLabel(lang, sellUnitForTier(tier))}
                       {isCartonTier(tier) && p.piecesPerPack
                         ? ` · ${p.piecesPerPack}×`
                         : ''}
                       {' · '}
-                      {t(lang, 'stockQty')} {formatQty(displayStock(state, p))}
+                      {t(lang, 'stockQty')} {formatQty(stockNow)}
                       {state.settings.multiLocationEnabled
                         ? ` (${t(lang, 'stockTotal')} ${formatQty(p.stock)})`
                         : ''}
@@ -5279,6 +5442,12 @@ function OrderPage({
       <aside className="pos-cart">
       <div className="card sticky-validate">
         <h2 className="total-big">💰 {formatDa(total)}</h2>
+        {discountDa > 0 ? (
+          <div className="muted" style={{ marginBottom: 8 }}>
+            {t(lang, 'subtotal')} {formatDa(subtotal)} − {t(lang, 'discountAmount')}{' '}
+            {formatDa(discountDa)} ({discPct}%)
+          </div>
+        ) : null}
         {lines.length > 0 ? (
           <ul className="line-preview">
             {lines.map((l) => (
@@ -5296,6 +5465,76 @@ function OrderPage({
               </li>
             ))}
           </ul>
+        ) : null}
+
+        {retail ? (
+          <div className="field" style={{ marginTop: 8 }}>
+            <label>{t(lang, 'discountPercent')}</label>
+            <input
+              inputMode="decimal"
+              value={discountPercent}
+              onChange={(e) => setDiscountPercent(e.target.value)}
+              placeholder="0"
+            />
+          </div>
+        ) : null}
+
+        {retail ? (
+          <div className="btn-row" style={{ marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
+            <button
+              type="button"
+              className="btn secondary"
+              disabled={lines.length === 0}
+              onClick={parkCurrentSale}
+            >
+              ⏸️ {t(lang, 'holdSale')}
+            </button>
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={() => setShowHeld((v) => !v)}
+            >
+              📋 {t(lang, 'heldSalesTitle')}
+              {(state.heldSales || []).length
+                ? ` (${(state.heldSales || []).length})`
+                : ''}
+            </button>
+          </div>
+        ) : null}
+
+        {retail && showHeld ? (
+          <div className="held-sales-panel" style={{ marginBottom: 10 }}>
+            {(state.heldSales || []).length === 0 ? (
+              <div className="muted">{t(lang, 'heldSalesEmpty')}</div>
+            ) : (
+              (state.heldSales || []).map((h) => (
+                <div className="list-item" key={h.id} style={{ gap: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    <strong>{h.label}</strong>
+                    <div className="muted">
+                      {new Date(h.createdAt).toLocaleString(
+                        lang === 'ar' ? 'ar-DZ' : 'fr-DZ',
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => resumeHeld(h.id)}
+                  >
+                    {t(lang, 'resumeHeldSale')}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    onClick={() => onRemoveHeld(h.id)}
+                  >
+                    {t(lang, 'deleteHeldSale')}
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
         ) : null}
 
         {!payStep ? (

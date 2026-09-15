@@ -98,6 +98,10 @@ export interface Product {
   size?: string
   /** Couleur / variante */
   color?: string
+  /** Réf. constructeur / OEM (pièces auto, quincaillerie, électro) */
+  oemRef?: string
+  /** Favori caisse (accès rapide) */
+  favorite?: boolean
   createdAt: string
 }
 
@@ -360,6 +364,20 @@ export interface OrderLine {
   priceTier?: PriceTier
   /** IMEI saisi à la caisse (téléphonie) */
   imei?: string
+  /** Remise % sur la ligne (0–100) */
+  discountPercent?: number
+}
+
+/** Ticket mis en attente (park) — caisse détail */
+export interface HeldSale {
+  id: string
+  label: string
+  clientId: string
+  qtyMap: Record<string, number>
+  tierMap: Record<string, PriceTier>
+  imeiMap?: Record<string, string>
+  discountPercent?: number
+  createdAt: string
 }
 
 export interface Order {
@@ -369,6 +387,12 @@ export interface Order {
   clientPhone: string
   lines: OrderLine[]
   totalDa: number
+  /** Sous-total avant remise ticket */
+  subtotalDa?: number
+  /** Remise % sur le ticket (0–100) */
+  discountPercent?: number
+  /** Montant remisé (DA) */
+  discountDa?: number
   /** Montant encaissé maintenant → caisse */
   paidDa: number
   /** Reste dû → solde client */
@@ -597,6 +621,8 @@ export interface AppState {
   employees: Employee[]
   employeeLeaves: EmployeeLeave[]
   staffLedger: StaffLedgerEntry[]
+  /** Tickets caisse mis en attente */
+  heldSales: HeldSale[]
 }
 
 export const ALL_UNITS: Unit[] = [
