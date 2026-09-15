@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
     <title>AZ POS Pro — Multi-magasin</title>
     <style>
       :root {
@@ -12,7 +13,6 @@
         --card: #fffdf8;
         --line: #d9d0c0;
         --brand: #0f6b4c;
-        --brand-2: #148f66;
         --muted: #6b6458;
       }
       * { box-sizing: border-box; }
@@ -20,19 +20,11 @@
         margin: 0;
         min-height: 100vh;
         background:
-          radial-gradient(circle at top left, rgba(20, 143, 102, 0.14), transparent 28%),
+          radial-gradient(circle at top left, rgba(15, 107, 76, 0.14), transparent 28%),
           linear-gradient(180deg, #f7f3ea 0%, var(--bg) 40%, #ebe4d7 100%);
       }
-      .wrap {
-        max-width: 720px;
-        margin: 0 auto;
-        padding: 28px 16px 48px;
-      }
-      .brand {
-        font-size: 1.7rem;
-        font-weight: 800;
-        letter-spacing: -0.03em;
-      }
+      .wrap { max-width: 720px; margin: 0 auto; padding: 28px 16px 48px; }
+      .brand { font-size: 1.7rem; font-weight: 800; letter-spacing: -0.03em; }
       .brand span { color: var(--brand); }
       .card {
         background: var(--card);
@@ -56,10 +48,25 @@
         border-radius: 999px;
         padding: 4px 10px;
       }
-      .price {
-        font-size: 1.35rem;
-        font-weight: 800;
-        margin: 8px 0;
+      .price-row {
+        display: grid;
+        gap: 10px;
+        margin-top: 12px;
+      }
+      @media (min-width: 560px) {
+        .price-row { grid-template-columns: 1fr 1fr; }
+      }
+      .price-box {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px;
+        background: #f7f3ea;
+      }
+      .price-box strong.amount {
+        display: block;
+        font-size: 1.45rem;
+        margin: 6px 0 2px;
+        color: var(--brand);
       }
       .btn {
         display: inline-block;
@@ -85,6 +92,11 @@
         margin-top: 16px;
         padding-top: 14px;
       }
+      .edit-hint {
+        font-size: 0.8rem;
+        color: var(--muted);
+        margin-top: 8px;
+      }
     </style>
   </head>
   <body>
@@ -93,14 +105,27 @@
       <p class="muted">Vendu par <strong>AZ Soft</strong> — plusieurs magasins, dépôts et stocks séparés.</p>
 
       <div class="card">
-        <span class="pill">PRO</span>
+        <span class="pill">TARIFS 2026</span>
         <h1>Plusieurs magasins. Un seul logiciel.</h1>
         <p class="muted">
           AZ POS reste simple pour le commerce du quotidien.
           <strong>AZ POS Pro</strong> ajoute les dépôts et le stock par magasin.
         </p>
-        <div class="price">Sur devis</div>
-        <p class="muted">Licence annuelle Pro — prix selon nombre de magasins. WhatsApp pour un devis.</p>
+        <div class="price-row">
+          <div class="price-box">
+            <span class="pill">STANDARD</span>
+            <div class="muted">1 magasin · licence annuelle</div>
+            <strong class="amount">12 000 DA / an</strong>
+            <div class="muted">Caisse, stock, WhatsApp, mobile + PC</div>
+          </div>
+          <div class="price-box">
+            <span class="pill">PRO</span>
+            <div class="muted">Multi-magasin · licence annuelle</div>
+            <strong class="amount">25 000 DA / an</strong>
+            <div class="muted">Jusqu’à 3 dépôts inclus · +5 000 DA / dépôt / an au-delà</div>
+          </div>
+        </div>
+        <p class="edit-hint">Prix AZ Soft — modifiables dans cette page HTML si tu changes ton tarif.</p>
       </div>
 
       <div class="card">
@@ -127,8 +152,8 @@
 
         <div class="ar">
           <h2>AZ POS Pro</h2>
-          <p class="muted">عدة محلات ومخازن، مخزون منفصل لكل نقطة بيع، تحويل بين المخازن، واتساب وهاتف وحاسوب.</p>
-          <p class="muted"><strong>السعر:</strong> حسب العرض (عدد المحلات).</p>
+          <p class="muted">عدة محلات ومخازن، مخزون منفصل، تحويل بين المخازن.</p>
+          <p class="muted"><strong>السعر:</strong> Standard 12 000 دج/سنة · Pro 25 000 دج/سنة (حتى 3 مخازن).</p>
         </div>
       </div>
     </div>
