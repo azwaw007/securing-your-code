@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AZ POS Pro — Multi-magasin</title>
+    <style>
+      :root {
+        font-family: Segoe UI, Trebuchet MS, 'Noto Naskh Arabic', sans-serif;
+        color: #1c1914;
+        --bg: #f3efe6;
+        --card: #fffdf8;
+        --line: #d9d0c0;
+        --brand: #0f6b4c;
+        --brand-2: #148f66;
+        --muted: #6b6458;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at top left, rgba(20, 143, 102, 0.14), transparent 28%),
+          linear-gradient(180deg, #f7f3ea 0%, var(--bg) 40%, #ebe4d7 100%);
+      }
+      .wrap {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 28px 16px 48px;
+      }
+      .brand {
+        font-size: 1.7rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+      }
+      .brand span { color: var(--brand); }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 18px;
+        margin-top: 14px;
+        box-shadow: 0 10px 30px rgba(28, 25, 20, 0.08);
+      }
+      h1 { margin: 8px 0 6px; font-size: 1.45rem; }
+      h2 { margin: 0 0 10px; font-size: 1.1rem; color: var(--brand); }
+      .muted { color: var(--muted); font-size: 0.95rem; line-height: 1.45; }
+      ul { margin: 8px 0 0; padding-inline-start: 1.2rem; }
+      li { margin: 6px 0; }
+      .pill {
+        display: inline-block;
+        background: var(--brand);
+        color: #fff;
+        font-weight: 800;
+        font-size: 0.75rem;
+        border-radius: 999px;
+        padding: 4px 10px;
+      }
+      .price {
+        font-size: 1.35rem;
+        font-weight: 800;
+        margin: 8px 0;
+      }
+      .btn {
+        display: inline-block;
+        margin-top: 12px;
+        margin-right: 8px;
+        border: none;
+        border-radius: 12px;
+        padding: 12px 14px;
+        background: var(--brand);
+        color: #fff;
+        font-weight: 700;
+        text-decoration: none;
+      }
+      .btn.ghost {
+        background: transparent;
+        color: var(--brand);
+        border: 1px solid var(--brand);
+      }
+      .ar {
+        direction: rtl;
+        text-align: right;
+        border-top: 1px dashed var(--line);
+        margin-top: 16px;
+        padding-top: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="brand">AZ <span>POS</span> Pro</div>
+      <p class="muted">Offre pour plusieurs magasins, dépôts et stocks séparés — pensé pour l’Algérie.</p>
+
+      <div class="card">
+        <span class="pill">PRO</span>
+        <h1>Plusieurs magasins. Un seul logiciel.</h1>
+        <p class="muted">
+          AZ POS reste simple pour le commerce du quotidien.
+          <strong>AZ POS Pro</strong> ajoute les dépôts et le stock par magasin.
+        </p>
+        <div class="price">Sur devis</div>
+        <p class="muted">Licence annuelle Pro — prix selon nombre de magasins. WhatsApp pour un devis.</p>
+      </div>
+
+      <div class="card">
+        <h2>Inclus dans Pro</h2>
+        <ul>
+          <li>Multi-magasins / dépôts (stock séparé)</li>
+          <li>Magasin actif à la caisse</li>
+          <li>Transfert de stock entre dépôts</li>
+          <li>WhatsApp, tickets, mobile + PC</li>
+          <li>Même app : pas de clé USB</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>Qui c’est pour ?</h2>
+        <ul>
+          <li>Chaîne de 2–10 magasins</li>
+          <li>Dépôt + points de vente</li>
+          <li>Petite usine avec stock atelier + magasin</li>
+        </ul>
+        <a class="btn" href="./license-generator.html">Générer une licence</a>
+        <a class="btn ghost" href="https://az-pos-dz.vercel.app" target="_blank" rel="noreferrer">Voir la démo</a>
+
+        <div class="ar">
+          <h2>AZ POS Pro</h2>
+          <p class="muted">عدة محلات ومخازن، مخزون منفصل لكل نقطة بيع، تحويل بين المخازن، واتساب وهاتف وحاسوب.</p>
+          <p class="muted"><strong>السعر:</strong> حسب العرض (عدد المحلات).</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

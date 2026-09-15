@@ -826,6 +826,62 @@ button {
   color: var(--warn);
 }
 
+.location-pill {
+  display: inline-flex;
+  align-items: center;
+  max-width: 42vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brand) 14%, white);
+  color: var(--brand);
+  font-size: 0.78rem;
+  font-weight: 700;
+  border: 1px solid color-mix(in srgb, var(--brand) 28%, var(--line));
+}
+
+.pro-upsell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.pro-upsell a {
+  color: var(--brand);
+  font-weight: 700;
+}
+
+.locations-block {
+  margin: 4px 0 12px;
+  padding: 10px 12px;
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--brand) 4%, white);
+}
+
+.location-row {
+  gap: 8px;
+  align-items: center;
+}
+
+.location-row input {
+  flex: 1;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.transfer-block {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+}
+
 .field {
   display: flex;
   flex-direction: column;

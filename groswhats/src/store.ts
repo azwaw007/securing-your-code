@@ -19,6 +19,7 @@ import type {
   PurchaseLine,
   ReturnLine,
   SaleReturn,
+  ShopLocation,
   ShopSettings,
   StopStatus,
   Supplier,
@@ -45,8 +46,15 @@ const LEGACY_STORAGE_KEYS = [
   'groswhats-v1',
 ]
 
+export const DEFAULT_LOCATION_ID = 'loc_main'
+export const DEFAULT_LOCATION_NAME = 'Magasin principal'
+
 export function uid(prefix: string): string {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`
+}
+
+function defaultLocation(): ShopLocation {
+  return { id: DEFAULT_LOCATION_ID, name: DEFAULT_LOCATION_NAME }
 }
 
 function defaultSettings(): ShopSettings {
@@ -70,6 +78,195 @@ function defaultSettings(): ShopSettings {
     showCalculator: true,
     showGallery: true,
     agentPermissions: { ...DEFAULT_AGENT_PERMISSIONS },
+    multiLocationEnabled: false,
+    activeLocationId: DEFAULT_LOCATION_ID,
+  }
+}
+
+/** Stock d’un produit dans un dépôt */
+export function stockAt(p: Product, locId: string): number {
+  const map = p.stockByLocation
+  if (map && typeof map[locId] === 'number') return map[locId]
+  return 0
+}
+
+/** Recalcule Product.stock = somme des dépôts */
+export function syncProductStockSum(p: Product): Product {
+  const map = p.stockByLocation ?? {}
+  const sum = Object.values(map).reduce(
+    (s, n) => s + (typeof n === 'number' && Number.isFinite(n) ? n : 0),
+    0,
+  )
+  return { ...p, stock: +sum.toFixed(3), stockByLocation: { ...map } }
+}
+
+export function setStockAt(p: Product, locId: string, qty: number): Product {
+  const safe = Math.max(0, +qty.toFixed(3))
+  const map = { ...(p.stockByLocation ?? {}) }
+  map[locId] = safe
+  return syncProductStockSum({ ...p, stockByLocation: map })
+}
+
+export function adjustStockAt(p: Product, locId: string, delta: number): Product {
+  return setStockAt(p, locId, stockAt(p, locId) + delta)
+}
+
+/** Magasin actif (fallback dépôt principal) */
+export function activeLocationId(state: AppState): string {
+  const id = state.settings.activeLocationId
+  if (id && state.locations.some((l) => l.id === id)) return id
+  return state.locations[0]?.id || DEFAULT_LOCATION_ID
+}
+
+export function activeLocation(state: AppState): ShopLocation | undefined {
+  const id = activeLocationId(state)
+  return state.locations.find((l) => l.id === id) ?? state.locations[0]
+}
+
+/**
+ * Stock affiché à la caisse / produits :
+ * multi on → dépôt actif ; sinon total.
+ */
+export function displayStock(state: AppState, p: Product): number {
+  if (state.settings.multiLocationEnabled) {
+    return stockAt(p, activeLocationId(state))
+  }
+  return p.stock
+}
+
+/** Assure au moins un dépôt + activeLocationId + stockByLocation migrés */
+export function ensureDefaultLocation(state: AppState): AppState {
+  let locations = Array.isArray(state.locations) ? [...state.locations] : []
+  if (locations.length === 0) {
+    locations = [defaultLocation()]
+  }
+  const activeId =
+    state.settings.activeLocationId &&
+    locations.some((l) => l.id === state.settings.activeLocationId)
+      ? state.settings.activeLocationId
+      : locations[0].id
+
+  const products = state.products.map((p) => {
+    const hasMap =
+      p.stockByLocation &&
+      typeof p.stockByLocation === 'object' &&
+      Object.keys(p.stockByLocation).length > 0
+    if (hasMap) return syncProductStockSum(p)
+    const qty = typeof p.stock === 'number' && Number.isFinite(p.stock) ? p.stock : 0
+    return setStockAt(p, activeId, qty)
+  })
+
+  return {
+    ...state,
+    locations,
+    products,
+    settings: {
+      ...state.settings,
+      activeLocationId: activeId,
+      multiLocationEnabled: state.settings.multiLocationEnabled === true,
+    },
+  }
+}
+
+export function addLocation(
+  state: AppState,
+  name: string,
+  city?: string,
+): AppState {
+  const trimmed = name.trim()
+  if (!trimmed) return state
+  const loc: ShopLocation = {
+    id: uid('loc'),
+    name: trimmed,
+    city: city?.trim() || undefined,
+  }
+  return { ...state, locations: [...state.locations, loc] }
+}
+
+export function updateLocation(
+  state: AppState,
+  id: string,
+  patch: Partial<Pick<ShopLocation, 'name' | 'city'>>,
+): AppState {
+  return {
+    ...state,
+    locations: state.locations.map((l) =>
+      l.id === id
+        ? {
+            ...l,
+            name: patch.name !== undefined ? patch.name.trim() || l.name : l.name,
+            city:
+              patch.city !== undefined
+                ? patch.city.trim() || undefined
+                : l.city,
+          }
+        : l,
+    ),
+  }
+}
+
+export function deleteLocation(state: AppState, id: string): AppState {
+  if (state.locations.length <= 1) return state
+  if (!state.locations.some((l) => l.id === id)) return state
+  const fallback =
+    state.locations.find((l) => l.id !== id)?.id || DEFAULT_LOCATION_ID
+  const products = state.products.map((p) => {
+    const moving = stockAt(p, id)
+    const map = { ...(p.stockByLocation ?? {}) }
+    delete map[id]
+    const next = { ...p, stockByLocation: map }
+    if (moving > 0) return adjustStockAt(next, fallback, moving)
+    return syncProductStockSum(next)
+  })
+  const locations = state.locations.filter((l) => l.id !== id)
+  const active =
+    state.settings.activeLocationId === id
+      ? fallback
+      : state.settings.activeLocationId
+  return {
+    ...state,
+    locations,
+    products,
+    settings: { ...state.settings, activeLocationId: active },
+  }
+}
+
+export function setActiveLocation(state: AppState, locationId: string): AppState {
+  if (!state.locations.some((l) => l.id === locationId)) return state
+  return updateSettings(state, { activeLocationId: locationId })
+}
+
+export function setMultiLocationEnabled(
+  state: AppState,
+  enabled: boolean,
+): AppState {
+  let next = ensureDefaultLocation(state)
+  next = updateSettings(next, { multiLocationEnabled: enabled })
+  return next
+}
+
+/** Transfert stock entre deux dépôts */
+export function transferStock(
+  state: AppState,
+  productId: string,
+  fromId: string,
+  toId: string,
+  qty: number,
+): AppState {
+  if (fromId === toId || qty <= 0) return state
+  if (!state.locations.some((l) => l.id === fromId)) return state
+  if (!state.locations.some((l) => l.id === toId)) return state
+  const product = state.products.find((p) => p.id === productId)
+  if (!product) return state
+  const available = stockAt(product, fromId)
+  const take = Math.min(available, +qty.toFixed(3))
+  if (take <= 0) return state
+  return {
+    ...state,
+    products: state.products.map((p) => {
+      if (p.id !== productId) return p
+      return adjustStockAt(adjustStockAt(p, fromId, -take), toId, take)
+    }),
   }
 }
 
@@ -116,6 +313,7 @@ function seedState(): AppState {
   const companyCode = genCode(6)
   return {
     settings: defaultSettings(),
+    locations: [defaultLocation()],
     products: [],
     clients: [],
     orders: [],
@@ -140,6 +338,7 @@ function seedState(): AppState {
 function migrate(raw: unknown): AppState {
   const data = raw as {
     settings?: Partial<ShopSettings>
+    locations?: ShopLocation[]
     products?: AppState['products']
     clients?: AppState['clients']
     orders?: AppState['orders']
@@ -192,6 +391,11 @@ function migrate(raw: unknown): AppState {
       ...DEFAULT_AGENT_PERMISSIONS,
       ...(incoming.agentPermissions as Partial<AgentPermissions> | undefined),
     },
+    multiLocationEnabled: incoming.multiLocationEnabled === true,
+    activeLocationId:
+      typeof incoming.activeLocationId === 'string' && incoming.activeLocationId
+        ? incoming.activeLocationId
+        : defaults.activeLocationId,
   }
   const teamDefaults = defaultTeam()
   const team: TeamSettings = {
@@ -202,8 +406,25 @@ function migrate(raw: unknown): AppState {
     multiPosteEnabled: data.team?.multiPosteEnabled === true,
     hasChosenRole: data.team?.hasChosenRole === true,
   }
-  return {
+  const locationsRaw = Array.isArray(data.locations) ? data.locations : []
+  const locations: ShopLocation[] =
+    locationsRaw.length > 0
+      ? locationsRaw.map((l) => ({
+          id: typeof l.id === 'string' && l.id ? l.id : uid('loc'),
+          name:
+            typeof l.name === 'string' && l.name.trim()
+              ? l.name.trim()
+              : DEFAULT_LOCATION_NAME,
+          city:
+            typeof l.city === 'string' && l.city.trim()
+              ? l.city.trim()
+              : undefined,
+        }))
+      : [defaultLocation()]
+
+  const base: AppState = {
     settings,
+    locations,
     products: (data.products ?? []).map((p) => {
       const piecesPerPack =
         typeof p.piecesPerPack === 'number' && p.piecesPerPack > 0
@@ -215,9 +436,19 @@ function migrate(raw: unknown): AppState {
           : typeof p.packPriceDa === 'number' && p.packPriceDa > 0
             ? p.packPriceDa
             : undefined
+      const stockByLocation =
+        p.stockByLocation && typeof p.stockByLocation === 'object'
+          ? Object.fromEntries(
+              Object.entries(p.stockByLocation).filter(
+                ([, v]) => typeof v === 'number' && Number.isFinite(v),
+              ),
+            )
+          : undefined
       return {
         ...p,
         costDa: typeof p.costDa === 'number' ? p.costDa : 0,
+        stock: typeof p.stock === 'number' ? p.stock : 0,
+        stockByLocation,
         piecesPerPack,
         barcode:
           typeof (p as Product).barcode === 'string'
@@ -345,6 +576,7 @@ function migrate(raw: unknown): AppState {
       createdAt: r.createdAt || new Date().toISOString(),
     })),
   }
+  return ensureDefaultLocation(base)
 }
 
 export function loadState(): AppState {
@@ -399,7 +631,8 @@ export function applyShopSetup(state: AppState, input: ShopSetupInput): AppState
       wholesale && pack && pack > 1
         ? convertPriceDa(seed.priceDa * pack * 0.88, factor)
         : undefined
-    return {
+    const locId = activeLocationId(state)
+    const base: Product = {
       id: uid('p'),
       name: seed.name,
       category: seed.category,
@@ -420,9 +653,10 @@ export function applyShopSetup(state: AppState, input: ShopSetupInput): AppState
       imageDataUrl: catalogImagePath(seed.name, seed.category),
       createdAt: new Date().toISOString(),
     }
+    return setStockAt(base, locId, stock)
   })
   const keep = !input.replaceCatalog && state.products.length > 0
-  return {
+  return ensureDefaultLocation({
     ...state,
     settings: {
       ...state.settings,
@@ -437,25 +671,39 @@ export function applyShopSetup(state: AppState, input: ShopSetupInput): AppState
       showZakat: defaultZakatOn(country.code),
     },
     products: keep ? state.products : products,
-  }
+  })
 }
 
 export function addProduct(
   state: AppState,
   input: Omit<Product, 'id' | 'createdAt'>,
 ): AppState {
-  const product: Product = {
-    ...input,
-    id: uid('p'),
-    createdAt: new Date().toISOString(),
-  }
+  const locId = activeLocationId(state)
+  const product: Product = setStockAt(
+    {
+      ...input,
+      id: uid('p'),
+      createdAt: new Date().toISOString(),
+      stockByLocation: input.stockByLocation,
+    },
+    locId,
+    typeof input.stock === 'number' ? input.stock : 0,
+  )
   return { ...state, products: [product, ...state.products] }
 }
 
 export function updateProduct(state: AppState, id: string, patch: Partial<Product>): AppState {
+  const locId = activeLocationId(state)
   return {
     ...state,
-    products: state.products.map((p) => (p.id === id ? { ...p, ...patch } : p)),
+    products: state.products.map((p) => {
+      if (p.id !== id) return p
+      if (typeof patch.stock === 'number' && patch.stockByLocation === undefined) {
+        const { stock: _stock, ...rest } = patch
+        return syncProductStockSum(setStockAt({ ...p, ...rest }, locId, patch.stock))
+      }
+      return syncProductStockSum({ ...p, ...patch })
+    }),
   }
 }
 
@@ -593,10 +841,13 @@ export function createOrder(
     )
   }
 
+  const locId = activeLocationId(state)
   const products = state.products.map((p) => {
     const take = deductByProduct.get(p.id)
     if (!take) return p
-    return { ...p, stock: Math.max(0, +(p.stock - take).toFixed(3)) }
+    const available = stockAt(p, locId)
+    const cut = Math.min(available, take)
+    return adjustStockAt(p, locId, -cut)
   })
 
   return {
@@ -1555,9 +1806,9 @@ export function addPurchase(
   const products = state.products.map((p) => {
     const add = addBy.get(p.id)
     if (!add) return p
+    const locId = activeLocationId(state)
     return {
-      ...p,
-      stock: +(p.stock + add.qty).toFixed(3),
+      ...adjustStockAt(p, locId, add.qty),
       costDa: add.unitCost > 0 ? add.unitCost : p.costDa,
     }
   })
@@ -1687,7 +1938,7 @@ export function createSaleReturn(
     products: state.products.map((p) => {
       const add = addBy.get(p.id)
       if (!add) return p
-      return { ...p, stock: +(p.stock + add).toFixed(3) }
+      return adjustStockAt(p, activeLocationId(state), add)
     }),
     returns: [item, ...state.returns],
   }

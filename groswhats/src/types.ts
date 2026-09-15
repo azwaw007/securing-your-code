@@ -52,6 +52,13 @@ export type ProductCategory =
 
 export type PriceTier = 'piece' | 'demi_gros' | 'gros' | 'super_gros'
 
+/** Dépôt / magasin (multi-emplacement) */
+export interface ShopLocation {
+  id: string
+  name: string
+  city?: string
+}
+
 export interface Product {
   id: string
   name: string
@@ -61,8 +68,10 @@ export interface Product {
   priceDa: number
   /** Prix d'achat / coût (DA) par pièce */
   costDa: number
-  /** Stock toujours en pièces (unité de base) */
+  /** Stock total (somme des dépôts) — compat UI / zakat / alertes */
   stock: number
+  /** Stock par dépôt (locationId → qty). Absent = traité via migrate. */
+  stockByLocation?: Record<string, number>
   lowStockAt: number
   /** Nombre de pièces dans 1 carton — ex: 10, 20, 24, 48, 50 */
   piecesPerPack?: number
@@ -261,6 +270,10 @@ export interface ShopSettings {
   showGallery: boolean
   /** Permissions système agentic (optionnel — défauts complets) */
   agentPermissions?: Partial<AgentPermissionFlags>
+  /** Multi-magasin / multi-dépôts (AZ POS Pro lean) */
+  multiLocationEnabled?: boolean
+  /** Magasin actif à la caisse / stock */
+  activeLocationId?: string
 }
 
 export interface ZakatRecord {
@@ -347,6 +360,8 @@ export interface TeamSettings {
 
 export interface AppState {
   settings: ShopSettings
+  /** Dépôts / magasins */
+  locations: ShopLocation[]
   products: Product[]
   clients: Client[]
   orders: Order[]
