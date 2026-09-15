@@ -1237,9 +1237,14 @@ function SettingsPage({
         </div>
         <div className="notice pro-upsell">
           <strong>{t(lang, 'proUpsell')}</strong>
-          <a href="/seller/pro.html" target="_blank" rel="noreferrer">
-            {t(lang, 'proUpsellLink')}
-          </a>
+          <span style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <a href="/seller/pro.html" target="_blank" rel="noreferrer">
+              {t(lang, 'proUpsellLink')}
+            </a>
+            <a href="/seller/campagne.html" target="_blank" rel="noreferrer">
+              Campagne AZ Soft
+            </a>
+          </span>
         </div>
         <div className="field">
           <label>Clé de licence</label>

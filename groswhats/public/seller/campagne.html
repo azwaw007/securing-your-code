@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AZ Soft — Campagne AZ POS</title>
+    <style>
+      :root {
+        font-family: 'Segoe UI', Trebuchet MS, 'Noto Naskh Arabic', sans-serif;
+        color: #1c1914;
+        --bg: #efe8da;
+        --card: #fffdf8;
+        --line: #d5cbb8;
+        --brand: #0f6b4c;
+        --ink: #1c1914;
+        --muted: #6b6458;
+        --accent: #c45c26;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(ellipse at 10% 0%, rgba(15, 107, 76, 0.18), transparent 42%),
+          radial-gradient(ellipse at 90% 10%, rgba(196, 92, 38, 0.12), transparent 40%),
+          linear-gradient(165deg, #f7f1e6 0%, var(--bg) 45%, #e5dccb 100%);
+      }
+      .wrap { max-width: 760px; margin: 0 auto; padding: 28px 16px 56px; }
+      .brand { font-size: 1.85rem; font-weight: 800; letter-spacing: -0.03em; }
+      .brand span { color: var(--brand); }
+      .tag {
+        display: inline-block;
+        margin-top: 8px;
+        font-size: 0.75rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #fff;
+        background: var(--accent);
+        padding: 4px 10px;
+        border-radius: 999px;
+      }
+      h1 { font-size: 1.55rem; margin: 14px 0 8px; line-height: 1.2; }
+      h2 { margin: 0 0 10px; font-size: 1.12rem; color: var(--brand); }
+      .muted { color: var(--muted); line-height: 1.45; }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 18px;
+        margin-top: 14px;
+        box-shadow: 0 12px 28px rgba(28, 25, 20, 0.07);
+      }
+      ul { margin: 8px 0 0; padding-inline-start: 1.15rem; }
+      li { margin: 7px 0; }
+      .price {
+        font-size: 1.4rem;
+        font-weight: 800;
+        margin: 10px 0 4px;
+      }
+      .btn {
+        display: inline-block;
+        margin: 10px 8px 0 0;
+        padding: 12px 14px;
+        border-radius: 12px;
+        background: var(--brand);
+        color: #fff;
+        font-weight: 700;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+      }
+      .btn.ghost {
+        background: transparent;
+        color: var(--brand);
+        border: 1px solid var(--brand);
+      }
+      .copy-box {
+        white-space: pre-wrap;
+        background: #f4efe6;
+        border: 1px dashed var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        font-size: 0.92rem;
+        line-height: 1.45;
+        margin-top: 8px;
+      }
+      .grid { display: grid; gap: 10px; }
+      @media (min-width: 640px) {
+        .grid-2 { grid-template-columns: 1fr 1fr; }
+      }
+      .ar {
+        direction: rtl;
+        text-align: right;
+        border-top: 1px dashed var(--line);
+        margin-top: 14px;
+        padding-top: 12px;
+      }
+      .steps { counter-reset: step; list-style: none; padding: 0; }
+      .steps li {
+        counter-increment: step;
+        position: relative;
+        padding-inline-start: 2.2rem;
+        margin: 10px 0;
+      }
+      .steps li::before {
+        content: counter(step);
+        position: absolute;
+        inset-inline-start: 0;
+        top: 0;
+        width: 1.5rem;
+        height: 1.5rem;
+        border-radius: 999px;
+        background: var(--brand);
+        color: #fff;
+        font-size: 0.8rem;
+        font-weight: 800;
+        display: grid;
+        place-items: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="brand">AZ <span>Soft</span></div>
+      <span class="tag">Campagne vente</span>
+      <h1>On vend AZ POS. Tu lances aujourd’hui.</h1>
+      <p class="muted">
+        Boutique vendeur : <strong>AZ Soft</strong> · Produit : <strong>AZ POS</strong> /
+        <strong>AZ POS Pro</strong> (multi-magasin).
+      </p>
+
+      <div class="card">
+        <h2>Positionnement</h2>
+        <ul>
+          <li><strong>AZ POS</strong> — 1 magasin, caisse + stock + WhatsApp (offre volume)</li>
+          <li><strong>AZ POS Pro</strong> — 2+ dépôts, stock séparé, transferts (sur devis)</li>
+          <li>Pas une usine SAP : simple, téléphone + PC, données chez le commerçant</li>
+        </ul>
+        <div class="price">Détail : licence annuelle · Pro : sur devis</div>
+        <a class="btn" href="./pro.html">Page Pro</a>
+        <a class="btn ghost" href="https://az-pos-dz.vercel.app" target="_blank" rel="noreferrer">Démo live</a>
+        <a class="btn ghost" href="./license-generator.html">Licences</a>
+      </div>
+
+      <div class="card">
+        <h2>Stratégie 7 jours</h2>
+        <ol class="steps">
+          <li><strong>J1–J2</strong> — Stories + 10 contacts WhatsApp (démo)</li>
+          <li><strong>J3–J4</strong> — Post Facebook/Instagram + groupes commerçants (1/jour)</li>
+          <li><strong>J5</strong> — Relance « Pro multi-magasin » aux dépôts</li>
+          <li><strong>J6–J7</strong> — Closing devis + licences</li>
+        </ol>
+        <p class="muted">Objectif semaine : <strong>10 essais démo</strong> · <strong>3 devis Pro</strong> · <strong>1 licence signée</strong>.</p>
+      </div>
+
+      <div class="card">
+        <h2>Story du jour (copie)</h2>
+        <div class="copy-box" id="story">Chargement…</div>
+        <button class="btn" type="button" id="copyStory">Copier la story</button>
+      </div>
+
+      <div class="card">
+        <h2>Post lancement (copie)</h2>
+        <div class="copy-box" id="post">Chargement…</div>
+        <button class="btn" type="button" id="copyPost">Copier le post</button>
+      </div>
+
+      <div class="card">
+        <h2>Agent dans l’app</h2>
+        <p class="muted">Ouvre AZ POS → Agent, puis écris :</p>
+        <ul>
+          <li><code>lance campagne</code> — file 7 jours stories/posts</li>
+          <li><code>story du jour</code> / <code>post du jour</code></li>
+          <li><code>réponds → bchhal Pro ?</code> — réponse auto</li>
+          <li><code>devis 3 magasin</code> — pitch Pro</li>
+          <li><code>statut campagne</code></li>
+          <li><code>whatsapp vendeur 0555…</code></li>
+        </ul>
+      </div>
+
+      <div class="card grid grid-2">
+        <div>
+          <h2>Cibles</h2>
+          <ul>
+            <li>Grossistes alimentaires</li>
+            <li>Dépôt + magasin</li>
+            <li>Chaînes 2–10 points</li>
+            <li>Petites usines (stock atelier)</li>
+          </ul>
+        </div>
+        <div>
+          <h2>Canaux</h2>
+          <ul>
+            <li>WhatsApp (priorité #1)</li>
+            <li>Stories IG / FB</li>
+            <li>Groupes commerçants</li>
+            <li>Visite terrain + démo téléphone</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="ar">
+          <h2>بوتيك AZ Soft</h2>
+          <p class="muted">نبيع AZ POS و AZ POS Pro (عدة محلات). ستوري كل يوم، رد واتساب تلقائي عبر الوكيل، هدف الأسبوع: 10 تجارب و 3 عروض.</p>
+        </div>
+      </div>
+    </div>
+    <script>
+      const stories = [
+        '🌅 Nouveau jour, nouvelle caisse.\\nAZ POS — stock, crédit, WhatsApp.\\nEssai gratuit → az-pos-dz.vercel.app',
+        '🏪 2 magasins = 2 stocks.\\nAZ POS Pro : multi-dépôts + transfert.\\nDemande un devis WhatsApp.',
+        '⚡ Vente en 10 secondes.\\nClient → produit → cash ou crédit.\\nPas Excel. Pas cahier.',
+      ]
+      const day = Math.floor(Date.now() / 86400000) % stories.length
+      const story = stories[day]
+      const post = `Les commerçants algériens méritent une caisse simple.\\n\\nAZ POS — stock, clients, crédit, WhatsApp.\\nAZ POS Pro — plusieurs magasins, stock séparé.\\n\\nEssai : https://az-pos-dz.vercel.app\\n\\nCommente DÉMO ou WhatsApp.`
+      document.getElementById('story').textContent = story.replace(/\\\\n/g, '\\n')
+      document.getElementById('post').textContent = post.replace(/\\\\n/g, '\\n')
+      function copy(id) {
+        const t = document.getElementById(id).textContent
+        navigator.clipboard.writeText(t).then(() => alert('Copié ✓'))
+      }
+      document.getElementById('copyStory').onclick = () => copy('story')
+      document.getElementById('copyPost').onclick = () => copy('post')
+    </script>
+  </body>
+</html>
