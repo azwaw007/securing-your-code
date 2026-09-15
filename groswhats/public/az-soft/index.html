@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AZ Soft — Éditeur d’AZ POS</title>
+    <meta
+      name="description"
+      content="AZ Soft vend AZ POS : caisse, stock et WhatsApp pour commerçants en Algérie. Standard et Pro multi-magasin."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;700&family=Manrope:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --ink: #1a1714;
+        --muted: #5e574e;
+        --cream: #f3ebe0;
+        --card: #fffcf7;
+        --line: #d8cec0;
+        --brand: #0d5c42;
+        --brand-2: #147a58;
+        --sand: #e8dcc8;
+        --font-display: 'Fraunces', Georgia, serif;
+        --font-body: 'Manrope', 'Segoe UI', sans-serif;
+      }
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        font-family: var(--font-body);
+        background:
+          radial-gradient(ellipse 80% 50% at 10% -10%, rgba(13, 92, 66, 0.18), transparent 55%),
+          radial-gradient(ellipse 60% 40% at 100% 0%, rgba(232, 220, 200, 0.9), transparent 50%),
+          linear-gradient(180deg, #f7f1e7 0%, var(--cream) 40%, #e6dccb 100%);
+      }
+      .hero {
+        min-height: 100vh;
+        display: grid;
+        align-content: center;
+        padding: 32px 20px 48px;
+        max-width: 920px;
+        margin: 0 auto;
+        position: relative;
+      }
+      .hero::before {
+        content: '';
+        position: absolute;
+        inset: 8% -10% auto auto;
+        width: min(52vw, 420px);
+        height: min(52vw, 420px);
+        border-radius: 40% 60% 55% 45%;
+        background:
+          linear-gradient(145deg, rgba(13, 92, 66, 0.35), rgba(20, 122, 88, 0.08)),
+          url('https://az-pos-dz.vercel.app/icons/icon-512.png') center/55% no-repeat;
+        filter: saturate(1.05);
+        opacity: 0.9;
+        animation: floaty 8s ease-in-out infinite;
+        pointer-events: none;
+      }
+      @keyframes floaty {
+        0%, 100% { transform: translateY(0) rotate(-2deg); }
+        50% { transform: translateY(-12px) rotate(2deg); }
+      }
+      @keyframes rise {
+        from { opacity: 0; transform: translateY(18px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .brand {
+        font-family: var(--font-display);
+        font-size: clamp(2.6rem, 8vw, 4.2rem);
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        line-height: 0.95;
+        animation: rise 0.7s ease both;
+      }
+      .brand span { color: var(--brand); }
+      h1 {
+        font-family: var(--font-display);
+        font-size: clamp(1.35rem, 3.5vw, 1.85rem);
+        font-weight: 600;
+        max-width: 16ch;
+        margin: 18px 0 10px;
+        animation: rise 0.8s ease 0.08s both;
+      }
+      .lead {
+        max-width: 34ch;
+        color: var(--muted);
+        font-size: 1.05rem;
+        line-height: 1.5;
+        animation: rise 0.8s ease 0.16s both;
+      }
+      .cta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 22px;
+        animation: rise 0.8s ease 0.24s both;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 14px 18px;
+        border-radius: 14px;
+        font-weight: 700;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        font-family: inherit;
+      }
+      .btn.primary { background: var(--brand); color: #fff; }
+      .btn.ghost {
+        background: transparent;
+        color: var(--brand);
+        border: 1.5px solid color-mix(in srgb, var(--brand) 55%, var(--line));
+      }
+      section {
+        max-width: 920px;
+        margin: 0 auto;
+        padding: 28px 20px 8px;
+      }
+      section h2 {
+        font-family: var(--font-display);
+        font-size: 1.55rem;
+        margin: 0 0 8px;
+      }
+      .muted { color: var(--muted); line-height: 1.45; }
+      .grid {
+        display: grid;
+        gap: 12px;
+        margin-top: 16px;
+      }
+      @media (min-width: 700px) {
+        .grid-2 { grid-template-columns: 1fr 1fr; }
+        .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+      }
+      .tile {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 16px;
+      }
+      .tile strong.price {
+        display: block;
+        margin-top: 8px;
+        font-size: 1.45rem;
+        color: var(--brand);
+      }
+      .post {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 14px;
+        white-space: pre-wrap;
+        font-size: 0.92rem;
+        line-height: 1.45;
+      }
+      .post-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 8px;
+        font-weight: 800;
+        color: var(--brand);
+      }
+      .copy {
+        border: 1px solid var(--line);
+        background: #fff;
+        border-radius: 10px;
+        padding: 6px 10px;
+        font-weight: 700;
+        cursor: pointer;
+        font-family: inherit;
+      }
+      footer {
+        max-width: 920px;
+        margin: 24px auto 48px;
+        padding: 0 20px;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      .ar {
+        direction: rtl;
+        text-align: right;
+        font-family: 'Noto Naskh Arabic', var(--font-body), sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="hero">
+      <div class="brand">AZ <span>Soft</span></div>
+      <h1>On vend AZ POS aux commerçants d’Algérie.</h1>
+      <p class="lead">
+        Caisse, stock, crédit, WhatsApp — simple sur téléphone et PC.
+        Version Pro pour plusieurs magasins.
+      </p>
+      <div class="cta">
+        <a class="btn primary" href="https://az-pos-dz.vercel.app" target="_blank" rel="noreferrer">Essayer la démo</a>
+        <a class="btn ghost" href="#tarifs">Voir les tarifs</a>
+        <a class="btn ghost" href="#posts">7 posts Facebook</a>
+      </div>
+    </header>
+
+    <section id="offre">
+      <h2>Deux offres</h2>
+      <p class="muted">Marque vendeur : AZ Soft · Produit : AZ POS</p>
+      <div class="grid grid-2">
+        <article class="tile">
+          <strong>AZ POS</strong>
+          <p class="muted">1 magasin — stock, clients, caisse, WhatsApp</p>
+          <strong class="price">12 000 DA / an</strong>
+        </article>
+        <article class="tile">
+          <strong>AZ POS Pro</strong>
+          <p class="muted">Multi-dépôts, stock séparé, transferts, magasin actif</p>
+          <strong class="price">25 000 DA / an</strong>
+          <p class="muted">Jusqu’à 3 dépôts · +5 000 DA / dépôt / an au-delà</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="tarifs">
+      <h2>Page Facebook</h2>
+      <p class="muted">
+        Nom conseillé : <strong>AZ Soft — AZ POS</strong><br />
+        À propos : « Éditeur d’AZ POS — caisse & stock pour commerçants en Algérie. »
+      </p>
+      <div class="grid grid-3" style="margin-top: 14px">
+        <div class="tile"><strong>Cible</strong><p class="muted">Gros, détail, dépôt + magasin</p></div>
+        <div class="tile"><strong>Canal #1</strong><p class="muted">WhatsApp + Stories FB</p></div>
+        <div class="tile"><strong>Semaine 1</strong><p class="muted">10 démos · 3 devis · 1 vente</p></div>
+      </div>
+    </section>
+
+    <section id="posts">
+      <h2>7 posts Facebook (copie)</h2>
+      <p class="muted">Un par jour. Colle sur ta page <strong>AZ Soft — AZ POS</strong>.</p>
+      <div class="grid" id="postList"></div>
+    </section>
+
+    <section>
+      <h2 class="ar">AZ Soft</h2>
+      <p class="muted ar">
+        نبيع AZ POS للتجار في الجزائر — كاش، مخزون، واتساب.
+        Standard 12 000 دج/سنة · Pro 25 000 دج/سنة.
+      </p>
+    </section>
+
+    <footer>
+      AZ Soft · Démo
+      <a href="https://az-pos-dz.vercel.app">az-pos-dz.vercel.app</a>
+      · App commerçant
+      <a href="/">ouvrir AZ POS</a>
+    </footer>
+
+    <script>
+      const posts = [
+        `Les commerçants algériens méritent une caisse simple.
+
+AZ POS — stock, clients, crédit, WhatsApp.
+Essai gratuit : https://az-pos-dz.vercel.app
+
+Commente DÉMO 👇`,
+        `Tu gères encore le stock sur un cahier ?
+
+Avec AZ POS :
+• vente cash ou crédit
+• alerte stock bas
+• facture WhatsApp
+
+12 000 DA / an — 1 magasin.`,
+        `2 magasins = 2 stocks.
+
+AZ POS Pro :
+• stock par dépôt
+• magasin actif à la caisse
+• transfert A → B
+
+25 000 DA / an (jusqu’à 3 dépôts).
+Réponds PRO.`,
+        `Story idea du jour 📸
+« Avant / Après »
+Avant : Excel + cahier
+Après : AZ POS sur le téléphone
+
+Lien démo en bio.`,
+        `Question pour les grossistes :
+Tu connais ton bénéfice du jour en 10 secondes ?
+
+AZ POS calcule ventes − coûts.
+WhatsApp pour envoyer la facture.
+
+Démo → az-pos-dz.vercel.app`,
+        `Offre claire :
+✅ AZ POS — 12 000 DA/an
+✅ AZ POS Pro — 25 000 DA/an
+
+Créé pour le terrain algérien.
+Message privé = devis en 2 min.`,
+        `Qui veut une démo demain ?
+
+Réponds DÉMO — on t’envoie le lien.
+Réponds PRO — multi-magasin.
+
+— AZ Soft`,
+      ]
+      const list = document.getElementById('postList')
+      posts.forEach((text, i) => {
+        const wrap = document.createElement('div')
+        wrap.className = 'tile'
+        wrap.innerHTML =
+          '<div class="post-head"><span>Jour ' +
+          (i + 1) +
+          '</span><button type="button" class="copy">Copier</button></div>'
+        const pre = document.createElement('div')
+        pre.className = 'post'
+        pre.textContent = text
+        wrap.appendChild(pre)
+        wrap.querySelector('.copy').onclick = () => {
+          navigator.clipboard.writeText(text).then(() => {
+            wrap.querySelector('.copy').textContent = 'OK'
+            setTimeout(() => {
+              wrap.querySelector('.copy').textContent = 'Copier'
+            }, 1200)
+          })
+        }
+        list.appendChild(wrap)
+      })
+    </script>
+  </body>
+</html>

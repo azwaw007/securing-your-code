@@ -16,7 +16,7 @@
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
     {
-      "source": "/((?!api/|seller/|assets/|icons/|catalog/|guide\\.html|privacy\\.html|favicon\\.svg|.*\\.[a-zA-Z0-9]+$).*)",
+      "source": "/((?!api/|seller/|az-soft/|assets/|icons/|catalog/|guide\\.html|privacy\\.html|favicon\\.svg|.*\\.[a-zA-Z0-9]+$).*)",
       "destination": "/index.html"
     }
   ],
@@ -27,6 +27,14 @@
         { "key": "X-Content-Type-Options", "value": "nosniff" },
         { "key": "Referrer-Policy", "value": "no-referrer" },
         { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
+      "source": "/az-soft/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Cache-Control", "value": "public, max-age=300" }
       ]
     },
     {
