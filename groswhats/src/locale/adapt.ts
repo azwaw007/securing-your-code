@@ -56,7 +56,7 @@ const VOCAB: Record<
 }
 
 export function vocabLang(lang: Language): keyof (typeof VOCAB)['gros'] {
-  if (lang === 'darja' || lang === 'ar') return 'ar'
+  if (lang === 'ar') return 'ar'
   if (lang === 'en' || lang === 'es' || lang === 'tr' || lang === 'it' || lang === 'de') {
     return lang
   }
@@ -138,7 +138,7 @@ export function cashChipsFor(countryCode: string): number[] {
 
 export function numberLocale(lang: Language, countryCode: string): string {
   const c = countryCode.toUpperCase()
-  if (lang === 'ar' || lang === 'darja') {
+  if (lang === 'ar') {
     if (c === 'SA' || c === 'AE' || c === 'EG') return 'ar-SA'
     return 'ar-DZ'
   }

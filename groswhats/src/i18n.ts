@@ -539,7 +539,6 @@ const fr: Dict = {
   arabic: 'العربية',
   lang_fr: 'Français',
   lang_ar: 'العربية',
-  lang_darja: 'دارجة',
   lang_en: 'English',
   lang_es: 'Español',
   lang_tr: 'Türkçe',
@@ -1225,7 +1224,6 @@ const ar: Dict = {
   arabic: 'العربية',
   lang_fr: 'Français',
   lang_ar: 'العربية',
-  lang_darja: 'دارجة',
   lang_en: 'English',
   lang_es: 'Español',
   lang_tr: 'Türkçe',
@@ -1393,9 +1391,6 @@ const ar: Dict = {
 }
 
 export function t(lang: Language, key: string): string {
-  if (lang === 'darja') {
-    return EXTRA_DICTS.darja?.[key] ?? ar[key] ?? fr[key] ?? key
-  }
   if (lang === 'ar') return ar[key] ?? fr[key] ?? key
   return EXTRA_DICTS[lang]?.[key] ?? fr[key] ?? key
 }
@@ -1411,7 +1406,7 @@ export function unitLabel(lang: Language, unit: Unit): string {
     ml: { fr: 'ml', ar: 'مل', en: 'ml' },
     L: { fr: 'L', ar: 'ل', en: 'L' },
   }
-  if (lang === 'ar' || lang === 'darja') return short[unit].ar
+  if (lang === 'ar') return short[unit].ar
   if (lang === 'en') return short[unit].en
   return short[unit].fr
 }

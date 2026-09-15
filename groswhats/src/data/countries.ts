@@ -16,9 +16,9 @@ export type Country = {
 }
 
 export const COUNTRIES: Country[] = [
-  { code: 'DZ', nameFr: 'Algérie', nameAr: 'الجزائر', currency: 'DA', priceFactor: 1, phoneHint: '0555 12 34 56', cityLabelFr: 'Wilaya', cityLabelAr: 'الولاية', langs: ['fr', 'ar', 'darja'], popular: true },
+  { code: 'DZ', nameFr: 'Algérie', nameAr: 'الجزائر', currency: 'DA', priceFactor: 1, phoneHint: '0555 12 34 56', cityLabelFr: 'Wilaya', cityLabelAr: 'الولاية', langs: ['fr', 'ar'], popular: true },
   { code: 'TN', nameFr: 'Tunisie', nameAr: 'تونس', currency: 'TND', priceFactor: 0.023, phoneHint: '20 123 456', cityLabelFr: 'Gouvernorat', cityLabelAr: 'الولاية', langs: ['fr', 'ar'], popular: true },
-  { code: 'MA', nameFr: 'Maroc', nameAr: 'المغرب', currency: 'MAD', priceFactor: 0.075, phoneHint: '06 12 34 56 78', cityLabelFr: 'Ville', cityLabelAr: 'المدينة', langs: ['fr', 'ar', 'darja'], popular: true },
+  { code: 'MA', nameFr: 'Maroc', nameAr: 'المغرب', currency: 'MAD', priceFactor: 0.075, phoneHint: '06 12 34 56 78', cityLabelFr: 'Ville', cityLabelAr: 'المدينة', langs: ['fr', 'ar'], popular: true },
   { code: 'LY', nameFr: 'Libye', nameAr: 'ليبيا', currency: 'LYD', priceFactor: 0.036, phoneHint: '091 123 4567', cityLabelFr: 'Ville', cityLabelAr: 'المدينة', langs: ['ar', 'en'] },
   { code: 'MR', nameFr: 'Mauritanie', nameAr: 'موريتانيا', currency: 'MRU', priceFactor: 0.3, phoneHint: '22 12 34 56', cityLabelFr: 'Ville', cityLabelAr: 'المدينة', langs: ['ar', 'fr'] },
   { code: 'EG', nameFr: 'Égypte', nameAr: 'مصر', currency: 'EGP', priceFactor: 0.36, phoneHint: '010 1234 5678', cityLabelFr: 'Ville', cityLabelAr: 'المدينة', langs: ['ar', 'en'], popular: true },

@@ -10,7 +10,7 @@ export function buildProductStory(
   lang: Language,
 ): string {
   const shop = settings.shopName || 'Mon magasin'
-  if (lang === 'ar' || lang === 'darja') {
+  if (lang === 'ar') {
     return [
       `🆕 وصل عند ${shop}`,
       ``,
@@ -46,7 +46,7 @@ export function buildProductWhatsappPromo(
   lang: Language,
 ): string {
   const shop = settings.shopName || 'Mon magasin'
-  if (lang === 'ar' || lang === 'darja') {
+  if (lang === 'ar') {
     return [
       `السلام من ${shop} 👋`,
       `عندنا ${product.name} — ${formatDa(product.priceDa)}.`,
