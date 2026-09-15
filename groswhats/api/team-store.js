@@ -2,8 +2,8 @@
  * Stockage équipe durable via Vercel Blob (BLOB_READ_WRITE_TOKEN).
  * Cache mémoire process pour les lectures chaudes.
  */
-const { put, get } = require('@vercel/blob')
-const crypto = require('crypto')
+import { put, get } from '@vercel/blob'
+import crypto from 'node:crypto'
 
 /** @type {Map<string, any>} */
 const mem = (globalThis.__gdzTeamMem = globalThis.__gdzTeamMem || new Map())
@@ -85,4 +85,4 @@ async function saveTeam(key, data) {
   }
 }
 
-module.exports = { hasBlob, loadTeam, saveTeam }
+export { hasBlob, loadTeam, saveTeam }
