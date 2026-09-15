@@ -134,7 +134,7 @@ function mergeTeamPayload(existing, incoming) {
   }
 }
 
-export {
+module.exports = {
   mergeStop,
   mergeMission,
   mergeMissions,

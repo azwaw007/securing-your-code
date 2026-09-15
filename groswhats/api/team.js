@@ -4,8 +4,8 @@
  * Push = merge (ne pas écraser le progrès livreur).
  */
 
-import { loadTeam, saveTeam, hasBlob } from './team-store.js'
-import { mergeTeamPayload, recomputeMissionStatus } from './team-merge.js'
+const { loadTeam, saveTeam, hasBlob } = require('./team-store')
+const { mergeTeamPayload, recomputeMissionStatus } = require('./team-merge')
 
 function keyOf(companyCode, syncSecret) {
   return `${String(companyCode || '')
@@ -47,7 +47,7 @@ function sanitizeForDriver(data, driverId) {
   }
 }
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   cors(res)
   if (req.method === 'OPTIONS') {
     res.status(204).end()
