@@ -28,7 +28,7 @@ import { executeTool } from './tools'
 
 import { runAgentic } from './orchestrator'
 import { answerAnything } from './chat'
-import { runCampaignCommand } from './campaignManager'
+import { runCampaignCommand, runMetaPublishCommand } from './campaignManager'
 
 export type AgentAction =
   | { type: 'none' }
@@ -113,6 +113,7 @@ function help(lang: Language): string {
     '• conseil vente · conseil compta · marketing · gestion',
     '• campagne : lance campagne · story du jour · ajoute prospect Nom,0555…,Ville',
     '• prospects : colle prospects · relance prospects 5 · prospects statut',
+    '• meta setup (plus tard, si tu as un compte Facebook Business)',
     '• réponses : « réponds → message client » · devis 3 magasin',
     '• ouvre clients / ventes / gains / caisse / paramètres',
     '• ajoute client / calcule zakat / dépenses',
@@ -560,6 +561,11 @@ export async function runAgent(state: AppState, userText: string): Promise<Agent
           ? { type: 'navigate' as const, screen: campaign.action.screen as Screen }
           : { type: 'none' as const }
     return { reply: campaign.reply, action }
+  }
+
+  const metaPub = await runMetaPublishCommand(raw, lang)
+  if (metaPub) {
+    return { reply: metaPub.reply, action: { type: 'none' } }
   }
 
   // Système agentic d’abord (organiser / configurer / multi-outils)

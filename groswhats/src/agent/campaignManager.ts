@@ -29,6 +29,12 @@ import {
   prospectsStats,
   sampleCsv,
 } from '../marketing/prospects'
+import {
+  loadMetaConfig,
+  metaSetupHint,
+  publishMetaPost,
+  saveMetaConfig,
+} from '../marketing/metaPublish'
 
 export type CampaignAgentAction =
   | { type: 'open_whatsapp'; phone: string; message: string }
@@ -364,7 +370,89 @@ export function runCampaignCommand(
     }
   }
 
+  if (/(meta setup|setup meta|اعداد meta|إعداد meta)/i.test(t)) {
+    return { reply: metaSetupHint(isAr(lang) ? 'ar' : 'fr') }
+  }
+  if (/^meta on$/i.test(t.trim()) || /(active meta|فعّل meta)/i.test(t)) {
+    saveMetaConfig({ enabled: true })
+    return {
+      reply: isAr(lang) ? '✅ Meta مفعّل.' : '✅ Meta activé.',
+    }
+  }
+  if (/^meta off$/i.test(t.trim()) || /(coupe meta|أوقف meta)/i.test(t)) {
+    saveMetaConfig({ enabled: false })
+    return {
+      reply: isAr(lang) ? '⏹️ Meta متوقف.' : '⏹️ Meta arrêté.',
+    }
+  }
+  const metaPage = text.match(/meta page\s+(\S+)/i)
+  if (metaPage) {
+    saveMetaConfig({ pageId: metaPage[1].trim() })
+    return { reply: `Page ID : ${metaPage[1].trim()}` }
+  }
+  const metaIg = text.match(/meta ig\s+(\S+)/i)
+  if (metaIg) {
+    saveMetaConfig({ igUserId: metaIg[1].trim() })
+    return { reply: `IG User ID : ${metaIg[1].trim()}` }
+  }
+  const metaToken = text.match(/meta token\s+(\S+)/i)
+  if (metaToken) {
+    saveMetaConfig({ accessToken: metaToken[1].trim(), enabled: true })
+    return {
+      reply: isAr(lang)
+        ? '✅ تم حفظ التوكن (محلياً على الجهاز).'
+        : '✅ Token enregistré (localement sur cet appareil).',
+    }
+  }
+  const metaImg = text.match(/meta image\s+(https?:\/\/\S+)/i)
+  if (metaImg) {
+    saveMetaConfig({ defaultImageUrl: metaImg[1].trim() })
+    return { reply: `Image IG : ${metaImg[1].trim()}` }
+  }
+  if (/(meta statut|statut meta|حالة meta)/i.test(t)) {
+    const m = loadMetaConfig()
+    return {
+      reply: [
+        `Meta : ${m.enabled ? 'ON' : 'OFF'}`,
+        `Page : ${m.pageId || '—'}`,
+        `IG : ${m.igUserId || '—'}`,
+        `Token : ${m.accessToken ? '••••' + m.accessToken.slice(-4) : '—'}`,
+        `Image : ${m.defaultImageUrl || '—'}`,
+      ].join('\n'),
+    }
+  }
+
   return null
+}
+
+/** Commandes async Meta (publication) — appelées depuis AgentPage si besoin */
+export async function runMetaPublishCommand(
+  text: string,
+  lang: Language,
+): Promise<CampaignAgentResult | null> {
+  const t = text.trim().toLowerCase()
+  const isIg = /(publie instagram|publish instagram|انشر انستا)/i.test(t)
+  const isFb = /(publie facebook|publish facebook|انشر فيسبوك|publie meta)/i.test(t)
+  if (!isIg && !isFb) return null
+
+  const post = POSTS[0]
+  const message = isAr(lang) ? post.bodyAr : post.bodyFr
+  const channel = isIg ? 'instagram' : 'facebook'
+  const res = await publishMetaPost({ channel, message })
+  if (!res.ok) {
+    return {
+      reply:
+        (isAr(lang) ? '❌ فشل النشر: ' : '❌ Publication échouée : ') +
+        (res.error || '') +
+        '\n\n' +
+        metaSetupHint(isAr(lang) ? 'ar' : 'fr'),
+    }
+  }
+  return {
+    reply: isAr(lang)
+      ? `✅ تم النشر على ${channel}${res.id ? ` (${res.id})` : ''}.${res.note ? '\n' + res.note : ''}`
+      : `✅ Publié sur ${channel}${res.id ? ` (${res.id})` : ''}.${res.note ? '\n' + res.note : ''}`,
+  }
 }
 
 export { SELLER_BRAND, AUTO_REPLIES, parseProspectsCsv, loadProspects, prospectsStats }
