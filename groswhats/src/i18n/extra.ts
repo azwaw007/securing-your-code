@@ -130,27 +130,6 @@ const es: Dict = {
   settingsSaved: 'Ajustes guardados',
 }
 
-const darja: Dict = {
-  home: 'الرئيسية',
-  order: 'بيع',
-  products: 'المخزون',
-  clients: 'الزبائن',
-  setupCountry: 'شكون بلادك؟',
-  setupCountryHint: 'السومة والعملة على حساب بلادك.',
-  setupMode: 'واش التجارة؟',
-  setupModeHint: 'جملة، تفصيل، صحة، طونوبيلات ولا خدمات.',
-  setupDomain: 'واش المجال؟',
-  setupShop: 'سمية المحل',
-  setupNext: 'زيد',
-  setupStart: 'ابدأ بالكاتالوغ',
-  sellNow: 'بيع',
-  sellNowHint: 'اضغط هنا',
-  appClients: 'الزبائن',
-  appStock: 'المخزون',
-  language: 'اللغة',
-  oneAppHint: 'تطبيق واحد لكل التجارات — على حساب البلاد والتجارة.',
-}
-
 const tr: Dict = {
   home: 'Ana sayfa',
   order: 'Sat',
@@ -235,7 +214,6 @@ const de: Dict = {
 export const EXTRA_DICTS: Partial<Record<Language, Dict>> = {
   en,
   es,
-  darja,
   tr,
   it,
   de,

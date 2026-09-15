@@ -310,11 +310,13 @@ export const AGENT_TOOLS: ToolDef[] = [
     run: (state, args, _lang) => {
       const raw = String(args.language || args.lang || '').toLowerCase()
       const language: Language =
-        raw.includes('darja') || raw.includes('darija')
-          ? 'darja'
-          : raw.startsWith('ar') || raw.includes('arab')
-            ? 'ar'
-            : raw.startsWith('en') || raw.includes('english') || raw.includes('anglais')
+        raw.startsWith('ar') ||
+        raw.includes('arab') ||
+        raw.includes('darja') ||
+        raw.includes('darija') ||
+        raw.includes('dardja')
+          ? 'ar'
+          : raw.startsWith('en') || raw.includes('english') || raw.includes('anglais')
               ? 'en'
               : raw.startsWith('es') || raw.includes('espan') || raw.includes('spanish')
                 ? 'es'
