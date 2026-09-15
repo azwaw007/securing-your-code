@@ -115,6 +115,10 @@ import {
   type AgentPermissions,
 } from './agent/permissions'
 import { openWhatsapp, openWhatsappText } from './utils/whatsapp'
+import {
+  buildProductStory,
+  buildProductWhatsappPromo,
+} from './marketing/merchantPromo'
 import { compressImageFile } from './utils/image'
 import {
   availableTiers,
@@ -1243,6 +1247,9 @@ function SettingsPage({
             </a>
             <a href="/seller/campagne.html" target="_blank" rel="noreferrer">
               Campagne AZ Soft
+            </a>
+            <a href="/az-soft/" target="_blank" rel="noreferrer">
+              Site AZ Soft
             </a>
           </span>
         </div>
@@ -2952,6 +2959,7 @@ function ProductsPage({
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [barcode, setBarcode] = useState('')
+  const [promoProductId, setPromoProductId] = useState<string | null>(null)
 
   useEffect(() => {
     if (initialProductId) {
@@ -3258,6 +3266,13 @@ function ProductsPage({
                   <button className="btn secondary" onClick={() => setEditId(p.id)}>
                     {t(lang, 'editProduct')}
                   </button>
+                  <button
+                    className="btn ghost"
+                    type="button"
+                    onClick={() => setPromoProductId(p.id)}
+                  >
+                    📣 {t(lang, 'productPromo')}
+                  </button>
                   <button className="btn danger" onClick={() => onDelete(p.id)}>
                     {t(lang, 'delete')}
                   </button>
@@ -3269,6 +3284,78 @@ function ProductsPage({
           })
         )}
       </div>
+
+      {promoProductId
+        ? (() => {
+            const p = state.products.find((x) => x.id === promoProductId)
+            if (!p) return null
+            const story = buildProductStory(p, state.settings, lang)
+            const wa = buildProductWhatsappPromo(p, state.settings, lang)
+            return (
+              <div className="card" style={{ marginTop: 12 }}>
+                <button
+                  type="button"
+                  className="btn ghost"
+                  onClick={() => setPromoProductId(null)}
+                >
+                  ← {t(lang, 'back')}
+                </button>
+                <h2>📣 {t(lang, 'productPromoTitle')}</h2>
+                <p className="muted">{t(lang, 'productPromoHint')}</p>
+                <div className="field">
+                  <label>{t(lang, 'productPromoStory')}</label>
+                  <textarea rows={6} readOnly value={story} />
+                </div>
+                <button
+                  type="button"
+                  className="btn secondary block"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(story)
+                    onFlash('productPromoCopied')
+                  }}
+                >
+                  {t(lang, 'productPromoCopyStory')}
+                </button>
+                <div className="field" style={{ marginTop: 12 }}>
+                  <label>{t(lang, 'productPromoWa')}</label>
+                  <textarea rows={5} readOnly value={wa} />
+                </div>
+                <div className="btn-row">
+                  <button
+                    type="button"
+                    className="btn secondary"
+                    onClick={() => {
+                      void navigator.clipboard.writeText(wa)
+                      onFlash('productPromoCopied')
+                    }}
+                  >
+                    {t(lang, 'productPromoCopyWa')}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => {
+                      const clients = state.clients.filter((c) => c.phone)
+                      if (clients.length === 0) {
+                        onFlash('noClientsYet')
+                        return
+                      }
+                      clients.slice(0, 15).forEach((c, i) => {
+                        window.setTimeout(
+                          () => openWhatsappText(c.phone, wa),
+                          i * 700,
+                        )
+                      })
+                      onFlash('productPromoSent')
+                    }}
+                  >
+                    {t(lang, 'productPromoSendWa')}
+                  </button>
+                </div>
+              </div>
+            )
+          })()
+        : null}
     </>
   )
 }
