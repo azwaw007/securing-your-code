@@ -19,6 +19,14 @@ import type {
   PurchaseLine,
   ReturnLine,
   SaleReturn,
+  MedicalDocument,
+  MedicalDocKind,
+  ClinicCharge,
+  ClinicStation,
+  GymCheckIn,
+  Employee,
+  EmployeeLeave,
+  StaffLedgerEntry,
   ShopLocation,
   ShopSettings,
   StopStatus,
@@ -73,6 +81,7 @@ function defaultSettings(): ShopSettings {
     uiSoundsEnabled: true,
     easyMode: true,
     themePreset: 'forest',
+    themeSource: 'metier',
     fontScale: 'normal',
     showZakat: true,
     showCalculator: true,
@@ -80,6 +89,9 @@ function defaultSettings(): ShopSettings {
     agentPermissions: { ...DEFAULT_AGENT_PERMISSIONS },
     multiLocationEnabled: false,
     activeLocationId: DEFAULT_LOCATION_ID,
+    clinicShareEnabled: false,
+    clinicStation: undefined,
+    clinicStationChosen: false,
   }
 }
 
@@ -332,6 +344,12 @@ function seedState(): AppState {
     purchases: [],
     cashSessions: [],
     returns: [],
+    medicalDocuments: [],
+    clinicCharges: [],
+    gymCheckIns: [],
+    employees: [],
+    employeeLeaves: [],
+    staffLedger: [],
   }
 }
 
@@ -353,6 +371,12 @@ function migrate(raw: unknown): AppState {
     purchases?: Purchase[]
     cashSessions?: CashSession[]
     returns?: SaleReturn[]
+    medicalDocuments?: MedicalDocument[]
+    clinicCharges?: ClinicCharge[]
+    gymCheckIns?: GymCheckIn[]
+    employees?: Employee[]
+    employeeLeaves?: EmployeeLeave[]
+    staffLedger?: StaffLedgerEntry[]
   }
   const incoming = data.settings ?? {}
   const defaults = defaultSettings()
@@ -381,6 +405,7 @@ function migrate(raw: unknown): AppState {
     themePreset: themeOk.includes(incoming.themePreset as (typeof themeOk)[number])
       ? (incoming.themePreset as ShopSettings['themePreset'])
       : defaults.themePreset,
+    themeSource: incoming.themeSource === 'user' ? 'user' : 'metier',
     fontScale: fontOk.includes(incoming.fontScale as (typeof fontOk)[number])
       ? (incoming.fontScale as ShopSettings['fontScale'])
       : defaults.fontScale,
@@ -396,6 +421,12 @@ function migrate(raw: unknown): AppState {
       typeof incoming.activeLocationId === 'string' && incoming.activeLocationId
         ? incoming.activeLocationId
         : defaults.activeLocationId,
+    clinicShareEnabled: incoming.clinicShareEnabled === true,
+    clinicStation:
+      incoming.clinicStation === 'doctor' || incoming.clinicStation === 'reception'
+        ? incoming.clinicStation
+        : undefined,
+    clinicStationChosen: incoming.clinicStationChosen === true,
   }
   const teamDefaults = defaultTeam()
   const team: TeamSettings = {
@@ -475,6 +506,22 @@ function migrate(raw: unknown): AppState {
       lng: typeof c.lng === 'number' ? c.lng : undefined,
       balanceAdjustDa:
         typeof c.balanceAdjustDa === 'number' ? c.balanceAdjustDa : 0,
+      birthDate: typeof c.birthDate === 'string' ? c.birthDate : undefined,
+      sex: c.sex === 'M' || c.sex === 'F' || c.sex === 'X' ? c.sex : undefined,
+      bloodGroup: typeof c.bloodGroup === 'string' ? c.bloodGroup : undefined,
+      allergies: typeof c.allergies === 'string' ? c.allergies : undefined,
+      antecedents: typeof c.antecedents === 'string' ? c.antecedents : undefined,
+      membershipStart: typeof c.membershipStart === 'string' ? c.membershipStart : undefined,
+      membershipEnd: typeof c.membershipEnd === 'string' ? c.membershipEnd : undefined,
+      membershipPlan: typeof c.membershipPlan === 'string' ? c.membershipPlan : undefined,
+      sportGoal: typeof c.sportGoal === 'string' ? c.sportGoal : undefined,
+      trainingProgram: typeof c.trainingProgram === 'string' ? c.trainingProgram : undefined,
+      dietPlan: typeof c.dietPlan === 'string' ? c.dietPlan : undefined,
+      coachNotes: typeof c.coachNotes === 'string' ? c.coachNotes : undefined,
+      nfcUid:
+        typeof c.nfcUid === 'string' && c.nfcUid.trim()
+          ? c.nfcUid.trim().toUpperCase().replace(/[\s:.-]+/g, '')
+          : undefined,
     })),
     orders: (data.orders ?? []).map((o) => {
       const total = typeof o.totalDa === 'number' ? o.totalDa : 0
@@ -575,6 +622,96 @@ function migrate(raw: unknown): AppState {
       note: typeof r.note === 'string' ? r.note : '',
       createdAt: r.createdAt || new Date().toISOString(),
     })),
+    medicalDocuments: (data.medicalDocuments ?? [])
+      .filter((d) => d && typeof d.clientId === 'string')
+      .map((d) => ({
+        id: d.id || uid('mdoc'),
+        clientId: d.clientId,
+        clientName: d.clientName || '',
+        kind: (['ordonnance', 'orientation', 'certificat', 'compte_rendu'] as const).includes(
+          d.kind as MedicalDocKind,
+        )
+          ? (d.kind as MedicalDocKind)
+          : 'ordonnance',
+        title: typeof d.title === 'string' ? d.title : '',
+        body: typeof d.body === 'string' ? d.body : '',
+        createdAt: d.createdAt || new Date().toISOString(),
+      })),
+    clinicCharges: (data.clinicCharges ?? [])
+      .filter((c) => c && typeof c.clientId === 'string')
+      .map((c) => ({
+        id: c.id || uid('chg'),
+        clientId: c.clientId,
+        clientName: c.clientName || '',
+        clientPhone: typeof c.clientPhone === 'string' ? c.clientPhone : '',
+        label: typeof c.label === 'string' ? c.label : '',
+        amountDa: typeof c.amountDa === 'number' ? c.amountDa : 0,
+        note: typeof c.note === 'string' ? c.note : '',
+        status:
+          c.status === 'paid' || c.status === 'cancelled' ? c.status : 'pending',
+        createdAt: c.createdAt || new Date().toISOString(),
+        paidAt: typeof c.paidAt === 'string' ? c.paidAt : undefined,
+        orderId: typeof c.orderId === 'string' ? c.orderId : undefined,
+      })),
+    gymCheckIns: (data.gymCheckIns ?? [])
+      .filter((g) => g && typeof g.clientId === 'string')
+      .map((g) => ({
+        id: g.id || uid('gin'),
+        clientId: g.clientId,
+        clientName: g.clientName || '',
+        kind: g.kind === 'out' ? 'out' : 'in',
+        at: g.at || new Date().toISOString(),
+        source:
+          g.source === 'qr' ||
+          g.source === 'manual' ||
+          g.source === 'wedge' ||
+          g.source === 'nfc'
+            ? g.source
+            : 'manual',
+      })),
+    employees: (data.employees ?? [])
+      .filter((e) => e && typeof e.name === 'string')
+      .map((e) => ({
+        id: e.id || uid('emp'),
+        name: e.name,
+        phone: typeof e.phone === 'string' ? e.phone : '',
+        role: (['vendeur','caissier','livreur','manager','technicien','assistant','autre'] as const).includes(e.role as never)
+          ? e.role
+          : 'autre',
+        contractStart: typeof e.contractStart === 'string' ? e.contractStart : undefined,
+        contractEnd: typeof e.contractEnd === 'string' ? e.contractEnd : undefined,
+        salaryDa: typeof e.salaryDa === 'number' ? e.salaryDa : 0,
+        insuranceStart: typeof e.insuranceStart === 'string' ? e.insuranceStart : undefined,
+        insuranceEnd: typeof e.insuranceEnd === 'string' ? e.insuranceEnd : undefined,
+        insuranceNote: typeof e.insuranceNote === 'string' ? e.insuranceNote : undefined,
+        notes: typeof e.notes === 'string' ? e.notes : '',
+        active: e.active !== false,
+        createdAt: e.createdAt || new Date().toISOString(),
+      })),
+    employeeLeaves: (data.employeeLeaves ?? [])
+      .filter((l) => l && typeof l.employeeId === 'string')
+      .map((l) => ({
+        id: l.id || uid('elv'),
+        employeeId: l.employeeId,
+        kind: (['conge','maladie','sans_solde','autre'] as const).includes(l.kind as never) ? l.kind : 'conge',
+        startDate: l.startDate || '',
+        endDate: l.endDate || '',
+        note: typeof l.note === 'string' ? l.note : '',
+        createdAt: l.createdAt || new Date().toISOString(),
+      })),
+    staffLedger: (data.staffLedger ?? [])
+      .filter((s) => s && typeof s.employeeId === 'string')
+      .map((s) => ({
+        id: s.id || uid('sledg'),
+        employeeId: s.employeeId,
+        kind: (['avance','dette','paiement_salaire','remboursement'] as const).includes(s.kind as never)
+          ? s.kind
+          : 'avance',
+        amountDa: typeof s.amountDa === 'number' ? s.amountDa : 0,
+        note: typeof s.note === 'string' ? s.note : '',
+        periodLabel: typeof s.periodLabel === 'string' ? s.periodLabel : undefined,
+        createdAt: s.createdAt || new Date().toISOString(),
+      })),
   }
   return ensureDefaultLocation(base)
 }
@@ -669,6 +806,10 @@ export function applyShopSetup(state: AppState, input: ShopSetupInput): AppState
       phone: input.phone.trim(),
       language: input.language,
       showZakat: defaultZakatOn(country.code),
+      themeSource: 'metier',
+      clinicShareEnabled: domain.mode === 'sante',
+      clinicStationChosen: false,
+      clinicStation: undefined,
     },
     products: keep ? state.products : products,
   })
@@ -760,14 +901,236 @@ export function updateClient(
   id: string,
   patch: Partial<Omit<Client, 'id' | 'createdAt'>>,
 ): AppState {
+  const clean = { ...patch }
+  if (patch.nfcUid !== undefined) {
+    clean.nfcUid = patch.nfcUid
+      ? patch.nfcUid.trim().toUpperCase().replace(/[\s:.-]+/g, '')
+      : undefined
+  }
   return {
     ...state,
-    clients: state.clients.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+    clients: state.clients.map((c) => (c.id === id ? { ...c, ...clean } : c)),
   }
 }
 
 export function deleteClient(state: AppState, id: string): AppState {
-  return { ...state, clients: state.clients.filter((c) => c.id !== id) }
+  return {
+    ...state,
+    clients: state.clients.filter((c) => c.id !== id),
+    medicalDocuments: (state.medicalDocuments ?? []).filter((d) => d.clientId !== id),
+  }
+}
+
+export function findClientByNfcUid(
+  state: AppState,
+  rawUid: string,
+): Client | undefined {
+  const uid = rawUid.trim().toUpperCase().replace(/[\s:.-]+/g, '')
+  if (!uid) return undefined
+  return state.clients.find((c) => c.nfcUid && c.nfcUid === uid)
+}
+
+function gymDayKey(iso: string): string {
+  return iso.slice(0, 10)
+}
+
+/** Dernier événement du jour par client → présents = last kind === 'in' */
+export function gymPresentClientIds(state: AppState, at = new Date()): string[] {
+  const today = gymDayKey(at.toISOString())
+  const last = new Map<string, GymCheckIn>()
+  for (const ev of state.gymCheckIns ?? []) {
+    if (gymDayKey(ev.at) !== today) continue
+    const prev = last.get(ev.clientId)
+    if (!prev || ev.at >= prev.at) last.set(ev.clientId, ev)
+  }
+  const ids: string[] = []
+  for (const [clientId, ev] of last) {
+    if (ev.kind === 'in') ids.push(clientId)
+  }
+  return ids
+}
+
+export function gymOccupancyCount(state: AppState): number {
+  return gymPresentClientIds(state).length
+}
+
+export function isClientPresentInGym(state: AppState, clientId: string): boolean {
+  return gymPresentClientIds(state).includes(clientId)
+}
+
+/** Entrée si absent, sortie si déjà présent. */
+export function toggleGymCheckIn(
+  state: AppState,
+  clientId: string,
+  source: GymCheckIn['source'] = 'manual',
+): { state: AppState; kind: 'in' | 'out'; client: Client } | null {
+  const client = state.clients.find((c) => c.id === clientId)
+  if (!client) return null
+  const kind: 'in' | 'out' = isClientPresentInGym(state, clientId) ? 'out' : 'in'
+  const entry: GymCheckIn = {
+    id: uid('gin'),
+    clientId: client.id,
+    clientName: client.name,
+    kind,
+    at: new Date().toISOString(),
+    source,
+  }
+  return {
+    state: {
+      ...state,
+      gymCheckIns: [entry, ...(state.gymCheckIns ?? [])].slice(0, 2000),
+    },
+    kind,
+    client,
+  }
+}
+
+export function gymCheckInByUid(
+  state: AppState,
+  rawUid: string,
+  source: GymCheckIn['source'] = 'nfc',
+):
+  | { state: AppState; kind: 'in' | 'out'; client: Client }
+  | { error: 'unknown_chip' | 'empty' } {
+  const raw = rawUid.trim()
+  if (!raw) return { error: 'empty' }
+  const client = findClientByNfcUid(state, raw)
+  if (!client) return { error: 'unknown_chip' }
+  const res = toggleGymCheckIn(state, client.id, source)
+  if (!res) return { error: 'unknown_chip' }
+  return res
+}
+
+export function medicalDocsForClient(
+  state: AppState,
+  clientId: string,
+): MedicalDocument[] {
+  return (state.medicalDocuments ?? [])
+    .filter((d) => d.clientId === clientId)
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+}
+
+export function addMedicalDocument(
+  state: AppState,
+  input: {
+    clientId: string
+    kind: MedicalDocKind
+    title: string
+    body: string
+  },
+): AppState {
+  const client = state.clients.find((c) => c.id === input.clientId)
+  if (!client) return state
+  const doc: MedicalDocument = {
+    id: uid('mdoc'),
+    clientId: client.id,
+    clientName: client.name,
+    kind: input.kind,
+    title: input.title.trim() || input.kind,
+    body: input.body.trim(),
+    createdAt: new Date().toISOString(),
+  }
+  return {
+    ...state,
+    medicalDocuments: [doc, ...(state.medicalDocuments ?? [])].slice(0, 1000),
+  }
+}
+
+export function updateMedicalDocument(
+  state: AppState,
+  id: string,
+  patch: Partial<Pick<MedicalDocument, 'title' | 'body' | 'kind'>>,
+): AppState {
+  return {
+    ...state,
+    medicalDocuments: (state.medicalDocuments ?? []).map((d) =>
+      d.id === id ? { ...d, ...patch } : d,
+    ),
+  }
+}
+
+export function deleteMedicalDocument(state: AppState, id: string): AppState {
+  return {
+    ...state,
+    medicalDocuments: (state.medicalDocuments ?? []).filter((d) => d.id !== id),
+  }
+}
+
+export function pendingClinicCharges(state: AppState): ClinicCharge[] {
+  return (state.clinicCharges ?? [])
+    .filter((c) => c.status === 'pending')
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+}
+
+/** Médecin → file d’attente de la réception / caisse */
+export function sendToReceptionCash(
+  state: AppState,
+  input: {
+    clientId: string
+    label: string
+    amountDa: number
+    note?: string
+  },
+): AppState {
+  const client = state.clients.find((c) => c.id === input.clientId)
+  if (!client) return state
+  const amount = Math.max(0, +input.amountDa.toFixed(2))
+  if (amount <= 0) return state
+  const charge: ClinicCharge = {
+    id: uid('chg'),
+    clientId: client.id,
+    clientName: client.name,
+    clientPhone: client.phone,
+    label: input.label.trim() || 'Consultation',
+    amountDa: amount,
+    note: (input.note || '').trim(),
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+  }
+  return {
+    ...state,
+    clinicCharges: [charge, ...(state.clinicCharges ?? [])].slice(0, 500),
+  }
+}
+
+export function cancelClinicCharge(state: AppState, id: string): AppState {
+  return {
+    ...state,
+    clinicCharges: (state.clinicCharges ?? []).map((c) =>
+      c.id === id && c.status === 'pending' ? { ...c, status: 'cancelled' } : c,
+    ),
+  }
+}
+
+export function markClinicChargePaid(
+  state: AppState,
+  id: string,
+  orderId?: string,
+): AppState {
+  return {
+    ...state,
+    clinicCharges: (state.clinicCharges ?? []).map((c) =>
+      c.id === id
+        ? {
+            ...c,
+            status: 'paid',
+            paidAt: new Date().toISOString(),
+            orderId: orderId || c.orderId,
+          }
+        : c,
+    ),
+  }
+}
+
+export function setClinicStation(
+  state: AppState,
+  station: ClinicStation,
+): AppState {
+  return updateSettings(state, {
+    clinicStation: station,
+    clinicStationChosen: true,
+    clinicShareEnabled: true,
+  })
 }
 
 /** Normalise paidDa / remainingDa (anciennes factures paye|credit). */
@@ -1946,4 +2309,118 @@ export function createSaleReturn(
     next = applyClientPayment(next, input.clientId, totalDa)
   }
   return next
+}
+
+export function addEmployee(
+  state: AppState,
+  input: Omit<Employee, 'id' | 'createdAt'>,
+): AppState {
+  const emp: Employee = {
+    ...input,
+    id: uid('emp'),
+    createdAt: new Date().toISOString(),
+  }
+  return { ...state, employees: [emp, ...(state.employees ?? [])] }
+}
+
+export function updateEmployee(
+  state: AppState,
+  id: string,
+  patch: Partial<Omit<Employee, 'id' | 'createdAt'>>,
+): AppState {
+  return {
+    ...state,
+    employees: (state.employees ?? []).map((e) =>
+      e.id === id ? { ...e, ...patch } : e,
+    ),
+  }
+}
+
+export function deleteEmployee(state: AppState, id: string): AppState {
+  return {
+    ...state,
+    employees: (state.employees ?? []).filter((e) => e.id !== id),
+    employeeLeaves: (state.employeeLeaves ?? []).filter((l) => l.employeeId !== id),
+    staffLedger: (state.staffLedger ?? []).filter((s) => s.employeeId !== id),
+  }
+}
+
+export function employeeLeavesFor(
+  state: AppState,
+  employeeId: string,
+): EmployeeLeave[] {
+  return (state.employeeLeaves ?? [])
+    .filter((l) => l.employeeId === employeeId)
+    .sort((a, b) => (a.startDate < b.startDate ? 1 : -1))
+}
+
+export function addEmployeeLeave(
+  state: AppState,
+  input: Omit<EmployeeLeave, 'id' | 'createdAt'>,
+): AppState {
+  const leave: EmployeeLeave = {
+    ...input,
+    id: uid('elv'),
+    createdAt: new Date().toISOString(),
+  }
+  return {
+    ...state,
+    employeeLeaves: [leave, ...(state.employeeLeaves ?? [])].slice(0, 2000),
+  }
+}
+
+export function deleteEmployeeLeave(state: AppState, id: string): AppState {
+  return {
+    ...state,
+    employeeLeaves: (state.employeeLeaves ?? []).filter((l) => l.id !== id),
+  }
+}
+
+export function staffLedgerFor(
+  state: AppState,
+  employeeId: string,
+): StaffLedgerEntry[] {
+  return (state.staffLedger ?? [])
+    .filter((s) => s.employeeId === employeeId)
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+}
+
+export function addStaffLedgerEntry(
+  state: AppState,
+  input: Omit<StaffLedgerEntry, 'id' | 'createdAt'>,
+): AppState {
+  const row: StaffLedgerEntry = {
+    ...input,
+    id: uid('sledg'),
+    createdAt: new Date().toISOString(),
+  }
+  return {
+    ...state,
+    staffLedger: [row, ...(state.staffLedger ?? [])].slice(0, 5000),
+  }
+}
+
+/** Avances ouvertes, dettes employé, reste à payer ce mois (salaire − avances + dettes). */
+export function staffBalanceFor(
+  state: AppState,
+  employeeId: string,
+): { avancesOuvertes: number; detteEmploye: number; resteAPayer: number } {
+  const emp = (state.employees ?? []).find((e) => e.id === employeeId)
+  const salary = emp?.salaryDa ?? 0
+  let avances = 0
+  let dettes = 0
+  let paiements = 0
+  let remboursements = 0
+  for (const row of state.staffLedger ?? []) {
+    if (row.employeeId !== employeeId) continue
+    if (row.kind === 'avance') avances += row.amountDa
+    else if (row.kind === 'dette') dettes += row.amountDa
+    else if (row.kind === 'paiement_salaire') paiements += row.amountDa
+    else if (row.kind === 'remboursement') remboursements += row.amountDa
+  }
+  const avancesOuvertes = Math.max(0, avances - remboursements)
+  const detteEmploye = Math.max(0, dettes)
+  // Ce que le patron doit encore verser ce cycle : salaire − avances ouvertes − déjà payé + 0
+  const resteAPayer = Math.max(0, salary - avancesOuvertes - paiements + detteEmploye)
+  return { avancesOuvertes, detteEmploye, resteAPayer }
 }

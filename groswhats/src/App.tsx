@@ -14,6 +14,7 @@ import type {
   ThemePreset,
   FontScale,
   Unit,
+  ClinicStation,
 } from './types'
 import { ALL_UNITS, EXPENSE_CATEGORIES } from './types'
 import {
@@ -76,6 +77,7 @@ import {
   setActiveLocation,
   setMultiLocationEnabled,
   transferStock,
+  setClinicStation,
 } from './store'
 import { isDecimalUnit, qtyStep, t, unitLabel } from './i18n'
 import { formatDa, formatQty, setActiveCurrency, setActiveLocale } from './utils/format'
@@ -104,12 +106,17 @@ import {
   showDemiGros,
   showDepotTools,
   showGallery,
+  showGymCheckin,
   showHomeScan,
+  showMedicalDossier,
   showReturns,
+  showStaffHr,
   showWholesaleTiers,
 } from './locale/adapt'
+import { metierCopy, metierPackFor } from './locale/metierPacks'
+import { specialtyProfileFor } from './locale/specialtyParams'
 import { LanguagePicker } from './locale/LanguagePicker'
-import { applyUiTheme, themeLabel, THEME_PRESETS } from './utils/theme'
+import { applyEffectiveTheme, applyUiTheme, themeLabel, THEME_PRESETS } from './utils/theme'
 import {
   DEFAULT_AGENT_PERMISSIONS,
   type AgentPermissions,
@@ -181,12 +188,49 @@ import {
 } from './PosOps'
 import { ProductBarcodeField, BarcodeCameraModal, isBarcodeCameraSupported } from './BarcodeCamera'
 import { ClientQrCard } from './ClientQrCard'
+import { DossierPatientPanel } from './DossierPatientPanel'
+import { SpecialtyDossierPanel } from './SpecialtyDossierPanel'
+import { ReceptionCashQueue, SendToCashForm } from './ClinicSharePanels'
+import { GymCheckinPanel } from './GymCheckinPanel'
+import { StaffPanel } from './StaffPanel'
 import { classifyHomeScan } from './utils/clientQr'
 import { APP_BRAND } from './brand'
 import { APP_VERSION, activateLicense, getAccessStatus } from './license/license'
 
-function navItems(mode: CommerceMode | undefined): Array<{ id: Screen; icon: string }> {
+function clinicStationOf(state: {
+  settings: {
+    commerceMode: string
+    clinicShareEnabled?: boolean
+    clinicStation?: ClinicStation
+  }
+}): ClinicStation | null {
+  if (state.settings.commerceMode !== 'sante' || !state.settings.clinicShareEnabled) {
+    return null
+  }
+  return state.settings.clinicStation === 'reception' ? 'reception' : 'doctor'
+}
+
+function navItems(
+  mode: CommerceMode | undefined,
+  station: ClinicStation | null,
+): Array<{ id: Screen; icon: string }> {
   if (mode === 'sante') {
+    if (station === 'doctor') {
+      return [
+        { id: 'home', icon: '🏠' },
+        { id: 'clients', icon: '👤' },
+        { id: 'products', icon: '📋' },
+        { id: 'history', icon: '📜' },
+      ]
+    }
+    if (station === 'reception') {
+      return [
+        { id: 'home', icon: '🏠' },
+        { id: 'order', icon: '💵' },
+        { id: 'clients', icon: '👤' },
+        { id: 'caisse', icon: '🧾' },
+      ]
+    }
     return [
       { id: 'home', icon: '🏠' },
       { id: 'order', icon: '🩺' },
@@ -255,7 +299,9 @@ export default function App() {
   const [agentSeed, setAgentSeed] = useState<string | null>(null)
   const [redoSetup, setRedoSetup] = useState(false)
   const lang = state.settings.language
-  const vocab = shopVocab(state.settings.commerceMode, lang)
+  const domainId = state.settings.domainId
+  const vocab = shopVocab(state.settings.commerceMode, lang, domainId)
+  const metier = metierPackFor(domainId, state.settings.commerceMode)
 
   useEffect(() => {
     registerMuteAskHandler(null)
@@ -307,12 +353,25 @@ export default function App() {
   }, [lang])
 
   useEffect(() => {
-    applyUiTheme(state.settings.themePreset, state.settings.fontScale)
+    applyEffectiveTheme({
+      themeSource: state.settings.themeSource,
+      themePreset: state.settings.themePreset,
+      fontScale: state.settings.fontScale,
+      domainId: state.settings.domainId,
+      commerceMode: state.settings.commerceMode,
+    })
     document.documentElement.classList.toggle(
       'easy-mode',
       state.settings.easyMode !== false,
     )
-  }, [state.settings.themePreset, state.settings.fontScale, state.settings.easyMode])
+  }, [
+    state.settings.themePreset,
+    state.settings.themeSource,
+    state.settings.fontScale,
+    state.settings.easyMode,
+    state.settings.domainId,
+    state.settings.commerceMode,
+  ])
 
   useEffect(() => {
     setUiSoundsEnabled(state.settings.uiSoundsEnabled !== false)
@@ -368,8 +427,16 @@ export default function App() {
   const low = lowStockProducts(state)
   const isDriverMode =
     state.team.multiPosteEnabled && state.team.role === 'driver'
+  const clinicStation = clinicStationOf(state)
+  const isClinicDoctor = clinicStation === 'doctor'
+  const isClinicReception = clinicStation === 'reception'
   const needRolePick =
     state.team.multiPosteEnabled && !state.team.hasChosenRole
+  const needClinicRolePick =
+    state.settings.commerceMode === 'sante' &&
+    state.settings.clinicShareEnabled === true &&
+    !state.settings.clinicStationChosen
+
 
   useEffect(() => {
     if (isDriverMode && screen !== 'missions') goTo('missions')
@@ -396,9 +463,9 @@ export default function App() {
 
   return (
     <div
-      className={`app-shell mode-${state.settings.commerceMode || 'gros'} ${screen === 'delivery' ? 'map-mode' : ''} ${
+      className={`app-shell mode-${state.settings.commerceMode || 'gros'} metier-${metier.family} ${screen === 'delivery' ? 'map-mode' : ''} ${
         state.settings.easyMode !== false ? 'easy-ui' : ''
-      } ${isDriverMode ? 'driver-mode' : ''}`}
+      } ${isDriverMode ? 'driver-mode' : ''} ${isClinicDoctor ? 'clinic-doctor' : ''} ${isClinicReception ? 'clinic-reception' : ''}`}
     >
       {needSetup ? (
         <SetupWizard
@@ -437,7 +504,17 @@ export default function App() {
         />
       ) : null}
 
-      {!needSetup && !needRolePick && screen !== 'delivery' && !isDriverMode ? (
+      {!needSetup && !needRolePick && needClinicRolePick ? (
+        <ClinicRolePickGate
+          lang={lang}
+          onPick={(station) => {
+            setState((s) => setClinicStation(s, station))
+            goTo('home')
+          }}
+        />
+      ) : null}
+
+      {!needSetup && !needRolePick && !needClinicRolePick && screen !== 'delivery' && !isDriverMode ? (
       <header className="topbar">
         <div className="topbar-left">
           {showBackBtn && screen !== 'home' ? (
@@ -555,6 +632,9 @@ export default function App() {
           stats={stats}
           lang={lang}
           low={low}
+          clinicStation={clinicStation}
+          onState={setState}
+          onFlash={(msg) => setToast(msg)}
           onGo={goTo}
           onFocusClient={(id) => setFocusClientId(id)}
           onFocusProduct={(id) => setFocusProductId(id)}
@@ -653,12 +733,14 @@ export default function App() {
         <ClientsPage
           state={state}
           lang={lang}
+          clinicStation={clinicStation}
           initialClientId={focusClientId}
           seedNotes={seedClientNotes}
           onSeedConsumed={() => {
             setFocusClientId(null)
             setSeedClientNotes(null)
           }}
+          onState={setState}
           onAdd={(c) => {
             setState((s) => addClient(s, c))
             flash('clientAdded')
@@ -685,6 +767,7 @@ export default function App() {
             flash('clientDeleted')
           }}
           onFlash={flash}
+          onToast={(msg) => setToast(msg)}
         />
         </div>
       ) : null}
@@ -984,6 +1067,20 @@ export default function App() {
         />
         </div>
       ) : null}
+      {isAlive('staff') && !isDriverMode ? (
+        <div
+          className={`screen-pane ${screen === 'staff' ? 'is-active' : 'is-cached'}`}
+          aria-hidden={screen !== 'staff'}
+          inert={screen !== 'staff' ? true : undefined}
+        >
+          <StaffPanel
+            state={state}
+            lang={lang}
+            onState={setState}
+            onFlash={(msg) => setToast(msg)}
+          />
+        </div>
+      ) : null}
       {isAlive('settings') && !isDriverMode ? (
         <div
           className={`screen-pane ${screen === 'settings' ? 'is-active' : 'is-cached'}`}
@@ -1049,7 +1146,7 @@ export default function App() {
 
       {!needSetup && !needRolePick && !isDriverMode ? (
       <nav className="bottom-nav" aria-label="Navigation">
-        {navItems(state.settings.commerceMode).map((item) => (
+        {navItems(state.settings.commerceMode, clinicStation).map((item) => (
           <button
             key={item.id}
             className={`nav-btn ${screen === item.id ? 'active' : ''}`}
@@ -1103,6 +1200,43 @@ function RolePickGate({
             <span className="choice-emoji">🚚</span>
             <strong>{t(lang, 'roleDriver')}</strong>
             <span className="muted">{t(lang, 'roleDriverHint')}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ClinicRolePickGate({
+  lang,
+  onPick,
+}: {
+  lang: Language
+  onPick: (station: ClinicStation) => void
+}) {
+  return (
+    <div className="page role-pick">
+      <div className="card">
+        <h2>🩺 {t(lang, 'clinicRoleTitle')}</h2>
+        <p className="muted">{t(lang, 'clinicRoleHint')}</p>
+        <div className="choice-grid">
+          <button
+            type="button"
+            className="choice-card"
+            onClick={() => onPick('doctor')}
+          >
+            <span className="choice-emoji">👨‍⚕️</span>
+            <strong>{t(lang, 'clinicRoleDoctor')}</strong>
+            <span className="muted">{t(lang, 'clinicRoleDoctorHint')}</span>
+          </button>
+          <button
+            type="button"
+            className="choice-card"
+            onClick={() => onPick('reception')}
+          >
+            <span className="choice-emoji">🧾</span>
+            <strong>{t(lang, 'clinicRoleReception')}</strong>
+            <span className="muted">{t(lang, 'clinicRoleReceptionHint')}</span>
           </button>
         </div>
       </div>
@@ -1221,6 +1355,7 @@ function SettingsPage({
       uiSoundsEnabled,
       easyMode,
       themePreset,
+      themeSource: extra?.themeSource ?? state.settings.themeSource ?? 'metier',
       fontScale,
       showZakat,
       showCalculator,
@@ -1300,15 +1435,31 @@ function SettingsPage({
 
         <div className="field">
           <label>{t(lang, 'themeTitle')}</label>
+          <p className="muted">
+            {state.settings.themeSource === 'user'
+              ? t(lang, 'themeSourceUser')
+              : t(lang, 'themeSourceMetier')}
+          </p>
+          <button
+            type="button"
+            className="btn secondary block"
+            style={{ marginBottom: 8 }}
+            onClick={() => {
+              saveAll({ themeSource: 'metier' })
+            }}
+          >
+            {t(lang, 'themeUseMetier')}
+          </button>
           <div className="btn-row" style={{ flexWrap: 'wrap' }}>
             {(Object.keys(THEME_PRESETS) as ThemePreset[]).map((id) => (
               <button
                 key={id}
                 type="button"
-                className={`btn ${themePreset === id ? '' : 'ghost'}`}
+                className={`btn ${themePreset === id && state.settings.themeSource === 'user' ? '' : 'ghost'}`}
                 onClick={() => {
                   setThemePreset(id)
                   applyUiTheme(id, fontScale)
+                  saveAll({ themePreset: id, themeSource: 'user' })
                 }}
               >
                 {themeLabel(lang, id)}
@@ -1316,6 +1467,40 @@ function SettingsPage({
             ))}
           </div>
         </div>
+
+        {state.settings.commerceMode === 'sante' ? (
+          <div className="field">
+            <label>{t(lang, 'clinicShare')}</label>
+            <p className="muted">{t(lang, 'clinicShareHint')}</p>
+            <div className="btn-row" style={{ flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className={`btn ${state.settings.clinicShareEnabled ? '' : 'ghost'}`}
+                onClick={() =>
+                  saveAll({
+                    clinicShareEnabled: true,
+                    clinicStationChosen: false,
+                  })
+                }
+              >
+                {t(lang, 'clinicShareOn')}
+              </button>
+              <button
+                type="button"
+                className={`btn ${!state.settings.clinicShareEnabled ? '' : 'ghost'}`}
+                onClick={() =>
+                  saveAll({
+                    clinicShareEnabled: false,
+                    clinicStationChosen: false,
+                    clinicStation: undefined,
+                  })
+                }
+              >
+                {t(lang, 'clinicShareOff')}
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         <div className="field">
           <label>{t(lang, 'fontTitle')}</label>
@@ -1722,6 +1907,9 @@ function HomePage({
   stats,
   lang,
   low,
+  clinicStation,
+  onState,
+  onFlash,
   onGo,
   onFocusClient,
   onFocusProduct,
@@ -1755,6 +1943,9 @@ function HomePage({
   }
   lang: Language
   low: Product[]
+  clinicStation: ClinicStation | null
+  onState: (next: AppState) => void
+  onFlash: (msg: string) => void
   onGo: (s: Screen, spokenLabel?: string) => void
   onFocusClient: (id: string) => void
   onFocusProduct: (id: string) => void
@@ -1769,7 +1960,10 @@ function HomePage({
   onBoth: (order: Order) => Promise<void>
   onInvoice: (order: Order) => void
 }) {
-  const vocab = shopVocab(state.settings.commerceMode, lang)
+  const domainId = state.settings.domainId
+  const vocab = shopVocab(state.settings.commerceMode, lang, domainId)
+  const mcopy = metierCopy(domainId, state.settings.commerceMode, lang)
+  const feats = metierPackFor(domainId, state.settings.commerceMode).features
   const recent = (todayOrders(state).length > 0 ? todayOrders(state) : state.orders).slice(0, 4)
   const [scanOpen, setScanOpen] = useState(false)
   const [unknownCode, setUnknownCode] = useState<string | null>(null)
@@ -1794,6 +1988,18 @@ function HomePage({
       onGo('clients', t(lang, 'appClients'))
       return
     }
+    if (hit.kind === 'member') {
+      if (hit.clientId) {
+        onFocusClient(hit.clientId)
+        onGo('clients', vocab.client)
+        return
+      }
+      if (hit.nfcUid) {
+        onSeedNewClient(`NFC:${hit.nfcUid}`)
+        onGo('clients', vocab.client)
+        return
+      }
+    }
     if (hit.kind === 'product' && hit.productId) {
       if (isWholesale(state.settings.commerceMode)) {
         onFocusProduct(hit.productId)
@@ -1809,6 +2015,8 @@ function HomePage({
   }
 
   const mode = state.settings.commerceMode
+  const isDoctor = clinicStation === 'doctor'
+  const isReception = clinicStation === 'reception'
   const dailyApps: Array<{
     id: Screen
     label: string
@@ -1816,7 +2024,26 @@ function HomePage({
     tone: string
     badge?: number
   }> =
-    mode === 'sante'
+    isDoctor
+      ? [
+          { id: 'clients', label: vocab.client, icon: '👤', tone: 'navy' },
+          {
+            id: 'products',
+            label: vocab.product,
+            icon: '📋',
+            tone: 'blue',
+            badge: stats.lowStock,
+          },
+          { id: 'history', label: mcopy.historyLabel, icon: '📜', tone: 'slate' },
+        ]
+      : isReception
+        ? [
+            { id: 'order', label: vocab.sell, icon: '💵', tone: 'amber' },
+            { id: 'clients', label: vocab.client, icon: '👤', tone: 'navy' },
+            { id: 'caisse', label: t(lang, 'appCaisse'), icon: '💵', tone: 'amber' },
+            { id: 'history', label: t(lang, 'appHistory'), icon: '📜', tone: 'slate' },
+          ]
+        : mode === 'sante'
       ? [
           { id: 'clients', label: vocab.client, icon: '👤', tone: 'navy' },
           {
@@ -1827,33 +2054,33 @@ function HomePage({
             badge: stats.lowStock,
           },
           { id: 'caisse', label: t(lang, 'appCaisse'), icon: '💵', tone: 'amber' },
-          { id: 'history', label: t(lang, 'appHistory'), icon: '📜', tone: 'slate' },
+          { id: 'history', label: mcopy.historyLabel, icon: '📜', tone: 'slate' },
         ]
       : mode === 'auto'
         ? [
             {
               id: 'products',
               label: vocab.product,
-              icon: '🔧',
+              icon: feats.repairOrder ? '🛠️' : '🔧',
               tone: 'blue',
               badge: stats.lowStock,
             },
             { id: 'clients', label: vocab.client, icon: '👥', tone: 'navy' },
             { id: 'caisse', label: t(lang, 'appCaisse'), icon: '💵', tone: 'amber' },
-            { id: 'history', label: t(lang, 'appHistory'), icon: '📜', tone: 'slate' },
+            { id: 'history', label: mcopy.historyLabel, icon: '📜', tone: 'slate' },
           ]
         : mode === 'services'
           ? [
               {
                 id: 'products',
                 label: vocab.product,
-                icon: '📝',
+                icon: feats.gymCheckin ? '🏋️' : '📝',
                 tone: 'blue',
                 badge: stats.lowStock,
               },
               { id: 'clients', label: vocab.client, icon: '👥', tone: 'navy' },
               { id: 'caisse', label: t(lang, 'appCaisse'), icon: '💵', tone: 'amber' },
-              { id: 'history', label: t(lang, 'appHistory'), icon: '📜', tone: 'slate' },
+              { id: 'history', label: mcopy.historyLabel, icon: '📜', tone: 'slate' },
             ]
           : isWholesale(mode)
             ? [
@@ -1866,22 +2093,22 @@ function HomePage({
                   tone: 'blue',
                   badge: stats.lowStock,
                 },
-                { id: 'history', label: t(lang, 'appHistory'), icon: '📜', tone: 'slate' },
+                { id: 'history', label: mcopy.historyLabel, icon: '📜', tone: 'slate' },
               ]
             : [
                 {
                   id: 'products',
                   label: vocab.product,
-                  icon: '🛍️',
+                  icon: feats.tableService ? '🍽️' : '🛍️',
                   tone: 'blue',
                   badge: stats.lowStock,
                 },
                 { id: 'caisse', label: t(lang, 'appCaisse'), icon: '💵', tone: 'amber' },
-                { id: 'history', label: t(lang, 'appHistory'), icon: '📜', tone: 'slate' },
+                { id: 'history', label: mcopy.historyLabel, icon: '📜', tone: 'slate' },
                 { id: 'clients', label: vocab.client, icon: '👥', tone: 'navy' },
               ]
 
-  const depot = showDepotTools(state.settings.commerceMode)
+  const depot = showDepotTools(state.settings.commerceMode, domainId)
   const moreApps: Array<{
     id: Screen
     label: string
@@ -1914,10 +2141,10 @@ function HomePage({
           { id: 'arrivages' as Screen, label: t(lang, 'appArrivals'), icon: '🆕', tone: 'lime' },
         ]
       : []),
-    ...(state.settings.showGallery !== false && showGallery(state.settings.commerceMode)
+    ...(state.settings.showGallery !== false && showGallery(state.settings.commerceMode, domainId)
       ? [{ id: 'gallery' as Screen, label: t(lang, 'appGallery'), icon: '🖼️', tone: 'blue' }]
       : []),
-    ...(showReturns(state.settings.commerceMode)
+    ...(showReturns(state.settings.commerceMode, domainId)
       ? [{ id: 'returns' as Screen, label: t(lang, 'appReturns'), icon: '↩️', tone: 'coral' }]
       : []),
     { id: 'agent', label: t(lang, 'appAgent'), icon: '🤖', tone: 'slate' },
@@ -1929,6 +2156,9 @@ function HomePage({
       : []),
     ...(state.settings.showCalculator !== false
       ? [{ id: 'calculator' as Screen, label: t(lang, 'appCalc'), icon: '🧮', tone: 'steel' }]
+      : []),
+    ...(feats.staffHr || showStaffHr(mode, domainId)
+      ? [{ id: 'staff' as Screen, label: t(lang, 'staffTitle'), icon: '👥', tone: 'navy' }]
       : []),
     { id: 'settings', label: t(lang, 'appSettings'), icon: '⚙️', tone: 'charcoal' },
   ]
@@ -1954,6 +2184,36 @@ function HomePage({
         }}
       />
 
+      {showGymCheckin(mode, domainId) ? (
+        <GymCheckinPanel
+          state={state}
+          lang={lang}
+          onState={onState}
+          onFlash={onFlash}
+          onBindUnknown={(uid) => {
+            onSeedNewClient(`NFC:${uid}`)
+            onGo('clients', vocab.client)
+          }}
+        />
+      ) : null}
+
+      {isReception ? (
+        <ReceptionCashQueue
+          state={state}
+          lang={lang}
+          onState={onState}
+          onFlash={onFlash}
+          onFocusClient={(id) => {
+            onFocusClient(id)
+            onGo('clients', vocab.client)
+          }}
+          onGoEncaisser={(clientId) => {
+            onFocusClient(clientId)
+            onGo('order', vocab.sell)
+          }}
+        />
+      ) : null}
+
       <section className="home-hero">
         <div className="home-hero-text">
           <div className="muted">{t(lang, 'todayStrip')}</div>
@@ -1965,7 +2225,7 @@ function HomePage({
           onHit={handleHit}
           onOpenHistory={onOpenHistoryDates}
         />
-        {showHomeScan(state.settings.commerceMode) ? (
+        {showHomeScan(mode, domainId) ? (
         <button
           type="button"
           className="scan-cta"
@@ -1982,9 +2242,9 @@ function HomePage({
             <strong>
               {t(
                 lang,
-                isWholesale(state.settings.commerceMode)
+                isWholesale(mode)
                   ? 'homeScanTitleGros'
-                  : state.settings.commerceMode === 'auto'
+                  : mode === 'auto'
                     ? 'homeScanTitleAuto'
                     : 'homeScanTitleRetail',
               )}
@@ -1992,9 +2252,9 @@ function HomePage({
             <small>
               {t(
                 lang,
-                isWholesale(state.settings.commerceMode)
+                isWholesale(mode)
                   ? 'homeScanHintGros'
-                  : state.settings.commerceMode === 'auto'
+                  : mode === 'auto'
                     ? 'homeScanHintAuto'
                     : 'homeScanHintRetail',
               )}
@@ -2002,23 +2262,25 @@ function HomePage({
           </span>
         </button>
         ) : null}
+        {!isDoctor ? (
         <button type="button" className="sell-cta" onClick={() => onGo('order', vocab.sell)}>
           <span className="sell-cta-emoji">
-            {state.settings.commerceMode === 'sante'
+            {mode === 'sante'
               ? '🩺'
-              : state.settings.commerceMode === 'auto'
+              : mode === 'auto'
                 ? '🚗'
-                : state.settings.commerceMode === 'services'
+                : mode === 'services'
                   ? '🧰'
-                  : isWholesale(state.settings.commerceMode)
+                  : isWholesale(mode)
                     ? '📦'
                     : '🛒'}
           </span>
           <span>
-            <strong>{vocab.sell}</strong>
+            <strong>{mcopy.primaryCta || vocab.sell}</strong>
             <small>{vocab.sellHint}</small>
           </span>
         </button>
+        ) : null}
         <button
           type="button"
           className="history-cta"
@@ -3524,9 +3786,11 @@ function ProductEditCard({
 function ClientsPage({
   state,
   lang,
+  clinicStation,
   initialClientId,
   seedNotes,
   onSeedConsumed,
+  onState,
   onAdd,
   onUpdate,
   onPayDebt,
@@ -3534,12 +3798,15 @@ function ClientsPage({
   onImport,
   onDelete,
   onFlash,
+  onToast,
 }: {
   state: AppState
   lang: Language
+  clinicStation: ClinicStation | null
   initialClientId?: string | null
   seedNotes?: string | null
   onSeedConsumed?: () => void
+  onState: (next: AppState) => void
   onAdd: (c: Omit<Client, 'id' | 'createdAt'>) => void
   onUpdate: (id: string, patch: Partial<Omit<Client, 'id' | 'createdAt'>>) => void
   onPayDebt: (id: string, amount: number) => void
@@ -3547,6 +3814,7 @@ function ClientsPage({
   onImport: (list: Array<Pick<Client, 'name' | 'phone'>>) => void
   onDelete: (id: string) => void
   onFlash: (key: string) => void
+  onToast: (msg: string) => void
 }) {
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
@@ -3855,6 +4123,48 @@ function ClientsPage({
 
           <ClientQrCard client={selected} lang={lang} />
         </div>
+        {(() => {
+          const mode = state.settings.commerceMode
+          const domainId = state.settings.domainId
+          const pack = metierPackFor(domainId, mode)
+          const family = pack.family
+          const useMedicalPanel =
+            (showMedicalDossier(mode, domainId) || mode === 'sante') &&
+            family !== 'vet'
+          const specialty = specialtyProfileFor(family)
+          return (
+            <>
+              {useMedicalPanel ? (
+                <DossierPatientPanel
+                  state={state}
+                  client={selected}
+                  lang={lang}
+                  onState={onState}
+                  onFlash={onToast}
+                />
+              ) : specialty ? (
+                <SpecialtyDossierPanel
+                  state={state}
+                  client={selected}
+                  lang={lang}
+                  family={family}
+                  profile={specialty}
+                  onState={onState}
+                  onFlash={onToast}
+                />
+              ) : null}
+              {clinicStation === 'doctor' ? (
+                <SendToCashForm
+                  state={state}
+                  client={selected}
+                  lang={lang}
+                  onState={onState}
+                  onFlash={onToast}
+                />
+              ) : null}
+            </>
+          )
+        })()}
       </>
     )
   }
@@ -4262,9 +4572,10 @@ function OrderPage({
 }) {
   const QUICK = '__quick__'
   const mode = state.settings.commerceMode
+  const domainId = state.settings.domainId
   const wholesale = isWholesale(mode)
-  const vocab = shopVocab(mode, lang)
-  const clientFirst = preferClientOnSale(mode)
+  const vocab = shopVocab(mode, lang, domainId)
+  const clientFirst = preferClientOnSale(mode, domainId)
   const [clientId, setClientId] = useState(
     clientFirst && state.clients[0] ? state.clients[0].id : QUICK,
   )
@@ -4536,7 +4847,7 @@ function OrderPage({
             {t(lang, 'catalogForClient')} : <strong>{client.name}</strong>
           </div>
         ) : null}
-        {showHomeScan(mode) ? (
+        {showHomeScan(mode, domainId) ? (
         <BarcodeScanInput
           lang={lang}
           onScan={(code) => {

@@ -1110,6 +1110,94 @@ button {
   margin-bottom: 8px;
 }
 
+.dossier-patient {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line, #ddd);
+}
+
+.dossier-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.dossier-head h3 {
+  margin: 0;
+}
+
+.dossier-allergy {
+  background: #fef2f2;
+  color: #991b1b;
+  padding: 8px 10px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  font-size: 0.95rem;
+}
+
+.dossier-form {
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(14, 116, 144, 0.06);
+  margin-bottom: 10px;
+}
+
+.dossier-profile {
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+}
+
+.dossier-body {
+  white-space: pre-wrap;
+  background: #f8fafc;
+  padding: 12px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  max-height: 280px;
+  overflow: auto;
+}
+
+.dossier-doc-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  text-align: start;
+  padding: 10px 0;
+  border: 0;
+  border-top: 1px solid var(--line, #eee);
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.reception-queue {
+  margin-bottom: 12px;
+  border: 2px solid #0e7490;
+  background: linear-gradient(145deg, rgba(14, 116, 144, 0.1), transparent);
+}
+
+.clinic-charge-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.clinic-charge-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+  padding-top: 10px;
+  border-top: 1px solid var(--line, #ddd);
+}
+
 .ticket-preview {
   white-space: pre-wrap;
   background: #f7f2e8;
