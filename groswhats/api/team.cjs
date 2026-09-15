@@ -4,8 +4,8 @@
  * Push = merge (ne pas écraser le progrès livreur).
  */
 
-const { loadTeam, saveTeam, hasBlob } = require('./team-store')
-const { mergeTeamPayload, recomputeMissionStatus } = require('./team-merge')
+const { loadTeam, saveTeam, hasBlob } = require('./team-store.cjs')
+const { mergeTeamPayload, recomputeMissionStatus } = require('./team-merge.cjs')
 
 function keyOf(companyCode, syncSecret) {
   return `${String(companyCode || '')

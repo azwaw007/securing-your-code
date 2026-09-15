@@ -3,6 +3,11 @@
 ## Web (déjà en ligne)
 Site AZ POS : https://az-pos-dz.vercel.app — push sur `main` déploie automatiquement.
 
+### Monorepo Vercel (projet `az-pos`)
+Si **Root Directory** est vide dans le dashboard Vercel, le fichier `vercel.json` à la **racine du repo** force le build sur `groswhats/` (`npm ci` + `npm run build`, sortie `groswhats/dist`). Les API sont exposées via `api/` à la racine (wrappers vers `groswhats/api/`).
+
+Idéal : Root Directory = `groswhats` (alors seul `groswhats/vercel.json` s’applique).
+
 Politique de confidentialité (Play Store) :
 https://az-pos-dz.vercel.app/privacy.html
 
