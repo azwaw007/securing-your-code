@@ -209,15 +209,20 @@
     </div>
     <script>
       const stories = [
-        '🌅 Nouveau jour, nouvelle caisse.\\nAZ POS — stock, crédit, WhatsApp.\\nEssai gratuit → az-pos-dz.vercel.app',
-        '🏪 2 magasins = 2 stocks.\\nAZ POS Pro : multi-dépôts + transfert.\\nDemande un devis WhatsApp.',
-        '⚡ Vente en 10 secondes.\\nClient → produit → cash ou crédit.\\nPas Excel. Pas cahier.',
+        '🌅 Nouveau jour, nouvelle caisse.\nAZ POS — stock, crédit, WhatsApp.\nEssai : az-pos-dz.vercel.app',
+        '🏪 2 magasins = 2 stocks.\nAZ POS Pro : multi-dépôts + transfert.\nDemande un devis WhatsApp.',
+        '⚡ Vente en 10 secondes.\nClient → produit → cash ou crédit.\nPas Excel. Pas cahier.',
       ]
       const day = Math.floor(Date.now() / 86400000) % stories.length
       const story = stories[day]
-      const post = `Les commerçants algériens méritent une caisse simple.\\n\\nAZ POS — stock, clients, crédit, WhatsApp.\\nAZ POS Pro — plusieurs magasins, stock séparé.\\n\\nEssai : https://az-pos-dz.vercel.app\\n\\nCommente DÉMO ou WhatsApp.`
-      document.getElementById('story').textContent = story.replace(/\\\\n/g, '\\n')
-      document.getElementById('post').textContent = post.replace(/\\\\n/g, '\\n')
+      const post =
+        'Les commerçants algériens méritent une caisse simple.\n\n' +
+        'AZ POS — stock, clients, crédit, WhatsApp.\n' +
+        'AZ POS Pro — plusieurs magasins, stock séparé.\n\n' +
+        'Essai : https://az-pos-dz.vercel.app\n\n' +
+        'Commente DÉMO ou WhatsApp.'
+      document.getElementById('story').textContent = story
+      document.getElementById('post').textContent = post
       function copy(id) {
         const t = document.getElementById(id).textContent
         navigator.clipboard.writeText(t).then(() => alert('Copié ✓'))
