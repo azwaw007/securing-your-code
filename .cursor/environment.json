@@ -1,0 +1,16 @@
+{
+  "name": "OWASP Juice Shop (securing-your-code lab)",
+  "install": "npm install",
+  "terminals": [
+    {
+      "name": "juice-shop",
+      "command": "npm start"
+    }
+  ],
+  "ports": [
+    {
+      "name": "Juice Shop web app",
+      "port": 3000
+    }
+  ]
+}
