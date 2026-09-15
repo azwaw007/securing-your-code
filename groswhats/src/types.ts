@@ -159,6 +159,8 @@ export interface Client {
   address: string
   /** Note libre (horaires, contact, etc.) */
   notes: string
+  /** UID puce NFC / RFID (salle de sport) — normalisé */
+  nfcUid?: string
   /** GPS optionnel */
   lat?: number
   lng?: number
@@ -168,6 +170,16 @@ export interface Client {
    */
   balanceAdjustDa?: number
   createdAt: string
+}
+
+/** Passage entrée/sortie salle de sport (puce NFC) */
+export interface GymCheckIn {
+  id: string
+  clientId: string
+  clientName: string
+  kind: 'in' | 'out'
+  at: string
+  source: 'nfc' | 'qr' | 'manual' | 'wedge'
 }
 
 /** Encaissement hors facture du jour (ex: règlement d’une vieille dette) */
@@ -376,6 +388,8 @@ export interface AppState {
   purchases: Purchase[]
   cashSessions: CashSession[]
   returns: SaleReturn[]
+  /** Historique passages salle de sport (NFC) */
+  gymCheckIns: GymCheckIn[]
 }
 
 export const ALL_UNITS: Unit[] = [

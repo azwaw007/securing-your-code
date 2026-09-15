@@ -181,7 +181,9 @@ import {
 } from './PosOps'
 import { ProductBarcodeField, BarcodeCameraModal, isBarcodeCameraSupported } from './BarcodeCamera'
 import { ClientQrCard } from './ClientQrCard'
+import { GymCheckinPanel } from './GymCheckinPanel'
 import { classifyHomeScan } from './utils/clientQr'
+import { isGymDomain, normalizeNfcUid } from './utils/gymNfc'
 import { APP_BRAND } from './brand'
 import { APP_VERSION, activateLicense, getAccessStatus } from './license/license'
 
@@ -248,6 +250,7 @@ export default function App() {
   const [seedProductQuery, setSeedProductQuery] = useState<string | null>(null)
   const [seedSellProductId, setSeedSellProductId] = useState<string | null>(null)
   const [seedClientNotes, setSeedClientNotes] = useState<string | null>(null)
+  const [seedNfcUid, setSeedNfcUid] = useState<string | null>(null)
   const [historySeed, setHistorySeed] = useState<{
     from: string
     to: string
@@ -363,6 +366,10 @@ export default function App() {
 
   function flash(key: string) {
     setToast(t(lang, key))
+  }
+
+  function toastMsg(msg: string) {
+    setToast(msg)
   }
 
   const low = lowStockProducts(state)
@@ -607,6 +614,13 @@ export default function App() {
             setState((s) => markInvoiceSent(s, order.id))
             flash('invoiceSent')
           }}
+          onGymState={(next) => setState(next)}
+          onGymToast={toastMsg}
+          onBindUnknownChip={(uid) => {
+            setSeedNfcUid(normalizeNfcUid(uid))
+            setFocusClientId(null)
+            goTo('clients', t(lang, 'appClients'))
+          }}
         />
         </div>
       ) : null}
@@ -655,9 +669,11 @@ export default function App() {
           lang={lang}
           initialClientId={focusClientId}
           seedNotes={seedClientNotes}
+          seedNfcUid={seedNfcUid}
           onSeedConsumed={() => {
             setFocusClientId(null)
             setSeedClientNotes(null)
+            setSeedNfcUid(null)
           }}
           onAdd={(c) => {
             setState((s) => addClient(s, c))
@@ -1735,6 +1751,9 @@ function HomePage({
   onPrint,
   onBoth,
   onInvoice,
+  onGymState,
+  onGymToast,
+  onBindUnknownChip,
 }: {
   state: AppState
   stats: {
@@ -1768,8 +1787,12 @@ function HomePage({
   onPrint: (order: Order) => Promise<void>
   onBoth: (order: Order) => Promise<void>
   onInvoice: (order: Order) => void
+  onGymState: (next: AppState) => void
+  onGymToast: (msg: string) => void
+  onBindUnknownChip: (uid: string) => void
 }) {
   const vocab = shopVocab(state.settings.commerceMode, lang)
+  const gymMode = isGymDomain(state.settings.domainId)
   const recent = (todayOrders(state).length > 0 ? todayOrders(state) : state.orders).slice(0, 4)
   const [scanOpen, setScanOpen] = useState(false)
   const [unknownCode, setUnknownCode] = useState<string | null>(null)
@@ -1965,6 +1988,15 @@ function HomePage({
           onHit={handleHit}
           onOpenHistory={onOpenHistoryDates}
         />
+        {gymMode ? (
+          <GymCheckinPanel
+            state={state}
+            lang={lang}
+            onState={onGymState}
+            onFlash={onGymToast}
+            onBindUnknown={onBindUnknownChip}
+          />
+        ) : null}
         {showHomeScan(state.settings.commerceMode) ? (
         <button
           type="button"
@@ -3526,6 +3558,7 @@ function ClientsPage({
   lang,
   initialClientId,
   seedNotes,
+  seedNfcUid,
   onSeedConsumed,
   onAdd,
   onUpdate,
@@ -3539,6 +3572,7 @@ function ClientsPage({
   lang: Language
   initialClientId?: string | null
   seedNotes?: string | null
+  seedNfcUid?: string | null
   onSeedConsumed?: () => void
   onAdd: (c: Omit<Client, 'id' | 'createdAt'>) => void
   onUpdate: (id: string, patch: Partial<Omit<Client, 'id' | 'createdAt'>>) => void
@@ -3553,6 +3587,7 @@ function ClientsPage({
   const [city, setCity] = useState(state.settings.city)
   const [address, setAddress] = useState('')
   const [notes, setNotes] = useState('')
+  const [nfcUid, setNfcUid] = useState('')
   const [lat, setLat] = useState<number | undefined>()
   const [lng, setLng] = useState<number | undefined>()
   const [mapsPaste, setMapsPaste] = useState('')
@@ -3584,7 +3619,17 @@ function ClientsPage({
     onSeedConsumed?.()
   }, [seedNotes, onSeedConsumed])
 
+  useEffect(() => {
+    if (!seedNfcUid) return
+    setSelectedId(null)
+    setEditing(false)
+    setNfcUid(seedNfcUid)
+    setShowClientExtra(true)
+    onSeedConsumed?.()
+  }, [seedNfcUid, onSeedConsumed])
+
   const selected = state.clients.find((c) => c.id === selectedId) ?? null
+  const gymDomain = isGymDomain(state.settings.domainId)
 
   const clientSuggestions = useMemo(() => {
     const names = state.clients.flatMap((c) =>
@@ -3652,6 +3697,7 @@ function ClientsPage({
           lang={lang}
           countryCode={state.settings.countryCode || 'DZ'}
           client={selected}
+          gymDomain={gymDomain}
           onCancel={() => setEditing(false)}
           onSave={(patch) => {
             onUpdate(selected.id, patch)
@@ -3708,6 +3754,12 @@ function ClientsPage({
               <div className="fiche-label">{t(lang, 'clientNotes')}</div>
               <div>{selected.notes || '—'}</div>
             </div>
+            {gymDomain ? (
+              <div className="fiche-full">
+                <div className="fiche-label">{t(lang, 'clientNfcUid')}</div>
+                <div style={{ wordBreak: 'break-all' }}>{selected.nfcUid || '—'}</div>
+              </div>
+            ) : null}
             <div className="fiche-full">
               <div className="fiche-label">GPS</div>
               <div>
@@ -3853,7 +3905,7 @@ function ClientsPage({
             </button>
           </div>
 
-          <ClientQrCard client={selected} lang={lang} />
+          <ClientQrCard client={selected} lang={lang} showMemberQr={gymDomain} />
         </div>
       </>
     )
@@ -3903,6 +3955,19 @@ function ClientsPage({
         </button>
         {showClientExtra ? (
           <>
+        {gymDomain ? (
+          <div className="field">
+            <label>{t(lang, 'clientNfcUid')}</label>
+            <input
+              value={nfcUid}
+              onChange={(e) => setNfcUid(e.target.value)}
+              placeholder="04A1B2C3D4"
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <div className="muted">{t(lang, 'clientNfcUidHint')}</div>
+          </div>
+        ) : null}
         <div className="field">
           <label>{t(lang, 'clientNotes')}</label>
           <textarea
@@ -3973,10 +4038,12 @@ function ClientsPage({
               city: city.trim(),
               address: address.trim(),
               notes: notes.trim(),
+              nfcUid: nfcUid.trim() || undefined,
               lat,
               lng,
             })
             setName('')
+            setNfcUid('')
             setPhone('')
             setAddress('')
             setNotes('')
@@ -4124,6 +4191,7 @@ function ClientEditCard({
   lang,
   countryCode,
   client,
+  gymDomain,
   onCancel,
   onSave,
   onGps,
@@ -4133,6 +4201,7 @@ function ClientEditCard({
   lang: Language
   countryCode: string
   client: Client
+  gymDomain: boolean
   onCancel: () => void
   onSave: (patch: Partial<Omit<Client, 'id' | 'createdAt'>>) => void
   onGps: () => void
@@ -4144,6 +4213,7 @@ function ClientEditCard({
   const [city, setCity] = useState(client.city)
   const [address, setAddress] = useState(client.address ?? '')
   const [notes, setNotes] = useState(client.notes ?? '')
+  const [nfcUid, setNfcUid] = useState(client.nfcUid ?? '')
   const [mapsPaste, setMapsPaste] = useState('')
 
   return (
@@ -4178,6 +4248,19 @@ function ClientEditCard({
           <input value={address} onChange={(e) => setAddress(e.target.value)} />
         </div>
       </div>
+      {gymDomain ? (
+        <div className="field">
+          <label>{t(lang, 'clientNfcUid')}</label>
+          <input
+            value={nfcUid}
+            onChange={(e) => setNfcUid(e.target.value)}
+            placeholder="04A1B2C3D4"
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <div className="muted">{t(lang, 'clientNfcUidHint')}</div>
+        </div>
+      ) : null}
       <div className="field">
         <label>{t(lang, 'clientNotes')}</label>
         <textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
@@ -4226,6 +4309,7 @@ function ClientEditCard({
             city: city.trim(),
             address: address.trim(),
             notes: notes.trim(),
+            nfcUid: nfcUid.trim() || undefined,
           })
         }
       >

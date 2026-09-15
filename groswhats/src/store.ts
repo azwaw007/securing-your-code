@@ -7,6 +7,7 @@ import type {
   Driver,
   Expense,
   ExpenseCategory,
+  GymCheckIn,
   IncomingOrder,
   Language,
   Mission,
@@ -332,6 +333,7 @@ function seedState(): AppState {
     purchases: [],
     cashSessions: [],
     returns: [],
+    gymCheckIns: [],
   }
 }
 
@@ -353,6 +355,7 @@ function migrate(raw: unknown): AppState {
     purchases?: Purchase[]
     cashSessions?: CashSession[]
     returns?: SaleReturn[]
+    gymCheckIns?: GymCheckIn[]
   }
   const incoming = data.settings ?? {}
   const defaults = defaultSettings()
@@ -471,6 +474,10 @@ function migrate(raw: unknown): AppState {
       city: cleanCity(c.city),
       address: typeof c.address === 'string' ? c.address : '',
       notes: typeof c.notes === 'string' ? c.notes : '',
+      nfcUid:
+        typeof c.nfcUid === 'string' && c.nfcUid.trim()
+          ? c.nfcUid.trim().toUpperCase().replace(/[\s:.-]+/g, '')
+          : undefined,
       lat: typeof c.lat === 'number' ? c.lat : undefined,
       lng: typeof c.lng === 'number' ? c.lng : undefined,
       balanceAdjustDa:
@@ -575,6 +582,22 @@ function migrate(raw: unknown): AppState {
       note: typeof r.note === 'string' ? r.note : '',
       createdAt: r.createdAt || new Date().toISOString(),
     })),
+    gymCheckIns: (data.gymCheckIns ?? [])
+      .filter((g) => g && typeof g.clientId === 'string')
+      .map((g) => ({
+        id: g.id || uid('gin'),
+        clientId: g.clientId,
+        clientName: g.clientName || '',
+        kind: g.kind === 'out' ? 'out' : 'in',
+        at: g.at || new Date().toISOString(),
+        source:
+          g.source === 'qr' ||
+          g.source === 'manual' ||
+          g.source === 'wedge' ||
+          g.source === 'nfc'
+            ? g.source
+            : 'manual',
+      })),
   }
   return ensureDefaultLocation(base)
 }
@@ -721,6 +744,10 @@ export function addClient(
   if (exists) return state
   const client: Client = {
     ...input,
+    nfcUid:
+      input.nfcUid && input.nfcUid.trim()
+        ? input.nfcUid.trim().toUpperCase().replace(/[\s:.-]+/g, '')
+        : undefined,
     id: uid('c'),
     createdAt: new Date().toISOString(),
   }
@@ -760,14 +787,101 @@ export function updateClient(
   id: string,
   patch: Partial<Omit<Client, 'id' | 'createdAt'>>,
 ): AppState {
+  const clean =
+    patch.nfcUid !== undefined
+      ? {
+          ...patch,
+          nfcUid: patch.nfcUid
+            ? patch.nfcUid.trim().toUpperCase().replace(/[\s:.-]+/g, '')
+            : undefined,
+        }
+      : patch
   return {
     ...state,
-    clients: state.clients.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+    clients: state.clients.map((c) => (c.id === id ? { ...c, ...clean } : c)),
   }
 }
 
 export function deleteClient(state: AppState, id: string): AppState {
   return { ...state, clients: state.clients.filter((c) => c.id !== id) }
+}
+
+export function findClientByNfcUid(
+  state: AppState,
+  rawUid: string,
+): Client | undefined {
+  const uid = rawUid.trim().toUpperCase().replace(/[\s:.-]+/g, '')
+  if (!uid) return undefined
+  return state.clients.find((c) => c.nfcUid && c.nfcUid === uid)
+}
+
+function dayKey(iso: string): string {
+  return iso.slice(0, 10)
+}
+
+/** Dernier événement du jour par client → présents = last kind === 'in' */
+export function gymPresentClientIds(state: AppState, at = new Date()): string[] {
+  const today = dayKey(at.toISOString())
+  const last = new Map<string, GymCheckIn>()
+  for (const ev of state.gymCheckIns ?? []) {
+    if (dayKey(ev.at) !== today) continue
+    const prev = last.get(ev.clientId)
+    if (!prev || ev.at >= prev.at) last.set(ev.clientId, ev)
+  }
+  const ids: string[] = []
+  for (const [clientId, ev] of last) {
+    if (ev.kind === 'in') ids.push(clientId)
+  }
+  return ids
+}
+
+export function gymOccupancyCount(state: AppState): number {
+  return gymPresentClientIds(state).length
+}
+
+export function isClientPresentInGym(state: AppState, clientId: string): boolean {
+  return gymPresentClientIds(state).includes(clientId)
+}
+
+/** Entrée si absent, sortie si déjà présent. */
+export function toggleGymCheckIn(
+  state: AppState,
+  clientId: string,
+  source: GymCheckIn['source'] = 'manual',
+): { state: AppState; kind: 'in' | 'out'; client: Client } | null {
+  const client = state.clients.find((c) => c.id === clientId)
+  if (!client) return null
+  const kind: 'in' | 'out' = isClientPresentInGym(state, clientId) ? 'out' : 'in'
+  const entry: GymCheckIn = {
+    id: uid('gin'),
+    clientId: client.id,
+    clientName: client.name,
+    kind,
+    at: new Date().toISOString(),
+    source,
+  }
+  return {
+    state: {
+      ...state,
+      gymCheckIns: [entry, ...(state.gymCheckIns ?? [])].slice(0, 2000),
+    },
+    kind,
+    client,
+  }
+}
+
+export function gymCheckInByUid(
+  state: AppState,
+  rawUid: string,
+  source: GymCheckIn['source'] = 'nfc',
+): { state: AppState; kind: 'in' | 'out'; client: Client } | { error: 'unknown_chip' | 'empty' } {
+  const uid = rawUid.trim()
+  if (!uid) return { error: 'empty' }
+  const client = findClientByNfcUid(state, uid)
+  if (!client) return { error: 'unknown_chip' }
+  const res = toggleGymCheckIn(state, client.id, source)
+  if (!res) return { error: 'unknown_chip' }
+  return res
 }
 
 /** Normalise paidDa / remainingDa (anciennes factures paye|credit). */
