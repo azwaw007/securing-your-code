@@ -491,6 +491,71 @@ const THEME_SERVICE = theme(
   },
 )
 
+
+const THEME_BOXING = theme(
+  'Boxe',
+  'ملاكمة',
+  {
+    '--bg': '#f2efec',
+    '--bg-2': '#e2d9d2',
+    '--ink': '#1a1210',
+    '--muted': '#6e5c54',
+    '--card': '#faf7f4',
+    '--line': '#d4c8c0',
+    '--brand': '#8b1e1e',
+    '--brand-2': '#b83232',
+    '--glow': 'rgba(139, 30, 30, 0.16)',
+  },
+)
+
+const THEME_FOOTBALL = theme(
+  'Football',
+  'كرة القدم',
+  {
+    '--bg': '#eef5ef',
+    '--bg-2': '#d9e8db',
+    '--ink': '#122016',
+    '--muted': '#5a6e5c',
+    '--card': '#f6fbf6',
+    '--line': '#c5d8c8',
+    '--brand': '#1f6b3a',
+    '--brand-2': '#2d8f4e',
+    '--glow': 'rgba(31, 107, 58, 0.16)',
+  },
+)
+
+const THEME_YOGA = theme(
+  'Yoga',
+  'يوغا',
+  {
+    '--bg': '#f3f0f4',
+    '--bg-2': '#e4dce8',
+    '--ink': '#1e1622',
+    '--muted': '#6a5c70',
+    '--card': '#faf7fb',
+    '--line': '#d6ccd8',
+    '--brand': '#5c4a6e',
+    '--brand-2': '#7a628f',
+    '--glow': 'rgba(92, 74, 110, 0.14)',
+  },
+)
+
+const THEME_SWIM = theme(
+  'Natation',
+  'سباحة',
+  {
+    '--bg': '#eef5f8',
+    '--bg-2': '#d6e8f0',
+    '--ink': '#102028',
+    '--muted': '#5a6e78',
+    '--card': '#f5fafc',
+    '--line': '#c2d6e0',
+    '--brand': '#0e7490',
+    '--brand-2': '#0891b2',
+    '--glow': 'rgba(14, 116, 144, 0.16)',
+  },
+)
+
 const PACKS: Record<MetierFamily, MetierPack> = {
   wholesale: pack(
     'wholesale',
@@ -640,6 +705,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
       requireClient: false,
       gallery: true,
       noSaleWording: true,
+      specialtyDossier: true,
     },
     {
       client: 'Client',
@@ -694,6 +760,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
       ...FEAT.service,
       gallery: true,
       clinicAgenda: true,
+      specialtyDossier: true,
     },
     {
       client: 'Cliente',
@@ -939,6 +1006,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
       homeScan: true,
       returns: true,
       gallery: true,
+      specialtyDossier: true,
     },
     {
       client: 'Client',
@@ -964,7 +1032,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
   car_rental: pack(
     'car_rental',
     THEME_AUTO,
-    { ...FEAT.service, homeScan: true, gallery: true },
+    { ...FEAT.service, homeScan: true, gallery: true, specialtyDossier: true },
     {
       client: 'Locataire',
       product: 'Véhicule',
@@ -1064,7 +1132,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
   legal: pack(
     'legal',
     THEME_LEGAL,
-    FEAT.service,
+    { ...FEAT.service, specialtyDossier: true },
     {
       client: 'Client',
       product: 'Dossier',
@@ -1189,7 +1257,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
   hotel: pack(
     'hotel',
     THEME_HOTEL,
-    { ...FEAT.service, gallery: true },
+    { ...FEAT.service, gallery: true, specialtyDossier: true },
     {
       client: 'Client',
       product: 'Chambre / forfait',
@@ -1214,7 +1282,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
   school: pack(
     'school',
     THEME_SCHOOL,
-    FEAT.service,
+    { ...FEAT.service, specialtyDossier: true },
     {
       client: 'Élève / parent',
       product: 'Formation',
@@ -1244,6 +1312,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
       gymCheckin: true,
       homeScan: true,
       clinicAgenda: true,
+      specialtyDossier: true,
     },
     {
       client: 'Adhérent',
@@ -1268,8 +1337,8 @@ const PACKS: Record<MetierFamily, MetierPack> = {
   ),
   boxing: pack(
     'boxing',
-    THEME_GYM,
-    { ...FEAT.service, gymCheckin: true, homeScan: true },
+    THEME_BOXING,
+    { ...FEAT.service, gymCheckin: true, homeScan: true, specialtyDossier: true, clinicAgenda: true },
     {
       client: 'Boxeur',
       product: 'Abonnement',
@@ -1293,8 +1362,8 @@ const PACKS: Record<MetierFamily, MetierPack> = {
   ),
   football: pack(
     'football',
-    THEME_GYM,
-    { ...FEAT.service, gymCheckin: true, homeScan: true },
+    THEME_FOOTBALL,
+    { ...FEAT.service, gymCheckin: true, homeScan: true, specialtyDossier: true, clinicAgenda: true },
     {
       client: 'Joueur',
       product: 'Licence / forfait',
@@ -1318,8 +1387,8 @@ const PACKS: Record<MetierFamily, MetierPack> = {
   ),
   yoga: pack(
     'yoga',
-    THEME_GYM,
-    { ...FEAT.service, gymCheckin: true, homeScan: true },
+    THEME_YOGA,
+    { ...FEAT.service, gymCheckin: true, homeScan: true, specialtyDossier: true, clinicAgenda: true },
     {
       client: 'Élève',
       product: 'Cours / abonnement',
@@ -1343,8 +1412,8 @@ const PACKS: Record<MetierFamily, MetierPack> = {
   ),
   crossfit: pack(
     'crossfit',
-    THEME_GYM,
-    { ...FEAT.service, gymCheckin: true, homeScan: true },
+    THEME_BOXING,
+    { ...FEAT.service, gymCheckin: true, homeScan: true, specialtyDossier: true, clinicAgenda: true },
     {
       client: 'Athlète',
       product: 'Abonnement',
@@ -1369,7 +1438,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
   martial: pack(
     'martial',
     THEME_GYM,
-    { ...FEAT.service, gymCheckin: true, homeScan: true },
+    { ...FEAT.service, gymCheckin: true, homeScan: true, specialtyDossier: true, clinicAgenda: true },
     {
       client: 'Pratiquant',
       product: 'Abonnement',
@@ -1393,8 +1462,8 @@ const PACKS: Record<MetierFamily, MetierPack> = {
   ),
   swim: pack(
     'swim',
-    THEME_GYM,
-    { ...FEAT.service, gymCheckin: true, homeScan: true },
+    THEME_SWIM,
+    { ...FEAT.service, gymCheckin: true, homeScan: true, specialtyDossier: true, clinicAgenda: true },
     {
       client: 'Nageur',
       product: 'Abonnement',
@@ -1419,7 +1488,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
   tennis: pack(
     'tennis',
     THEME_GYM,
-    { ...FEAT.service, gymCheckin: true, homeScan: true },
+    { ...FEAT.service, gymCheckin: true, homeScan: true, specialtyDossier: true, clinicAgenda: true },
     {
       client: 'Joueur',
       product: 'Abonnement / court',
@@ -1443,8 +1512,8 @@ const PACKS: Record<MetierFamily, MetierPack> = {
   ),
   danse: pack(
     'danse',
-    THEME_GYM,
-    { ...FEAT.service, gymCheckin: true, homeScan: true },
+    THEME_YOGA,
+    { ...FEAT.service, gymCheckin: true, homeScan: true, specialtyDossier: true, clinicAgenda: true },
     {
       client: 'Élève',
       product: 'Cours / abonnement',
@@ -1469,7 +1538,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
   musculation: pack(
     'musculation',
     THEME_GYM,
-    { ...FEAT.service, gymCheckin: true, homeScan: true },
+    { ...FEAT.service, gymCheckin: true, homeScan: true, specialtyDossier: true, clinicAgenda: true },
     {
       client: 'Adhérent',
       product: 'Abonnement',
@@ -1494,7 +1563,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
   creche: pack(
     'creche',
     THEME_SCHOOL,
-    FEAT.service,
+    { ...FEAT.service, specialtyDossier: true },
     {
       client: 'Parent',
       product: 'Accueil',
@@ -1708,7 +1777,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
   spa: pack(
     'spa',
     THEME_SALON,
-    { ...FEAT.service, clinicAgenda: true, gallery: true },
+    { ...FEAT.service, clinicAgenda: true, gallery: true, specialtyDossier: true },
     {
       client: 'Cliente',
       product: 'Soin',
@@ -1857,6 +1926,15 @@ const DOMAIN_FAMILY: Record<string, MetierFamily> = {
   'svc-ecole': 'school',
   'svc-creche': 'creche',
   'svc-sport': 'gym',
+  'svc-boxe': 'boxing',
+  'svc-football': 'football',
+  'svc-yoga': 'yoga',
+  'svc-crossfit': 'crossfit',
+  'svc-arts-martiaux': 'martial',
+  'svc-natation': 'swim',
+  'svc-tennis': 'tennis',
+  'svc-danse': 'danse',
+  'svc-musculation': 'musculation',
   'svc-fetes': 'events',
   'svc-photo': 'photo',
   'svc-print': 'print',

@@ -170,11 +170,11 @@ export function showClinicShare(
   return featuresFor(domainId, mode).clinicShare
 }
 
-export function showGymCheckin(
+export function showSpecialtyDossier(
   mode: CommerceMode | undefined,
   domainId?: string,
 ): boolean {
-  return featuresFor(domainId, mode).gymCheckin
+  return featuresFor(domainId, mode).specialtyDossier
 }
 
 export function showStaffHr(
@@ -182,6 +182,13 @@ export function showStaffHr(
   domainId?: string,
 ): boolean {
   return featuresFor(domainId, mode).staffHr
+}
+
+export function showGymCheckin(
+  mode: CommerceMode | undefined,
+  domainId?: string,
+): boolean {
+  return featuresFor(domainId, mode).gymCheckin
 }
 
 export function showTableService(

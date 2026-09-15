@@ -24,7 +24,19 @@ export function parseMemberQr(raw: string): string | null {
 }
 
 export function isGymDomain(domainId: string | undefined): boolean {
-  return (domainId || '') === 'svc-sport'
+  const id = domainId || ''
+  return (
+    id === 'svc-sport' ||
+    id === 'svc-boxe' ||
+    id === 'svc-football' ||
+    id === 'svc-yoga' ||
+    id === 'svc-crossfit' ||
+    id === 'svc-arts-martiaux' ||
+    id === 'svc-natation' ||
+    id === 'svc-tennis' ||
+    id === 'svc-danse' ||
+    id === 'svc-musculation'
+  )
 }
 
 export type NdefReaderLike = {

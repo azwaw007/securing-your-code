@@ -518,6 +518,20 @@ function migrate(raw: unknown): AppState {
       trainingProgram: typeof c.trainingProgram === 'string' ? c.trainingProgram : undefined,
       dietPlan: typeof c.dietPlan === 'string' ? c.dietPlan : undefined,
       coachNotes: typeof c.coachNotes === 'string' ? c.coachNotes : undefined,
+      treatmentPlan: typeof c.treatmentPlan === 'string' ? c.treatmentPlan : undefined,
+      petSpecies: typeof c.petSpecies === 'string' ? c.petSpecies : undefined,
+      weightClass: typeof c.weightClass === 'string' ? c.weightClass : undefined,
+      teamName: typeof c.teamName === 'string' ? c.teamName : undefined,
+      playerPosition: typeof c.playerPosition === 'string' ? c.playerPosition : undefined,
+      level: typeof c.level === 'string' ? c.level : undefined,
+      beltGrade: typeof c.beltGrade === 'string' ? c.beltGrade : undefined,
+      colorFormula: typeof c.colorFormula === 'string' ? c.colorFormula : undefined,
+      preferences: typeof c.preferences === 'string' ? c.preferences : undefined,
+      vehiclePlate: typeof c.vehiclePlate === 'string' ? c.vehiclePlate : undefined,
+      vehicleModel: typeof c.vehicleModel === 'string' ? c.vehicleModel : undefined,
+      nextService: typeof c.nextService === 'string' ? c.nextService : undefined,
+      licenseId: typeof c.licenseId === 'string' ? c.licenseId : undefined,
+      caseRef: typeof c.caseRef === 'string' ? c.caseRef : undefined,
       nfcUid:
         typeof c.nfcUid === 'string' && c.nfcUid.trim()
           ? c.nfcUid.trim().toUpperCase().replace(/[\s:.-]+/g, '')
