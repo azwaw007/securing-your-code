@@ -2,7 +2,15 @@
 
 Dossier **privé** (pour toi, le vendeur) — pas pour la vitrine publique.
 
-Objectif : tout avoir sous la main pour **finir** et **lancer la pub**.
+## Télécharger sur ton PC
+
+Fichier ZIP prêt :
+
+1. **Dans Cursor** (artifacts) : `AZ-Soft-Kit-Lancement.zip`  
+2. **Lien web** (après merge/deploy) :  
+   https://az-pos-dz.vercel.app/az-soft/AZ-Soft-Kit-Lancement.zip
+
+Sur ton PC : **clic droit → Extraire** → ouvrir **`OUVRIR-MOI.txt`** ou **`liens.html`**.
 
 ---
 
@@ -22,21 +30,17 @@ Ouvre aussi **`liens.html`** dans ce dossier (clics directs).
 
 ---
 
-## 2. Contenu de ce dossier
+## 2. Contenu du ZIP / dossier
 
 | Fichier | Pour quoi |
 |---------|-----------|
+| `OUVRIR-MOI.txt` | Mode d’emploi rapide |
 | `LIENS.md` | Tous les liens projet |
 | `CHECKLIST.md` | À cocher avant / pendant la pub |
 | `POSTS-PUB.md` | Textes Facebook / WhatsApp à copier |
 | `TARIFS.md` | Prix Standard / Pro |
 | `liens.html` | Page locale avec boutons cliquables |
-
-Autres docs utiles (hors dossier) :
-
-- `../GUIDE-VENDEUR.md` — vendre + générer licences  
-- `../PUBLISH.md` — déployer web / Windows / Android  
-- `../GUIDE-UTILISATION.md` — aide client  
+| `Visuels/` | Captures pour Facebook / Stories |
 
 ---
 
@@ -44,7 +48,6 @@ Autres docs utiles (hors dossier) :
 
 > AZ POS — caisse, stock, crédit, WhatsApp.  
 > Essai gratuit : https://az-pos-dz.vercel.app  
-> Windows : lien .exe ci-dessus  
 > — AZ Soft
 
 ---
@@ -53,4 +56,4 @@ Autres docs utiles (hors dossier) :
 
 - La **vitrine** (`/az-soft/`) = produit (écrans, points forts, tarifs, démo).  
 - Ce **kit** = ta stratégie / posts / outils vendeur.  
-  Ne colle pas ce dossier dans la vitrine publique.
+  Ne colle pas les posts dans la vitrine publique.
