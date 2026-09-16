@@ -240,7 +240,7 @@ function navItems(
       return [
         { id: 'home', icon: '🏠' },
         { id: 'clients', icon: '👤' },
-        { id: 'products', icon: '📋' },
+        { id: 'products', icon: '📦' },
         { id: 'history', icon: '📜' },
       ]
     }
@@ -248,22 +248,22 @@ function navItems(
       return [
         { id: 'home', icon: '🏠' },
         { id: 'order', icon: '💵' },
+        { id: 'products', icon: '📦' },
         { id: 'clients', icon: '👤' },
-        { id: 'caisse', icon: '🧾' },
       ]
     }
     return [
       { id: 'home', icon: '🏠' },
       { id: 'order', icon: '🩺' },
       { id: 'clients', icon: '👤' },
-      { id: 'products', icon: '📋' },
+      { id: 'products', icon: '📦' },
     ]
   }
   if (mode === 'auto') {
     return [
       { id: 'home', icon: '🏠' },
       { id: 'order', icon: '🚗' },
-      { id: 'products', icon: '🔧' },
+      { id: 'products', icon: '📦' },
       { id: 'clients', icon: '👥' },
     ]
   }
@@ -272,7 +272,7 @@ function navItems(
       { id: 'home', icon: '🏠' },
       { id: 'order', icon: '🧰' },
       { id: 'clients', icon: '👥' },
-      { id: 'products', icon: '📝' },
+      { id: 'products', icon: '📦' },
     ]
   }
   if (isWholesale(mode)) {
@@ -2232,7 +2232,7 @@ function HomePage({
           {
             id: 'products',
             label: vocab.product,
-            icon: '📋',
+            icon: '📦',
             tone: 'blue',
             badge: stats.lowStock,
           },
@@ -2241,9 +2241,15 @@ function HomePage({
       : isReception
         ? [
             { id: 'order', label: vocab.sell, icon: '💵', tone: 'amber' },
+            {
+              id: 'products',
+              label: vocab.product,
+              icon: '📦',
+              tone: 'blue',
+              badge: stats.lowStock,
+            },
             { id: 'clients', label: vocab.client, icon: '👤', tone: 'navy' },
             { id: 'caisse', label: t(lang, 'appCaisse'), icon: '💵', tone: 'amber' },
-            { id: 'history', label: t(lang, 'appHistory'), icon: '📜', tone: 'slate' },
           ]
         : mode === 'sante'
       ? [
@@ -2251,7 +2257,7 @@ function HomePage({
           {
             id: 'products',
             label: vocab.product,
-            icon: '📋',
+            icon: '📦',
             tone: 'blue',
             badge: stats.lowStock,
           },
@@ -2263,7 +2269,7 @@ function HomePage({
             {
               id: 'products',
               label: vocab.product,
-              icon: feats.repairOrder ? '🛠️' : '🔧',
+              icon: '📦',
               tone: 'blue',
               badge: stats.lowStock,
             },
@@ -2276,7 +2282,7 @@ function HomePage({
               {
                 id: 'products',
                 label: vocab.product,
-                icon: feats.gymCheckin ? '🏋️' : '📝',
+                icon: '📦',
                 tone: 'blue',
                 badge: stats.lowStock,
               },
@@ -5417,7 +5423,7 @@ function OrderPage({
             ? `📦 ${t(lang, 'productCatalog')}`
             : isShopRetail(mode)
               ? `🛍️ ${t(lang, 'productCatalogRetail')}`
-              : `${mode === 'sante' ? '📋' : mode === 'auto' ? '🔧' : '📝'} ${vocab.product}`}
+              : `${mode === 'sante' || mode === 'auto' || mode === 'services' ? '📦' : '📝'} ${vocab.product}`}
         </h2>
         {!isQuick && client ? (
           <div className="muted" style={{ marginBottom: 10 }}>
