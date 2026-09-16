@@ -2762,22 +2762,6 @@ html.easy-mode .home-tile {
   overflow: auto;
 }
 
-.setup-preview {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  margin: 0 0 14px;
-}
-
-.setup-preview img {
-  width: 100%;
-  aspect-ratio: 1;
-  object-fit: cover;
-  border-radius: 10px;
-  background: #fff;
-  border: 1px solid var(--line);
-}
-
 /* Gros = dépôt / cartons */
 .app-shell.mode-gros .sell-cta {
   background: linear-gradient(135deg, #134e4a, #0f766e);
