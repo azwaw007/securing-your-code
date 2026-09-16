@@ -1,13 +1,15 @@
-# AZ Soft — vitrine & Facebook
+# AZ Soft — vitrine
 
-## Liens
-- Site vitrine : `/az-soft/` (ex. https://az-pos-dz.vercel.app/az-soft/)
-- Page Facebook (nom) : **AZ Soft — AZ POS**
+## Liens publics
+- Site vitrine : https://az-pos-dz.vercel.app/az-soft/
 - Démo app : https://az-pos-dz.vercel.app
+- Windows : https://github.com/azwaw007/securing-your-code/releases/download/v1.0.0-win/AZ-POS-Setup-1.0.0.exe
 
 ## Tarifs
 - Standard : 12 000 DA / an
 - Pro : 25 000 DA / an (≤3 dépôts)
 
-## Dans l’app commerçant
-Produits → **Promo** → copier story ou WhatsApp clients.
+## Kit lancement (vendeur, privé)
+Tout pour finir et lancer la pub :  
+→ **`docs/kit-lancement/`** (README, liens, checklist, posts, tarifs, `liens.html`)
+
