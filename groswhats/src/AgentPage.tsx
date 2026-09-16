@@ -161,9 +161,14 @@ export function AgentPage({
   }
 
   useEffect(() => {
-    if (!initialUtterance || seededRef.current) return
-    seededRef.current = true
-    const tmr = window.setTimeout(() => send(initialUtterance), 200)
+    if (!initialUtterance) return
+    seededRef.current = false
+    const phrase = initialUtterance
+    const tmr = window.setTimeout(() => {
+      if (seededRef.current) return
+      seededRef.current = true
+      void send(phrase)
+    }, 200)
     return () => window.clearTimeout(tmr)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialUtterance])

@@ -14,9 +14,7 @@ import { LanguagePicker } from './locale/LanguagePicker'
 import { countryByCode } from './data/countries'
 import { defaultLang, isRtl, LANG_SHORT } from './locale/langs'
 import type { ShopSetupInput } from './store'
-import { catalogFor } from './data/catalogs'
 import { domainById } from './data/domains'
-import { catalogImagePath } from './utils/productArt'
 
 export function SetupWizard({
   lang,
@@ -74,7 +72,6 @@ export function SetupWizard({
     )
   }, [mode, q])
 
-  const preview = catalogFor(domainById(domainId).catalog).slice(0, 8)
   const domainChanged =
     !!initialDomain && initialDomain !== domainId && existingProducts > 0
   const mustReplace = existingProducts === 0 || domainChanged || replaceCatalog
@@ -183,21 +180,6 @@ export function SetupWizard({
                   <span className="choice-emoji">{d.icon}</span>
                   <strong>{domainName(d, language)}</strong>
                 </button>
-              ))}
-            </div>
-            <div className="setup-preview">
-              {preview.map((p) => (
-                <img
-                  key={p.name}
-                  src={catalogImagePath(
-                    p.name,
-                    p.category,
-                    p.emoji,
-                    domainById(domainId).catalog,
-                  )}
-                  alt={p.name}
-                  title={p.name}
-                />
               ))}
             </div>
             <button className="btn block" onClick={() => { setQ(''); setStep(3) }}>

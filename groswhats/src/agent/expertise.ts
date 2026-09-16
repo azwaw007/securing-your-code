@@ -1,4 +1,4 @@
-﻿import type { AppState, Language } from '../types'
+﻿import type { AppState, CommerceMode, Language } from '../types'
 import { formatDa } from '../utils/format'
 import {
   annualNetProfitDa,
@@ -7,6 +7,8 @@ import {
   stockValueDa,
   todayOrders,
 } from '../store'
+import { modeLabel } from '../data/domains'
+import { metierCopy, metierFamilyFor, type MetierFamily } from '../locale/metierPacks'
 
 export type ExpertDomain =
   | 'sales'
@@ -38,6 +40,110 @@ export function dailyExpertTip(state: AppState, lang: Language): string {
   return '💡 Conseil du jour : note chaque dépense aujourd’hui — les gains seront plus clairs.'
 }
 
+const SPORT_FAMILIES = new Set<MetierFamily>([
+  'gym',
+  'boxing',
+  'football',
+  'yoga',
+  'crossfit',
+  'martial',
+  'swim',
+  'tennis',
+  'danse',
+  'musculation',
+])
+
+function accountingSectionTips(
+  mode: CommerceMode,
+  family: MetierFamily,
+  lang: Language,
+): string[] {
+  if (SPORT_FAMILIES.has(family)) {
+    if (lang === 'ar') {
+      return [
+        'رياضة: كل اشتراك = تاريخ بداية/نهاية + مبلغ.',
+        'فرّق دخل الاشتراكات عن بيع المشروبات/المعدات.',
+        'تابع المنخرطين المنتهية صلاحيتهم للتحصيل.',
+      ]
+    }
+    return [
+      'Sport : chaque abonnement = dates début/fin + montant.',
+      'Sépare CA abonnements et vente boissons / matériel.',
+      'Relance les adhérents dont le forfait expire bientôt.',
+    ]
+  }
+  if (lang === 'ar') {
+    switch (mode) {
+      case 'gros':
+        return [
+          'جملة: هامش الكرتون ≠ هامش القطعة — احسب الاثنين.',
+          'حدّ ائتمان لكل تاجر · حوّل الكبار إلى دفع جزئي.',
+          'الزكاة تقريبية: (مخزون + ديون) × 2.5٪ إن بلغت النصاب.',
+        ]
+      case 'detail':
+        return [
+          'تجزئة: سجّل المصروف اليومي (كراء، كهرباء، أجرة).',
+          'راقب الرفوف الناقصة — خسارة صامتة.',
+          'افصل نقد الصندوق عن دين الزبائن في الملخص.',
+        ]
+      case 'sante':
+        return [
+          'صحة: كل عمل = سطر فاتورة (كشف، علاج، دواء).',
+          'لا تخلط أتعاب الطبيب مع مبيعات الاستقبال.',
+          'احفظ الوصفات والتوجيهات مع الملف.',
+        ]
+      case 'auto':
+        return [
+          'سيارات: رقم أمر إصلاح / عقد كراء لكل ملف.',
+          'هامش القطعة = بيع − شراء · سجّل اليد العاملة منفصلة.',
+          'عربون الكراء ≠ إيراد نهائي حتى نهاية العقد.',
+        ]
+      case 'services':
+        return [
+          'خدمات: فوّر بالمهمة أو الحصة، لا بالمزاج.',
+          'عربون عند الحجز · الباقي عند التسليم.',
+          'تتبّع الساعات إن كان التسعير بالساعة.',
+        ]
+      default:
+        return ['سجّل المصاريف يومياً · افصل النقد عن الدين.']
+    }
+  }
+  switch (mode) {
+    case 'gros':
+      return [
+        'Gros : marge carton ≠ marge pièce — calcule les deux.',
+        'Plafond crédit par commerçant · acomptes sur les gros dossiers.',
+        'Zakat approx. : (stock + crédits) × 2,5 % si nisab atteint.',
+      ]
+    case 'detail':
+      return [
+        'Détail : note loyer / élec / salaire chaque jour.',
+        'Ruptures rayon = ventes perdues silencieuses.',
+        'Sépare cash caisse et crédits clients dans le résumé.',
+      ]
+    case 'sante':
+      return [
+        'Santé : chaque acte = ligne de facture (consult, soin, produit).',
+        'Ne mélange pas honoraires médecin et encaissement réception.',
+        'Archive ordonnances / orientations avec le dossier.',
+      ]
+    case 'auto':
+      return [
+        'Auto : un n° d’OR / contrat de location par dossier.',
+        'Marge pièce = vente − achat · main-d’œuvre à part.',
+        'Acompte location ≠ revenu final tant que le contrat court.',
+      ]
+    case 'services':
+      return [
+        'Services : facture à la mission ou à la séance.',
+        'Acompte à la réservation · solde à la livraison.',
+        'Si tarif horaire : note les heures réellement faites.',
+      ]
+    default:
+      return ['Note les dépenses chaque jour · sépare cash / crédit.']
+  }
+}
+
 /** Conseils métier ancrés sur les chiffres du magasin (sans modifier le code). */
 export function expertAdvice(
   state: AppState,
@@ -50,6 +156,11 @@ export function expertAdvice(
   const today = todayOrders(state)
   const todaySales = today.reduce((s, o) => s + o.totalDa, 0)
   const profit = annualNetProfitDa(state)
+  const mode = state.settings.commerceMode
+  const domainId = state.settings.domainId
+  const family = metierFamilyFor(domainId, mode)
+  const sectionName =
+    metierCopy(domainId, mode, lang).homeTitle || modeLabel(mode, lang)
 
   if (lang === 'ar') {
     switch (domain) {
@@ -65,11 +176,11 @@ export function expertAdvice(
         ].join('\n')
       case 'accounting':
         return [
-          '📒 خبير محاسبة',
+          `📒 خبير محاسبة — قسم «${sectionName}»`,
           `قيمة المخزون: ${formatDa(stock)}`,
           `ديون الزبائن: ${formatDa(credits)}`,
           `ربح ${profit.year}: صافي ${formatDa(profit.netDa)} (مبيعات ${formatDa(profit.salesProfitDa)} − مصاريف ${formatDa(profit.expensesDa)})`,
-          'نصيحة: سجّل كل المصاريف يومياً · افصل النقد عن الدين · احسب الزكاة من المخزون+الديون.',
+          ...accountingSectionTips(mode, family, lang),
         ].join('\n')
       case 'marketing':
         return [
@@ -123,11 +234,11 @@ export function expertAdvice(
       ].join('\n')
     case 'accounting':
       return [
-        '📒 Expert comptable',
+        `📒 Expert comptable — section « ${sectionName} »`,
         `Valeur stock : ${formatDa(stock)}`,
         `Crédits clients : ${formatDa(credits)}`,
         `Bénéfice ${profit.year} : net ${formatDa(profit.netDa)} (ventes ${formatDa(profit.salesProfitDa)} − dépenses ${formatDa(profit.expensesDa)})`,
-        'Conseil : note chaque dépense · sépare cash / crédit · zakat = stock + crédits × 2,5 %.',
+        ...accountingSectionTips(mode, family, lang),
       ].join('\n')
     case 'marketing':
       return [
@@ -195,7 +306,6 @@ export function detectExpertDomain(text: string): ExpertDomain | null {
   if (/(informatique|ordinateur|wifi|معلوماتية|انترنت|خبير معلومات)/.test(n)) return 'it'
   if (/(developpeur|developpeur|code|coder|مطور|برمجة|خبير مطور)/.test(n)) return 'dev'
 
-  // « conseil / expert » seulement si le métier est clair — sinon l’agent général répond
   if (/(conseil|نصيحة|نصائح|expert|خبير)/.test(n)) {
     if (/(vente|بيع|مبيع)/.test(n)) return 'sales'
     if (/(compta|bilan|محاسب)/.test(n)) return 'accounting'

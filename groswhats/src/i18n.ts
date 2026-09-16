@@ -747,6 +747,16 @@ const fr: Dict = {
   athleteCoachNotesHint: 'Blessures, remarques, suivi…',
   athleteNfc: 'Badge NFC / UID',
   athleteNfcHint: 'UID badge pour check-in à l’entrée',
+  expertComptaTitle: 'Expert comptable',
+  expertComptaHint:
+    'Conseils pour CE métier (stock, crédits, bénéfice) — pas une appli cabinet à part.',
+  expertComptaStock: 'Valeur stock',
+  expertComptaCredits: 'Crédits clients',
+  expertComptaCta: 'Conseil compta détaillé',
+  expertComptaMore: 'Voir le détail',
+  themeSourceUser: 'Couleurs choisies manuellement (thème ci-dessous).',
+  themeSourceMetier: 'Couleurs adaptées au métier. Choisis un thème pour forcer.',
+  themeUseMetier: 'Revenir aux couleurs du métier',
   clinicShare: 'Partage médecin / réception',
   clinicShareHint:
     'Deux postes : le médecin soigne, la réception encaisse. Active puis choisis le rôle sur chaque téléphone.',
@@ -1656,6 +1666,16 @@ const ar: Dict = {
   athleteCoachNotesHint: 'إصابات، ملاحظات، متابعة…',
   athleteNfc: 'شارة NFC / UID',
   athleteNfcHint: 'معرّف الشارة لدخول النادي',
+  expertComptaTitle: 'خبير محاسبة',
+  expertComptaHint:
+    'نصائح لهذا النشاط (مخزون، ديون، ربح) — ليست تطبيقاً لمكتب محاسبة منفصل.',
+  expertComptaStock: 'قيمة المخزون',
+  expertComptaCredits: 'ديون الزبائن',
+  expertComptaCta: 'نصيحة محاسبة مفصّلة',
+  expertComptaMore: 'عرض التفاصيل',
+  themeSourceUser: 'ألوان يدوية (الثيم أدناه).',
+  themeSourceMetier: 'ألوان حسب النشاط. اختر ثيمًا لتثبيتها.',
+  themeUseMetier: 'العودة لألوان النشاط',
   clinicShare: 'مشاركة طبيب / استقبال',
   clinicShareHint:
     'منصبان: الطبيب يعالج، الاستقبال يحصّل. فعّل ثم اختر الدور على كل هاتف.',

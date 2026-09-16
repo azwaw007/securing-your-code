@@ -156,7 +156,7 @@ export const DOMAINS: ShopDomain[] = [
   d('auto-pneus', 'auto', '🛞', 'Pneumatiques', 'عجلات', 'pieces-auto', CAR),
 
   d('svc-avocat', 'services', '⚖️', 'Cabinet d’avocat', 'محاماة', 'generic-service', SVC),
-  d('svc-comptable', 'services', '📊', 'Expertise comptable', 'محاسبة', 'generic-service', SVC),
+  /** Pas de domaine « cabinet comptable » : l’expert comptable est horizontal (tous métiers). */
   d('svc-notaire', 'services', '📜', 'Étude notariale', 'توثيق', 'generic-service', SVC),
   d('svc-immo', 'services', '🏠', 'Agence immobilière', 'عقارات', 'immo', SVC),
   d('svc-voyage', 'services', '✈️', 'Agence de voyage', 'سفر', 'voyage', SVC),
@@ -192,8 +192,29 @@ export function domainsForMode(mode: CommerceMode): ShopDomain[] {
   return DOMAINS.filter((x) => x.mode === mode)
 }
 
+/**
+ * Anciens shops créés comme « Expertise comptable » (catalogue générique inutile).
+ * On résout encore l’id pour ne pas casser le localStorage, mais ce n’est plus
+ * proposable au setup — l’expert comptable vit sur l’accueil de chaque métier.
+ */
+const LEGACY_DOMAINS: ShopDomain[] = [
+  d(
+    'svc-comptable',
+    'services',
+    '📊',
+    'Expertise comptable (ancien)',
+    'محاسبة (قديم)',
+    'generic-service',
+    SVC,
+  ),
+]
+
 export function domainById(id: string): ShopDomain {
-  return DOMAINS.find((x) => x.id === id) ?? DOMAINS[0]
+  return (
+    DOMAINS.find((x) => x.id === id) ??
+    LEGACY_DOMAINS.find((x) => x.id === id) ??
+    DOMAINS[0]
+  )
 }
 
 export function domainName(domain: ShopDomain, lang: Language): string {

@@ -1166,6 +1166,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
       product: 'Mission',
       sell: 'Facturer',
       sellHint: 'Honoraires, déclarations, suivi',
+      /** Legacy pack — domaine setup retiré ; expert comptable = carte accueil */
       homeTitle: 'Cabinet comptable',
       homeHint: 'Missions et facturation',
       historyLabel: 'Factures',
