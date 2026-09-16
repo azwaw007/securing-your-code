@@ -20,7 +20,7 @@ Application mobile pour commerces et grossistes en Algérie.
 |--------|---------|
 | Accueil | Stats, alertes stock, dernières commandes |
 | Commande | Vente + ticket + WhatsApp + facture |
-| Agent | Commandes texte / voix (FR, arabe, darja) |
+| Agent | Commandes texte / voix (FR, arabe) |
 | Clients | Fiches + import contacts / collage WhatsApp |
 | Reçues | Enregistrer une commande reçue sur WhatsApp |
 | Stock | Produits, unités, quantités |

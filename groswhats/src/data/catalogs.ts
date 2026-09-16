@@ -8,18 +8,39 @@ export type SeedSpec = {
   pack?: number
   category: ProductCategory
   emoji: string
+  /** Rayon caisse détail (spécialité) */
+  aisleId?: string
 }
 
+const UNITS = new Set<string>(['piece', 'carton', 'kg', 'g', 'm', 'cm', 'ml', 'L'])
+
+function isUnit(v: string | undefined): v is Unit {
+  return !!v && UNITS.has(v)
+}
+
+/**
+ * Seed helper. Formes acceptées :
+ * - s(name, price, cost, emoji, category?, unit?, pack?, aisleId?)
+ * - s(name, price, cost, emoji, category, aisleId) — aisle à la place de unit
+ */
 function s(
   name: string,
   priceDa: number,
   costDa: number,
   emoji: string,
   category: ProductCategory = 'alimentaire',
-  unit: Unit = 'piece',
+  unitOrAisle: Unit | string = 'piece',
   pack?: number,
+  aisleId?: string,
 ): SeedSpec {
-  return { name, priceDa, costDa, emoji, category, unit, pack }
+  let unit: Unit = 'piece'
+  let aisle = aisleId
+  if (isUnit(unitOrAisle)) {
+    unit = unitOrAisle
+  } else if (typeof unitOrAisle === 'string' && unitOrAisle) {
+    aisle = unitOrAisle
+  }
+  return { name, priceDa, costDa, emoji, category, unit, pack, aisleId: aisle }
 }
 
 const CATALOGS: Record<string, SeedSpec[]> = {
@@ -56,26 +77,26 @@ const CATALOGS: Record<string, SeedSpec[]> = {
     s('Vinaigre 1 L', 70, 48, '🫗', 'alimentaire', 'L', 12),
   ],
   'alim-detail': [
-    s('Huile de table 1 L', 320, 260, '🫒'),
-    s('Sucre 1 kg', 200, 170, '🍬', 'alimentaire', 'kg'),
-    s('Farine 1 kg', 110, 90, '🌾', 'alimentaire', 'kg'),
-    s('Semoule 1 kg', 130, 105, '🥣', 'alimentaire', 'kg'),
-    s('Riz 1 kg', 320, 270, '🍚', 'alimentaire', 'kg'),
-    s('Pâtes 500 g', 95, 75, '🍝'),
-    s('Couscous 1 kg', 185, 155, '🍲', 'alimentaire', 'kg'),
-    s('Lait 1 L', 185, 160, '🥛'),
-    s('Beurre 200 g', 310, 260, '🧈'),
-    s('Œufs x6', 180, 145, '🥚'),
-    s('Tomate concentrée', 55, 40, '🍅'),
-    s('Thon boîte', 200, 165, '🐟'),
-    s('Café 250 g', 490, 420, '☕'),
-    s('Thé 200 g', 310, 260, '🍵'),
-    s('Eau 1,5 L', 45, 35, '💧'),
-    s('Pain baguette', 20, 12, '🥖'),
-    s('Lait caillé', 80, 60, '🥛'),
-    s('Fromage 200 g', 280, 230, '🧀'),
-    s('Chips 50 g', 60, 40, '🥔'),
-    s('Jus 1 L', 170, 140, '🧃'),
+    s('Huile de table 1 L', 320, 260, '🫒', 'alimentaire', 'piece', undefined, 'epicerie'),
+    s('Sucre 1 kg', 200, 170, '🍬', 'alimentaire', 'kg', undefined, 'epicerie'),
+    s('Farine 1 kg', 110, 90, '🌾', 'alimentaire', 'kg', undefined, 'epicerie'),
+    s('Semoule 1 kg', 130, 105, '🥣', 'alimentaire', 'kg', undefined, 'epicerie'),
+    s('Riz 1 kg', 320, 270, '🍚', 'alimentaire', 'kg', undefined, 'epicerie'),
+    s('Pâtes 500 g', 95, 75, '🍝', 'alimentaire', 'piece', undefined, 'epicerie'),
+    s('Couscous 1 kg', 185, 155, '🍲', 'alimentaire', 'kg', undefined, 'epicerie'),
+    s('Lait 1 L', 185, 160, '🥛', 'alimentaire', 'piece', undefined, 'laitiers'),
+    s('Beurre 200 g', 310, 260, '🧈', 'alimentaire', 'piece', undefined, 'laitiers'),
+    s('Œufs x6', 180, 145, '🥚', 'alimentaire', 'piece', undefined, 'laitiers'),
+    s('Tomate concentrée', 55, 40, '🍅', 'alimentaire', 'piece', undefined, 'epicerie'),
+    s('Thon boîte', 200, 165, '🐟', 'alimentaire', 'piece', undefined, 'epicerie'),
+    s('Café 250 g', 490, 420, '☕', 'alimentaire', 'piece', undefined, 'epicerie'),
+    s('Thé 200 g', 310, 260, '🍵', 'alimentaire', 'piece', undefined, 'boissons'),
+    s('Eau 1,5 L', 45, 35, '💧', 'alimentaire', 'piece', undefined, 'boissons'),
+    s('Pain baguette', 20, 12, '🥖', 'alimentaire', 'piece', undefined, 'pain'),
+    s('Lait caillé', 80, 60, '🥛', 'alimentaire', 'piece', undefined, 'laitiers'),
+    s('Fromage 200 g', 280, 230, '🧀', 'alimentaire', 'piece', undefined, 'laitiers'),
+    s('Chips 50 g', 60, 40, '🥔', 'alimentaire', 'piece', undefined, 'snacks'),
+    s('Jus 1 L', 170, 140, '🧃', 'alimentaire', 'piece', undefined, 'boissons'),
   ],
   boissons: [
     s('Eau 1,5 L carton x12', 420, 300, '💧', 'alimentaire', 'carton', 12),
@@ -90,22 +111,22 @@ const CATALOGS: Record<string, SeedSpec[]> = {
     s('Thé glacé 50 cl', 90, 65, '🧊', 'alimentaire', 'piece', 12),
   ],
   cosmetique: [
-    s('Shampoing 400 ml', 280, 190, '🧴', 'cosmetique'),
-    s('Gel douche 250 ml', 220, 150, '🚿', 'cosmetique'),
-    s('Savon de beauté 100 g', 80, 50, '🧼', 'cosmetique'),
-    s('Crème hydratante 50 ml', 450, 300, '🫙', 'cosmetique'),
-    s('Lait corporel 200 ml', 380, 260, '🥛', 'cosmetique'),
-    s('Déodorant 150 ml', 260, 180, '💨', 'cosmetique'),
-    s('Dentifrice 75 ml', 160, 110, '😁', 'cosmetique'),
-    s('Brosse à dents', 90, 55, '🪥', 'cosmetique'),
-    s('Rouge à lèvres', 350, 220, '💄', 'cosmetique'),
-    s('Mascara', 420, 280, '👁️', 'cosmetique'),
-    s('Fond de teint 30 ml', 650, 430, ' pal', 'cosmetique'),
-    s('Vernis à ongles', 180, 110, '💅', 'cosmetique'),
-    s('Parfum 50 ml', 1800, 1200, '🌸', 'cosmetique'),
-    s('Eau de Cologne 100 ml', 450, 300, '💧', 'cosmetique'),
-    s('Coton 100 pcs', 140, 90, '☁️', 'cosmetique'),
-    s('Lingettes démaquillantes', 220, 150, '🧻', 'cosmetique'),
+    s('Shampoing 400 ml', 280, 190, '🧴', 'cosmetique', 'cheveux'),
+    s('Gel douche 250 ml', 220, 150, '🚿', 'cosmetique', 'corps'),
+    s('Savon de beauté 100 g', 80, 50, '🧼', 'cosmetique', 'corps'),
+    s('Crème hydratante 50 ml', 450, 300, '🫙', 'cosmetique', 'visage'),
+    s('Lait corporel 200 ml', 380, 260, '🥛', 'cosmetique', 'corps'),
+    s('Déodorant 150 ml', 260, 180, '💨', 'cosmetique', 'corps'),
+    s('Dentifrice 75 ml', 160, 110, '😁', 'cosmetique', 'autre'),
+    s('Brosse à dents', 90, 55, '🪥', 'cosmetique', 'autre'),
+    s('Rouge à lèvres', 350, 220, '💄', 'cosmetique', 'maquillage'),
+    s('Mascara', 420, 280, '👁️', 'cosmetique', 'maquillage'),
+    s('Fond de teint 30 ml', 650, 430, '🎨', 'cosmetique', 'maquillage'),
+    s('Vernis à ongles', 180, 110, '💅', 'cosmetique', 'maquillage'),
+    s('Parfum 50 ml', 1800, 1200, '🌸', 'cosmetique', 'corps'),
+    s('Eau de Cologne 100 ml', 450, 300, '💧', 'cosmetique', 'corps'),
+    s('Coton 100 pcs', 140, 90, '☁️', 'cosmetique', 'visage'),
+    s('Lingettes démaquillantes', 220, 150, '🧻', 'cosmetique', 'visage'),
   ],
   para: [
     s('Complément vitamine C', 650, 420, '🍊', 'consommable'),
@@ -122,34 +143,34 @@ const CATALOGS: Record<string, SeedSpec[]> = {
     s('Bain de bouche 500 ml', 320, 210, '😁', 'cosmetique'),
   ],
   chaussures: [
-    s('Basket homme 40-45', 3500, 2200, '👟', 'textile'),
-    s('Basket femme 36-40', 3200, 2000, '👟', 'textile'),
-    s('Sandale homme', 1800, 1100, '👡', 'textile'),
-    s('Sandale femme', 1600, 980, '👡', 'textile'),
-    s('Mocassin cuir', 4500, 2800, '👞', 'textile'),
-    s('Escarpin femme', 2800, 1700, '👠', 'textile'),
-    s('Botte hiver', 5200, 3400, '👢', 'textile'),
-    s('Chaussure enfant 28-35', 1900, 1200, '🧒', 'textile'),
-    s('Tong été', 450, 250, '🩴', 'textile'),
-    s('Chaussettes pack x3', 350, 180, '🧦', 'textile', 'piece', 12),
-    s('Semelles confort', 280, 140, '🦶', 'textile'),
-    s('Cirage noir', 180, 90, '🖤', 'consommable'),
+    s('Basket homme 40-45', 3500, 2200, '👟', 'textile', 'homme'),
+    s('Basket femme 36-40', 3200, 2000, '👟', 'textile', 'femme'),
+    s('Sandale homme', 1800, 1100, '👡', 'textile', 'homme'),
+    s('Sandale femme', 1600, 980, '👡', 'textile', 'femme'),
+    s('Mocassin cuir', 4500, 2800, '👞', 'textile', 'homme'),
+    s('Escarpin femme', 2800, 1700, '👠', 'textile', 'femme'),
+    s('Botte hiver', 5200, 3400, '👢', 'textile', 'femme'),
+    s('Chaussure enfant 28-35', 1900, 1200, '🧒', 'textile', 'enfant'),
+    s('Tong été', 450, 250, '🩴', 'textile', 'autre'),
+    s('Chaussettes pack x3', 350, 180, '🧦', 'textile', 'piece', 12, 'accessoires'),
+    s('Semelles confort', 280, 140, '🦶', 'textile', 'accessoires'),
+    s('Cirage noir', 180, 90, '🖤', 'consommable', 'accessoires'),
   ],
   vetements: [
-    s('T-shirt homme M-XL', 850, 480, '👕', 'textile'),
-    s('T-shirt femme S-L', 790, 450, '👚', 'textile'),
-    s('Chemise homme', 1800, 1050, '👔', 'textile'),
-    s('Pantalon jean', 2500, 1500, '👖', 'textile'),
-    s('Robe été', 2200, 1300, '👗', 'textile'),
-    s('Hijab / foulard', 650, 350, '🧕', 'textile'),
-    s('Qamis / gandoura', 2800, 1700, '🥻', 'textile'),
-    s('Veste légère', 3200, 1900, '🧥', 'textile'),
-    s('Pyjama', 1400, 820, '🛏️', 'textile'),
-    s('Sous-vêtements pack x3', 690, 380, '🩲', 'textile'),
-    s('Casquette', 450, 220, '🧢', 'textile'),
-    s('Ceinture', 790, 400, '➰', 'textile'),
-    s('Ensemble enfant', 1600, 950, '🧒', 'textile'),
-    s('Jogging', 1900, 1100, '🏃', 'textile'),
+    s('T-shirt homme M-XL', 850, 480, '👕', 'textile', 'homme'),
+    s('T-shirt femme S-L', 790, 450, '👚', 'textile', 'femme'),
+    s('Chemise homme', 1800, 1050, '👔', 'textile', 'homme'),
+    s('Pantalon jean', 2500, 1500, '👖', 'textile', 'homme'),
+    s('Robe été', 2200, 1300, '👗', 'textile', 'femme'),
+    s('Hijab / foulard', 650, 350, '🧕', 'textile', 'femme'),
+    s('Qamis / gandoura', 2800, 1700, '🥻', 'textile', 'homme'),
+    s('Veste légère', 3200, 1900, '🧥', 'textile', 'homme'),
+    s('Pyjama', 1400, 820, '🛏️', 'textile', 'autre'),
+    s('Sous-vêtements pack x3', 690, 380, '🩲', 'textile', 'accessoires'),
+    s('Casquette', 450, 220, '🧢', 'textile', 'accessoires'),
+    s('Ceinture', 790, 400, '➰', 'textile', 'accessoires'),
+    s('Ensemble enfant', 1600, 950, '🧒', 'textile', 'enfant'),
+    s('Jogging', 1900, 1100, '🏃', 'textile', 'homme'),
   ],
   textile: [
     s('Tissu coton 1 m', 450, 280, '🧵', 'textile', 'm'),
@@ -194,32 +215,32 @@ const CATALOGS: Record<string, SeedSpec[]> = {
     s('Robinet lavabo', 1450, 890, '🚿', 'quincaillerie'),
   ],
   electro: [
-    s('Réfrigérateur 300 L', 68000, 52000, '🧊', 'consommable'),
-    s('Lave-linge 7 kg', 54000, 41000, '🌀', 'consommable'),
-    s('Cuisinière 4 feux', 32000, 24500, '🔥', 'consommable'),
-    s('Micro-ondes 20 L', 9800, 7200, '📦', 'consommable'),
-    s('TV 43"', 42000, 33000, '📺', 'consommable'),
-    s('Ventilateur', 4500, 3100, '🌬️', 'consommable'),
-    s('Climatiseur 12000 BTU', 72000, 56000, '❄️', 'consommable'),
-    s('Fer à repasser', 3200, 2100, '♨️', 'consommable'),
-    s('Aspirateur', 8900, 6400, '🧹', 'consommable'),
-    s('Bouilloire', 2100, 1400, '🫖', 'consommable'),
-    s('Mixeur', 2800, 1800, '🥤', 'consommable'),
-    s('Chauffe-eau 50 L', 18500, 14200, '🚿', 'consommable'),
+    s('Réfrigérateur 300 L', 68000, 52000, '🧊', 'consommable', 'piece', undefined, 'froid'),
+    s('Lave-linge 7 kg', 54000, 41000, '🌀', 'consommable', 'piece', undefined, 'lavage'),
+    s('Cuisinière 4 feux', 32000, 24500, '🔥', 'consommable', 'piece', undefined, 'cuisine'),
+    s('Micro-ondes 20 L', 9800, 7200, '📦', 'consommable', 'piece', undefined, 'cuisine'),
+    s('TV 43"', 42000, 33000, '📺', 'consommable', 'piece', undefined, 'tv'),
+    s('Ventilateur', 4500, 3100, '🌬️', 'consommable', 'piece', undefined, 'climat'),
+    s('Climatiseur 12000 BTU', 72000, 56000, '❄️', 'consommable', 'piece', undefined, 'climat'),
+    s('Fer à repasser', 3200, 2100, '♨️', 'consommable', 'piece', undefined, 'petit'),
+    s('Aspirateur', 8900, 6400, '🧹', 'consommable', 'piece', undefined, 'petit'),
+    s('Bouilloire', 2100, 1400, '🫖', 'consommable', 'piece', undefined, 'petit'),
+    s('Mixeur', 2800, 1800, '🥤', 'consommable', 'piece', undefined, 'cuisine'),
+    s('Chauffe-eau 50 L', 18500, 14200, '🚿', 'consommable', 'piece', undefined, 'autre'),
   ],
   telephone: [
-    s('Smartphone entrée', 18500, 14200, '📱', 'consommable'),
-    s('Smartphone milieu', 42000, 33500, '📱', 'consommable'),
-    s('Écouteurs filaires', 650, 380, '🎧', 'consommable'),
-    s('Écouteurs sans fil', 2800, 1800, '🎵', 'consommable'),
-    s('Chargeur 20 W', 890, 520, '🔌', 'consommable'),
-    s('Câble USB-C', 450, 220, '🔗', 'consommable'),
-    s('Coque protection', 350, 160, '🛡️', 'consommable'),
-    s('Verre trempé', 280, 120, '🪟', 'consommable'),
-    s('Powerbank 10000 mAh', 2200, 1450, '🔋', 'consommable'),
-    s('Carte mémoire 64 Go', 1800, 1200, '💾', 'consommable'),
-    s('Support voiture', 690, 380, '🚗', 'consommable'),
-    s('Montre connectée', 6500, 4200, '⌚', 'consommable'),
+    s('Smartphone entrée', 18500, 14200, '📱', 'consommable', 'piece', undefined, 'smartphones'),
+    s('Smartphone milieu', 42000, 33500, '📱', 'consommable', 'piece', undefined, 'smartphones'),
+    s('Écouteurs filaires', 650, 380, '🎧', 'consommable', 'piece', undefined, 'audio'),
+    s('Écouteurs sans fil', 2800, 1800, '🎵', 'consommable', 'piece', undefined, 'audio'),
+    s('Chargeur 20 W', 890, 520, '🔌', 'consommable', 'piece', undefined, 'charge'),
+    s('Câble USB-C', 450, 220, '🔗', 'consommable', 'piece', undefined, 'charge'),
+    s('Coque protection', 350, 160, '🛡️', 'consommable', 'piece', undefined, 'protection'),
+    s('Verre trempé', 280, 120, '🪟', 'consommable', 'piece', undefined, 'protection'),
+    s('Powerbank 10000 mAh', 2200, 1450, '🔋', 'consommable', 'piece', undefined, 'charge'),
+    s('Carte mémoire 64 Go', 1800, 1200, '💾', 'consommable', 'piece', undefined, 'accessoires'),
+    s('Support voiture', 690, 380, '🚗', 'consommable', 'piece', undefined, 'accessoires'),
+    s('Montre connectée', 6500, 4200, '⌚', 'consommable', 'piece', undefined, 'accessoires'),
   ],
   'pieces-auto': [
     s('Filtre à huile', 650, 380, '🛢️', 'quincaillerie'),
@@ -272,68 +293,68 @@ const CATALOGS: Record<string, SeedSpec[]> = {
     s('Lit 2 places + sommier', 24000, 16800, '🛌', 'consommable'),
   ],
   droguerie: [
-    s('Lessive poudre 5 kg', 1250, 890, '🧺', 'consommable'),
-    s('Lessive liquide 3 L', 980, 690, '🧴', 'consommable'),
-    s('Eau de javel 1 L', 85, 52, '🫧', 'consommable'),
-    s('Liquide vaisselle 1 L', 180, 110, '🍽️', 'consommable'),
-    s('Savon de ménage', 70, 42, '🧼', 'consommable'),
-    s('Désodorisant', 220, 140, '🌸', 'consommable'),
-    s('Sacs poubelle x30', 160, 95, '🗑️', 'consommable'),
-    s('Éponge pack x3', 90, 45, '🧽', 'consommable'),
-    s('Balai', 350, 190, '🧹', 'consommable'),
-    s('Serpillère', 280, 150, '🧼', 'consommable'),
-    s('Papier toilette x12', 420, 280, '🧻', 'consommable'),
-    s('Essuie-tout x6', 320, 210, '🧻', 'consommable'),
+    s('Lessive poudre 5 kg', 1250, 890, '🧺', 'consommable', 'piece', undefined, 'lessive'),
+    s('Lessive liquide 3 L', 980, 690, '🧴', 'consommable', 'piece', undefined, 'lessive'),
+    s('Eau de javel 1 L', 85, 52, '🫧', 'consommable', 'piece', undefined, 'menage'),
+    s('Liquide vaisselle 1 L', 180, 110, '🍽️', 'consommable', 'piece', undefined, 'menage'),
+    s('Savon de ménage', 70, 42, '🧼', 'consommable', 'piece', undefined, 'menage'),
+    s('Désodorisant', 220, 140, '🌸', 'consommable', 'piece', undefined, 'menage'),
+    s('Sacs poubelle x30', 160, 95, '🗑️', 'consommable', 'piece', undefined, 'menage'),
+    s('Éponge pack x3', 90, 45, '🧽', 'consommable', 'piece', undefined, 'menage'),
+    s('Balai', 350, 190, '🧹', 'consommable', 'piece', undefined, 'menage'),
+    s('Serpillère', 280, 150, '🧼', 'consommable', 'piece', undefined, 'menage'),
+    s('Papier toilette x12', 420, 280, '🧻', 'consommable', 'piece', undefined, 'hygiene'),
+    s('Essuie-tout x6', 320, 210, '🧻', 'consommable', 'piece', undefined, 'hygiene'),
   ],
   fruits: [
-    s('Tomate 1 kg', 180, 120, '🍅', 'alimentaire', 'kg'),
-    s('Pomme de terre 1 kg', 90, 55, '🥔', 'alimentaire', 'kg'),
-    s('Oignon 1 kg', 110, 70, '🧅', 'alimentaire', 'kg'),
-    s('Carotte 1 kg', 100, 60, '🥕', 'alimentaire', 'kg'),
-    s('Courgette 1 kg', 140, 90, '🥒', 'alimentaire', 'kg'),
-    s('Poivron 1 kg', 280, 190, '🫑', 'alimentaire', 'kg'),
-    s('Citron 1 kg', 220, 140, '🍋', 'alimentaire', 'kg'),
-    s('Orange 1 kg', 160, 100, '🍊', 'alimentaire', 'kg'),
-    s('Pomme 1 kg', 280, 190, '🍎', 'alimentaire', 'kg'),
-    s('Banane 1 kg', 320, 230, '🍌', 'alimentaire', 'kg'),
-    s('Dattes deglet 1 kg', 450, 320, '🌴', 'alimentaire', 'kg'),
-    s('Raisin 1 kg', 380, 260, '🍇', 'alimentaire', 'kg'),
+    s('Tomate 1 kg', 180, 120, '🍅', 'alimentaire', 'kg', undefined, 'legumes'),
+    s('Pomme de terre 1 kg', 90, 55, '🥔', 'alimentaire', 'kg', undefined, 'legumes'),
+    s('Oignon 1 kg', 110, 70, '🧅', 'alimentaire', 'kg', undefined, 'legumes'),
+    s('Carotte 1 kg', 100, 60, '🥕', 'alimentaire', 'kg', undefined, 'legumes'),
+    s('Courgette 1 kg', 140, 90, '🥒', 'alimentaire', 'kg', undefined, 'legumes'),
+    s('Poivron 1 kg', 280, 190, '🫑', 'alimentaire', 'kg', undefined, 'legumes'),
+    s('Citron 1 kg', 220, 140, '🍋', 'alimentaire', 'kg', undefined, 'agrumes'),
+    s('Orange 1 kg', 160, 100, '🍊', 'alimentaire', 'kg', undefined, 'agrumes'),
+    s('Pomme 1 kg', 280, 190, '🍎', 'alimentaire', 'kg', undefined, 'fruits'),
+    s('Banane 1 kg', 320, 230, '🍌', 'alimentaire', 'kg', undefined, 'fruits'),
+    s('Dattes deglet 1 kg', 450, 320, '🌴', 'alimentaire', 'kg', undefined, 'fruits'),
+    s('Raisin 1 kg', 380, 260, '🍇', 'alimentaire', 'kg', undefined, 'fruits'),
   ],
   boucherie: [
-    s('Viande ovine 1 kg', 2200, 1800, '🥩', 'alimentaire', 'kg'),
-    s('Viande bovine 1 kg', 1900, 1550, '🥩', 'alimentaire', 'kg'),
-    s('Poulet entier 1 kg', 480, 380, '🐔', 'alimentaire', 'kg'),
-    s('Escalope poulet 1 kg', 650, 520, '🍗', 'alimentaire', 'kg'),
-    s('Merguez 1 kg', 1400, 1100, '🌭', 'alimentaire', 'kg'),
-    s('Kefta 1 kg', 1600, 1280, '🧆', 'alimentaire', 'kg'),
-    s('Foie 1 kg', 1200, 950, '🫀', 'alimentaire', 'kg'),
-    s('Sardine fraîche 1 kg', 450, 320, '🐟', 'alimentaire', 'kg'),
-    s('Thon frais 1 kg', 1800, 1400, '🐟', 'alimentaire', 'kg'),
-    s('Crevettes 1 kg', 2200, 1700, '🦐', 'alimentaire', 'kg'),
+    s('Viande ovine 1 kg', 2200, 1800, '🥩', 'alimentaire', 'kg', undefined, 'ovine'),
+    s('Viande bovine 1 kg', 1900, 1550, '🥩', 'alimentaire', 'kg', undefined, 'bovine'),
+    s('Poulet entier 1 kg', 480, 380, '🐔', 'alimentaire', 'kg', undefined, 'volaille'),
+    s('Escalope poulet 1 kg', 650, 520, '🍗', 'alimentaire', 'kg', undefined, 'volaille'),
+    s('Merguez 1 kg', 1400, 1100, '🌭', 'alimentaire', 'kg', undefined, 'charcuterie'),
+    s('Kefta 1 kg', 1600, 1280, '🧆', 'alimentaire', 'kg', undefined, 'charcuterie'),
+    s('Foie 1 kg', 1200, 950, '🫀', 'alimentaire', 'kg', undefined, 'autre'),
+    s('Sardine fraîche 1 kg', 450, 320, '🐟', 'alimentaire', 'kg', undefined, 'poisson'),
+    s('Thon frais 1 kg', 1800, 1400, '🐟', 'alimentaire', 'kg', undefined, 'poisson'),
+    s('Crevettes 1 kg', 2200, 1700, '🦐', 'alimentaire', 'kg', undefined, 'poisson'),
   ],
   boulangerie: [
-    s('Pain baguette', 20, 10, '🥖', 'alimentaire'),
-    s('Pain tradition', 25, 12, '🍞', 'alimentaire'),
-    s('Khobz dar', 30, 15, '🫓', 'alimentaire'),
-    s('Croissant', 40, 18, '🥐', 'alimentaire'),
-    s('Pain au chocolat', 45, 20, '🍫', 'alimentaire'),
-    s('Gâteau portion', 80, 35, '🧁', 'alimentaire'),
-    s('Pizza part', 150, 70, '🍕', 'alimentaire'),
-    s('Sandwich thon', 180, 80, '🥪', 'alimentaire'),
-    s('Mhadjeb', 50, 20, '🫓', 'alimentaire'),
-    s('Kalb el louz part', 120, 50, '🍯', 'alimentaire'),
+    s('Pain baguette', 20, 10, '🥖', 'alimentaire', 'pain'),
+    s('Pain tradition', 25, 12, '🍞', 'alimentaire', 'pain'),
+    s('Khobz dar', 30, 15, '🫓', 'alimentaire', 'pain'),
+    s('Croissant', 40, 18, '🥐', 'alimentaire', 'viennoiserie'),
+    s('Pain au chocolat', 45, 20, '🍫', 'alimentaire', 'viennoiserie'),
+    s('Gâteau portion', 80, 35, '🧁', 'alimentaire', 'patisserie'),
+    s('Pizza part', 150, 70, '🍕', 'alimentaire', 'autre'),
+    s('Sandwich thon', 180, 80, '🥪', 'alimentaire', 'autre'),
+    s('Mhadjeb', 50, 20, '🫓', 'alimentaire', 'viennoiserie'),
+    s('Kalb el louz part', 120, 50, '🍯', 'alimentaire', 'patisserie'),
   ],
   confiserie: [
-    s('Baklawa 250 g', 650, 380, '🍯', 'alimentaire'),
-    s('Makroud 250 g', 480, 280, '🥮', 'alimentaire'),
-    s('Zlabia 250 g', 420, 240, '🟠', 'alimentaire'),
-    s('Chocolat vrac 100 g', 180, 110, '🍫', 'alimentaire'),
-    s('Bonbons sachet 200 g', 160, 90, '🍬', 'alimentaire'),
-    s('Chewing-gum pack', 80, 45, '😬', 'alimentaire'),
-    s('Gâteau sec 500 g', 380, 220, '🍪', 'alimentaire'),
-    s('Halwa 400 g', 320, 190, '🟤', 'alimentaire'),
-    s('Miel 250 g', 650, 420, '🍯', 'alimentaire'),
-    s('Amlou / pâte 200 g', 480, 300, '🥜', 'alimentaire'),
+    s('Baklawa 250 g', 650, 380, '🍯', 'alimentaire', 'patisserie'),
+    s('Makroud 250 g', 480, 280, '🥮', 'alimentaire', 'patisserie'),
+    s('Zlabia 250 g', 420, 240, '🟠', 'alimentaire', 'patisserie'),
+    s('Chocolat vrac 100 g', 180, 110, '🍫', 'alimentaire', 'patisserie'),
+    s('Bonbons sachet 200 g', 160, 90, '🍬', 'alimentaire', 'autre'),
+    s('Chewing-gum pack', 80, 45, '😬', 'alimentaire', 'autre'),
+    s('Gâteau sec 500 g', 380, 220, '🍪', 'alimentaire', 'patisserie'),
+    s('Halwa 400 g', 320, 190, '🟤', 'alimentaire', 'patisserie'),
+    s('Miel 250 g', 650, 420, '🍯', 'alimentaire', 'autre'),
+    s('Amlou / pâte 200 g', 480, 300, '🥜', 'alimentaire', 'autre'),
   ],
   construction: [
     s('Ciment 50 kg', 1450, 1180, '🧱', 'quincaillerie'),
@@ -396,42 +417,42 @@ const CATALOGS: Record<string, SeedSpec[]> = {
     s('Portefeuille', 890, 420, '👛', 'textile'),
   ],
   restaurant: [
-    s('Plat du jour', 450, 180, '🍽️', 'alimentaire'),
-    s('Couscous royal', 800, 320, '🍲', 'alimentaire'),
-    s('Chakhchoukha', 700, 280, '🥘', 'alimentaire'),
-    s('Grillades mixte', 1200, 500, '🥩', 'alimentaire'),
-    s('Pizza moyenne', 650, 250, '🍕', 'alimentaire'),
-    s('Sandwich', 250, 90, '🥪', 'alimentaire'),
-    s('Salade', 200, 70, '🥗', 'alimentaire'),
-    s('Frites', 150, 50, '🍟', 'alimentaire'),
-    s('Boisson 33 cl', 80, 30, '🥤', 'alimentaire'),
-    s('Café', 50, 15, '☕', 'alimentaire'),
-    s('Dessert', 200, 70, '🍰', 'alimentaire'),
-    s('Eau 50 cl', 40, 15, '💧', 'alimentaire'),
+    s('Plat du jour', 450, 180, '🍽️', 'alimentaire', 'plats'),
+    s('Couscous royal', 800, 320, '🍲', 'alimentaire', 'plats'),
+    s('Chakhchoukha', 700, 280, '🥘', 'alimentaire', 'plats'),
+    s('Grillades mixte', 1200, 500, '🥩', 'alimentaire', 'plats'),
+    s('Pizza moyenne', 650, 250, '🍕', 'alimentaire', 'plats'),
+    s('Sandwich', 250, 90, '🥪', 'alimentaire', 'plats'),
+    s('Salade', 200, 70, '🥗', 'alimentaire', 'entrees'),
+    s('Frites', 150, 50, '🍟', 'alimentaire', 'entrees'),
+    s('Boisson 33 cl', 80, 30, '🥤', 'alimentaire', 'boissons'),
+    s('Café', 50, 15, '☕', 'alimentaire', 'boissons'),
+    s('Dessert', 200, 70, '🍰', 'alimentaire', 'desserts'),
+    s('Eau 50 cl', 40, 15, '💧', 'alimentaire', 'boissons'),
   ],
   cafe: [
-    s('Café express', 50, 15, '☕', 'alimentaire'),
-    s('Café crème', 70, 20, '🥛', 'alimentaire'),
-    s('Thé à la menthe', 40, 10, '🍵', 'alimentaire'),
-    s('Jus orange pressé', 150, 50, '🍊', 'alimentaire'),
-    s('Croissant', 40, 15, '🥐', 'alimentaire'),
-    s('Gâteau part', 80, 30, '🍰', 'alimentaire'),
-    s('Eau 50 cl', 40, 15, '💧', 'alimentaire'),
-    s('Narguilé', 400, 120, '💨', 'consommable'),
-    s('Soda 33 cl', 80, 30, '🥤', 'alimentaire'),
-    s('Chicha recharge', 150, 40, '🌿', 'consommable'),
+    s('Café express', 50, 15, '☕', 'alimentaire', 'cafe'),
+    s('Café crème', 70, 20, '🥛', 'alimentaire', 'cafe'),
+    s('Thé à la menthe', 40, 10, '🍵', 'alimentaire', 'the'),
+    s('Jus orange pressé', 150, 50, '🍊', 'alimentaire', 'boissons'),
+    s('Croissant', 40, 15, '🥐', 'alimentaire', 'patisserie'),
+    s('Gâteau part', 80, 30, '🍰', 'alimentaire', 'patisserie'),
+    s('Eau 50 cl', 40, 15, '💧', 'alimentaire', 'boissons'),
+    s('Narguilé', 400, 120, '💨', 'consommable', 'autre'),
+    s('Soda 33 cl', 80, 30, '🥤', 'alimentaire', 'boissons'),
+    s('Chicha recharge', 150, 40, '🌿', 'consommable', 'autre'),
   ],
   salon: [
-    s('Coupe homme', 400, 80, '💇', 'autre'),
-    s('Coupe femme', 800, 150, '💇‍♀️', 'autre'),
-    s('Barbe', 250, 50, '🧔', 'autre'),
-    s('Coloration', 1800, 500, '🎨', 'autre'),
-    s('Brushing', 600, 120, '💨', 'autre'),
-    s('Lissage / kératine', 4500, 1500, '✨', 'autre'),
-    s('Manucure', 700, 180, '💅', 'autre'),
-    s('Épilation jambes', 1200, 250, '🦵', 'autre'),
-    s('Soin visage', 2000, 500, '🧖', 'autre'),
-    s('Hammam + gommage', 1500, 400, '🛁', 'autre'),
+    s('Coupe homme', 400, 80, '💇', 'autre', 'coupe'),
+    s('Coupe femme', 800, 150, '💇‍♀️', 'autre', 'coupe'),
+    s('Barbe', 250, 50, '🧔', 'autre', 'coupe'),
+    s('Coloration', 1800, 500, '🎨', 'autre', 'coloration'),
+    s('Brushing', 600, 120, '💨', 'autre', 'soins'),
+    s('Lissage / kératine', 4500, 1500, '✨', 'autre', 'soins'),
+    s('Manucure', 700, 180, '💅', 'autre', 'soins'),
+    s('Épilation jambes', 1200, 250, '🦵', 'autre', 'soins'),
+    s('Soin visage', 2000, 500, '🧖', 'autre', 'soins'),
+    s('Hammam + gommage', 1500, 400, '🛁', 'autre', 'soins'),
   ],
   pressing: [
     s('Chemise', 150, 40, '👔', 'autre'),
@@ -444,16 +465,16 @@ const CATALOGS: Record<string, SeedSpec[]> = {
     s('Express 2 h', 300, 80, '⚡', 'autre'),
   ],
   dentaire: [
-    s('Consultation', 1500, 0, '🦷', 'autre'),
+    s('Consultation dentaire', 1500, 0, '🦷', 'autre'),
     s('Détartrage', 2500, 200, '✨', 'autre'),
     s('Carie / soin', 3500, 400, '🔧', 'autre'),
-    s('Extraction', 3000, 300, '📌', 'autre'),
-    s('Couronne', 18000, 6000, '👑', 'autre'),
-    s('Implant', 80000, 35000, '⚙️', 'autre'),
-    s('Blanchiment', 12000, 2500, '😁', 'autre'),
-    s('Appareil enfant', 25000, 8000, '😁', 'autre'),
-    s('Radio panoramique', 2500, 400, '🩻', 'autre'),
-    s('Urgence abcès', 4000, 300, '🚨', 'autre'),
+    s('Extraction dentaire', 3000, 300, '📌', 'autre'),
+    s('Couronne dentaire', 18000, 6000, '👑', 'autre'),
+    s('Implant dentaire', 80000, 35000, '⚙️', 'autre'),
+    s('Blanchiment dentaire', 12000, 2500, '😁', 'autre'),
+    s('Appareil orthodontique enfant', 25000, 8000, '😁', 'autre'),
+    s('Radio panoramique dentaire', 2500, 400, '🩻', 'autre'),
+    s('Urgence abcès dentaire', 4000, 300, '🚨', 'autre'),
   ],
   radio: [
     s('Radio standard', 2000, 300, '🦴', 'autre'),
@@ -585,6 +606,78 @@ const CATALOGS: Record<string, SeedSpec[]> = {
     s('Attestation', 500, 50, '📜', 'autre'),
     s('Fournitures', 800, 300, '✏️', 'consommable'),
   ],
+  'sport-gym': [
+    s('Abonnement mensuel', 4500, 0, '📅', 'autre'),
+    s('Abonnement trimestriel', 12000, 0, '🗓️', 'autre'),
+    s('Séance individuelle', 800, 0, '🏋️', 'autre'),
+    s('Pack 10 séances', 7000, 0, '🎟️', 'autre'),
+    s('Coaching perso 1 h', 2500, 0, '👤', 'autre'),
+    s('Carte NFC / badge', 500, 150, '💳', 'autre'),
+  ],
+  'sport-boxe': [
+    s('Abonnement mensuel', 5000, 0, '🥊', 'autre'),
+    s('Cours collectif', 1000, 0, '👥', 'autre'),
+    s('Sparring / prep combat', 3000, 0, '⚔️', 'autre'),
+    s('Pack 8 séances', 7000, 0, '🎟️', 'autre'),
+    s('Licence compétition', 2000, 0, '📜', 'autre'),
+    s('Location gants', 400, 50, '🧤', 'autre'),
+  ],
+  'sport-foot': [
+    s('Cotisation saison', 15000, 0, '⚽', 'autre'),
+    s('Licence joueur', 2500, 0, '🪪', 'autre'),
+    s('Stage vacances', 8000, 0, '☀️', 'autre'),
+    s('Match amical / forfait', 3000, 0, '🏟️', 'autre'),
+    s('Équipement pack', 4500, 1800, '👕', 'textile'),
+    s('Séance entraînement', 500, 0, '📋', 'autre'),
+  ],
+  'sport-yoga': [
+    s('Cours unitaire', 900, 0, '🧘', 'autre'),
+    s('Abonnement mensuel illimité', 5500, 0, '📅', 'autre'),
+    s('Pack 10 cours', 7500, 0, '🎟️', 'autre'),
+    s('Atelier week-end', 3500, 0, '🌅', 'autre'),
+    s('Cours particulier', 2800, 0, '👤', 'autre'),
+    s('Mat yoga', 2500, 900, '🟦', 'textile'),
+  ],
+  'sport-crossfit': [
+    s('Abonnement Open Gym', 6000, 0, '🔥', 'autre'),
+    s('Drop-in WOD', 1200, 0, '💥', 'autre'),
+    s('Pack 12 séances', 9000, 0, '🎟️', 'autre'),
+    s('On-ramp / débutant', 4000, 0, '📈', 'autre'),
+    s('Compétition interne', 1500, 0, '🏆', 'autre'),
+    s('Coaching perso', 3000, 0, '👤', 'autre'),
+  ],
+  'sport-martial': [
+    s('Abonnement mensuel', 4000, 0, '🥋', 'autre'),
+    s('Passage de grade', 2500, 0, '🎖️', 'autre'),
+    s('Cours enfants', 3000, 0, '👶', 'autre'),
+    s('Stage ceinture', 5000, 0, '⬛', 'autre'),
+    s('Licence fédérale', 1800, 0, '📜', 'autre'),
+    s('Kimono / dogi', 4500, 2000, '🥋', 'textile'),
+  ],
+  'sport-swim': [
+    s('Abonnement bassin mensuel', 3500, 0, '🏊', 'autre'),
+    s('Cours collectif', 800, 0, '👥', 'autre'),
+    s('Bébé nageur', 1200, 0, '👶', 'autre'),
+    s('Pack 10 cours', 7000, 0, '🎟️', 'autre'),
+    s('Location couloir / h', 2000, 0, '➡️', 'autre'),
+    s('Cours particulier', 2200, 0, '👤', 'autre'),
+  ],
+  'sport-tennis': [
+    s('Abonnement club', 8000, 0, '🎾', 'autre'),
+    s('Location court 1 h', 1500, 0, '⏱️', 'autre'),
+    s('Cours collectif', 1200, 0, '👥', 'autre'),
+    s('Cours particulier', 2800, 0, '👤', 'autre'),
+    s('Stage jeunes', 9000, 0, '🧒', 'autre'),
+    s('Balles / tube', 800, 350, '🟡', 'consommable'),
+  ],
+  'sport-danse': [
+    s('Cours unitaire', 1000, 0, '💃', 'autre'),
+    s('Abonnement mensuel', 4500, 0, '📅', 'autre'),
+    s('Pack 8 cours', 7000, 0, '🎟️', 'autre'),
+    s('Atelier chorégraphie', 3500, 0, '🎭', 'autre'),
+    s('Spectacle / billet', 1500, 200, '🎟️', 'autre'),
+    s('Cours particulier', 3000, 0, '👤', 'autre'),
+  ],
   fete: [
     s('Location salle / soirée', 40000, 8000, '🎉', 'autre'),
     s('Traiteur / pers.', 2500, 900, '🍽️', 'alimentaire'),
@@ -635,23 +728,68 @@ const CATALOGS: Record<string, SeedSpec[]> = {
   ],
 }
 
-const FALLBACK = CATALOGS['alim-detail']
+const FALLBACK: SeedSpec[] = []
 
 export function catalogFor(catalogId: string): SeedSpec[] {
+  // Jamais de repli alimentaire : un catalogue inconnu ≠ superette
   return CATALOGS[catalogId] ?? FALLBACK
 }
 
-/** Emoji / fiche du catalogue pour un nom déjà en stock. */
-export function seedByName(name: string): SeedSpec | undefined {
+/** Combien de produits du stock matchent un catalogue (noms exacts). */
+export function catalogNameHits(
+  catalogId: string,
+  productNames: string[],
+): number {
+  const list = CATALOGS[catalogId]
+  if (!list?.length || !productNames.length) return 0
+  const expected = new Set(list.map((c) => c.name.trim().toLowerCase()))
+  return productNames.filter((n) => expected.has(n.trim().toLowerCase())).length
+}
+
+/** Catalogue « étranger » le mieux représenté dans le stock (hors catalogId courant). */
+export function bestForeignCatalogHit(
+  currentCatalogId: string,
+  productNames: string[],
+): { catalogId: string; hits: number } | null {
+  let best: { catalogId: string; hits: number } | null = null
+  for (const id of Object.keys(CATALOGS)) {
+    if (id === currentCatalogId) continue
+    const hits = catalogNameHits(id, productNames)
+    if (!best || hits > best.hits) best = { catalogId: id, hits }
+  }
+  return best && best.hits > 0 ? best : null
+}
+
+/**
+ * Emoji / fiche du catalogue pour un nom déjà en stock.
+ * Si `catalogId` est fourni, on cherche d’abord dans ce métier (évite
+ * Consultation dentaire ← emoji médecine / service).
+ * Pas de fuzzy dangereux entre catalogues (mélange dentiste ↔ superette).
+ */
+export function seedByName(
+  name: string,
+  catalogId?: string,
+): SeedSpec | undefined {
   const n = name.trim().toLowerCase()
   if (!n) return undefined
+
+  const lists: SeedSpec[][] = []
+  if (catalogId && CATALOGS[catalogId]) lists.push(CATALOGS[catalogId])
   for (const list of Object.values(CATALOGS)) {
+    if (lists.includes(list)) continue
+    lists.push(list)
+  }
+
+  for (const list of lists) {
     const exact = list.find((x) => x.name.toLowerCase() === n)
     if (exact) return exact
   }
-  for (const list of Object.values(CATALOGS)) {
-    const part = list.find(
-      (x) => n.includes(x.name.toLowerCase()) || x.name.toLowerCase().includes(n),
+  // Fuzzy uniquement dans le catalogue du métier (noms longs)
+  if (catalogId && CATALOGS[catalogId] && n.length >= 4) {
+    const part = CATALOGS[catalogId].find(
+      (x) =>
+        x.name.toLowerCase().includes(n) ||
+        (n.length >= 6 && n.includes(x.name.toLowerCase())),
     )
     if (part) return part
   }

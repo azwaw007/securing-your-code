@@ -75,7 +75,7 @@ function planTools(text: string, lang: Language): ToolCall[] {
     calls.push({ name: 'set_easy_mode', args: { on: !off } })
   }
 
-  if (includesAny(n, ['arabe', 'العربية', 'darja ar'])) {
+  if (includesAny(n, ['arabe', 'العربية', 'darja', 'darija', 'dardja'])) {
     calls.push({ name: 'set_language', args: { language: 'ar' } })
   } else if (includesAny(n, ['francais', 'français', 'french'])) {
     calls.push({ name: 'set_language', args: { language: 'fr' } })

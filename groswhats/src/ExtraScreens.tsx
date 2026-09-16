@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { AppState, Client, IncomingOrder, Language, Order, Product, Screen } from './types'
 import { t, unitLabel } from './i18n'
+import { mt } from './locale/modeCopy'
 import { formatDa, formatQty } from './utils/format'
 import { buildArrivalsMessage, openWhatsappText } from './utils/whatsapp'
 import { parseContactLines, pickPhoneContacts } from './utils/contacts'
@@ -224,7 +225,7 @@ export function InboxPage({
               {o.status === 'pending' ? (
                 <div className="btn-row">
                   <button className="btn" onClick={onGoOrder}>
-                    {t(lang, 'newOrder')}
+                    {mt(state.settings.commerceMode, lang, 'newOrder')}
                   </button>
                   <button
                     className="btn secondary"

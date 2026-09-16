@@ -32,41 +32,28 @@ interface ChatMessage {
 
 const SUGGESTIONS_FR = [
   'aide',
-  'lance campagne',
-  'story du jour',
-  'ajoute prospect Epicerie Amel,0555123456,Alger',
-  'prospects statut',
-  'relance prospects 3',
-  'stratégie',
   'stock bas',
   'crédits',
+  'résumé du jour',
+  'ouvre vente',
+  'ouvre clients',
+  'organise l’app',
+  'thème nuit',
   'conseil vente',
+  'conseil compta',
 ]
 
 const SUGGESTIONS_AR = [
   'مساعدة',
-  'ابدأ حملة',
-  'ستوري اليوم',
-  'زيد prospect محل أمال,0555123456,الجزائر',
-  'prospects statut',
-  'relance prospects 3',
-  'خطة تسويق',
   'مخزون ناقص',
   'الديون',
+  'ملخص اليوم',
+  'افتح البيع',
+  'افتح الزبائن',
+  'نظّم التطبيق',
+  'ثيم الليل',
   'خبير مبيعات',
-]
-
-const SUGGESTIONS_DARJA = [
-  '3aweni',
-  'lance campagne',
-  'story du jour',
-  'ajoute prospect Epicerie Amel,0555123456,Alger',
-  'prospects statut',
-  'relance prospects 3',
-  'stock na9es',
-  'chhal rbe7',
-  'ouvre vente',
-  'resume lyoum',
+  'خبير محاسبة',
 ]
 
 export function AgentPage({
@@ -86,15 +73,13 @@ export function AgentPage({
   initialUtterance?: string | null
 }) {
   const [input, setInput] = useState('')
-  const [suggestMode, setSuggestMode] = useState<'fr' | 'ar' | 'darja'>(
-    lang === 'ar' ? 'ar' : 'darja',
-  )
+  const [suggestMode, setSuggestMode] = useState<'fr' | 'ar'>(lang === 'ar' ? 'ar' : 'fr')
   const [pendingTeach, setPendingTeach] = useState<string | null>(null)
   const [memTick, setMemTick] = useState(0)
   const [listening, setListening] = useState(false)
   const [busy, setBusy] = useState(false)
   const [voiceOn, setVoiceOn] = useState(() => !isVoiceMuted())
-  const [voiceLang, setVoiceLang] = useState<VoiceLang>(lang === 'ar' ? 'darja' : 'fr')
+  const [voiceLang, setVoiceLang] = useState<VoiceLang>(lang === 'ar' ? 'ar' : 'fr')
   const listenRef = useRef<{ stop: () => void } | null>(null)
   const stateRef = useRef(state)
   const seededRef = useRef(false)
@@ -106,19 +91,14 @@ export function AgentPage({
         role: 'agent',
         text:
           (lang === 'ar'
-            ? 'مرحباً، أنا وكيل AZ POS + حملة AZ Soft.\nجرّب: ابدأ حملة · ستوري اليوم · زيد prospect اسم,0555…,ولاية · relance prospects 3\n\n'
-            : 'Salam, je suis l’agent AZ POS + campagne AZ Soft.\nEssaie : lance campagne · story du jour · ajoute prospect Nom,0555…,Ville · relance prospects 3\n\n') +
+            ? 'مرحباً، أنا وكيل AZ POS (صندوق ومخزون وزبائن).\nجرّب: مخزون ناقص · الديون · ملخص اليوم · افتح البيع · نظّم التطبيق\n\n'
+            : 'Salam, je suis l’agent AZ POS (caisse, stock, clients).\nEssaie : stock bas · crédits · résumé du jour · ouvre vente · organise l’app\n\n') +
           tip,
       },
     ]
   })
   const endRef = useRef<HTMLDivElement>(null)
-  const suggestions =
-    suggestMode === 'darja'
-      ? SUGGESTIONS_DARJA
-      : suggestMode === 'ar'
-        ? SUGGESTIONS_AR
-        : SUGGESTIONS_FR
+  const suggestions = suggestMode === 'ar' ? SUGGESTIONS_AR : SUGGESTIONS_FR
   const stats = memoryStats()
 
   useEffect(() => {
@@ -181,9 +161,14 @@ export function AgentPage({
   }
 
   useEffect(() => {
-    if (!initialUtterance || seededRef.current) return
-    seededRef.current = true
-    const tmr = window.setTimeout(() => send(initialUtterance), 200)
+    if (!initialUtterance) return
+    seededRef.current = false
+    const phrase = initialUtterance
+    const tmr = window.setTimeout(() => {
+      if (seededRef.current) return
+      seededRef.current = true
+      void send(phrase)
+    }, 200)
     return () => window.clearTimeout(tmr)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialUtterance])
@@ -240,13 +225,6 @@ export function AgentPage({
               onClick={() => setSuggestMode('ar')}
             >
               العربية
-            </button>
-            <button
-              type="button"
-              className={`btn ${suggestMode === 'darja' ? '' : 'ghost'}`}
-              onClick={() => setSuggestMode('darja')}
-            >
-              دارجة
             </button>
           </div>
         </div>
@@ -315,13 +293,6 @@ export function AgentPage({
             onClick={() => setVoiceLang('fr')}
           >
             FR
-          </button>
-          <button
-            type="button"
-            className={`btn ${voiceLang === 'darja' ? '' : 'ghost'}`}
-            onClick={() => setVoiceLang('darja')}
-          >
-            دارجة
           </button>
           <button
             type="button"

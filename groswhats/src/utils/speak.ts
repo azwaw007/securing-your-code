@@ -37,7 +37,7 @@ export function stopSpeaking(): void {
 }
 
 function voiceLangCode(lang: string): string {
-  if (lang === 'ar' || lang === 'darja') return 'ar-SA'
+  if (lang === 'ar') return 'ar-SA'
   if (lang === 'en') return 'en-US'
   if (lang === 'es') return 'es-ES'
   return 'fr-FR'
@@ -52,7 +52,7 @@ function pickVoice(code: string): SpeechSynthesisVoice | undefined {
   )
 }
 
-export function speakForced(text: string, lang: 'fr' | 'ar' | 'darja' | 'en' | 'es' = 'fr'): void {
+export function speakForced(text: string, lang: 'fr' | 'ar' | 'en' | 'es' = 'fr'): void {
   speak(text, lang)
 }
 
@@ -66,10 +66,6 @@ export function speak(text: string, lang: string = 'fr'): void {
   u.lang = voiceLangCode(lang)
   const voice = pickVoice(u.lang)
   if (voice) u.voice = voice
-  u.rate = lang === 'ar' || lang === 'darja' ? 0.95 : 1
+  u.rate = lang === 'ar' ? 0.95 : 1
   window.speechSynthesis.speak(u)
-}
-
-export function speakDarijaWelcome(text: string): void {
-  speak(text, 'ar')
 }

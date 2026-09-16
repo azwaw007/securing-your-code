@@ -7,10 +7,10 @@ export function buildTicketText(order: Order, settings: ShopSettings): string {
   const lang = settings.language
   const date = new Date(order.createdAt).toLocaleString(lang === 'ar' ? 'ar-DZ' : 'fr-DZ')
   const lines = order.lines
-    .map(
-      (l) =>
-        `${formatQty(l.qty)} ${unitLabel(lang, l.unit)} ${l.name}\n  ${formatDa(l.lineTotalDa)}`,
-    )
+    .map((l) => {
+      const base = `${formatQty(l.qty)} ${unitLabel(lang, l.unit)} ${l.name}\n  ${formatDa(l.lineTotalDa)}`
+      return l.imei ? `${base}\n  IMEI ${l.imei}` : base
+    })
     .join('\n')
   const pay = paymentSummaryLines(order, lang)
 
@@ -26,12 +26,19 @@ export function buildTicketText(order: Order, settings: ShopSettings): string {
       '------------------------',
       lines,
       '------------------------',
+      order.discountDa && order.discountDa > 0
+        ? `خصم: -${formatDa(order.discountDa)}${
+            order.discountPercent ? ` (${order.discountPercent}%)` : ''
+          }`
+        : '',
       `المجموع: ${formatDa(order.totalDa)}`,
       ...pay,
       '------------------------',
       'شكرا لثقتكم',
       '',
-    ].join('\n')
+    ]
+      .filter((x) => x !== '')
+      .join('\n')
   }
 
   return [
@@ -45,12 +52,19 @@ export function buildTicketText(order: Order, settings: ShopSettings): string {
     '------------------------',
     lines,
     '------------------------',
+    order.discountDa && order.discountDa > 0
+      ? `Remise: -${formatDa(order.discountDa)}${
+          order.discountPercent ? ` (${order.discountPercent}%)` : ''
+        }`
+      : '',
     `TOTAL: ${formatDa(order.totalDa)}`,
     ...pay,
     '------------------------',
     'Merci pour votre confiance',
     '',
-  ].join('\n')
+  ]
+    .filter((x) => x !== '')
+    .join('\n')
 }
 
 function encodeEscPos(text: string): Uint8Array {

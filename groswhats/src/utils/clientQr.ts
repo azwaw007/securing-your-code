@@ -1,6 +1,9 @@
-import { normalizeNfcUid, parseMemberQr } from './gymNfc'
-
 /** Payload QR client AZ POS — stable hors ligne. */
+import {
+  normalizeNfcUid,
+  parseMemberQr,
+} from './gymNfc'
+
 export const CLIENT_QR_PREFIX = 'AZPOS:C:'
 
 export function encodeClientQr(clientId: string): string {
@@ -13,7 +16,6 @@ export function parseClientQr(raw: string): string | null {
   if (!s) return null
   const m = s.match(/^AZPOS:C:(.+)$/i)
   if (m?.[1]) return m[1].trim()
-  // Ancien / collé sans préfixe si ça ressemble à un id app
   if (/^c[_-]/i.test(s) || /^client/i.test(s)) return s
   return null
 }

@@ -51,7 +51,7 @@ export interface CampaignAgentResult {
 }
 
 function isAr(lang: Language): boolean {
-  return lang === 'ar' || lang === 'darja'
+  return lang === 'ar'
 }
 
 /** Répond à un message prospect (collé ou inbox) */
