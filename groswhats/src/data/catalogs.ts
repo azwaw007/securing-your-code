@@ -465,16 +465,16 @@ const CATALOGS: Record<string, SeedSpec[]> = {
     s('Express 2 h', 300, 80, '⚡', 'autre'),
   ],
   dentaire: [
-    s('Consultation', 1500, 0, '🦷', 'autre'),
+    s('Consultation dentaire', 1500, 0, '🦷', 'autre'),
     s('Détartrage', 2500, 200, '✨', 'autre'),
     s('Carie / soin', 3500, 400, '🔧', 'autre'),
-    s('Extraction', 3000, 300, '📌', 'autre'),
-    s('Couronne', 18000, 6000, '👑', 'autre'),
-    s('Implant', 80000, 35000, '⚙️', 'autre'),
-    s('Blanchiment', 12000, 2500, '😁', 'autre'),
-    s('Appareil enfant', 25000, 8000, '😁', 'autre'),
-    s('Radio panoramique', 2500, 400, '🩻', 'autre'),
-    s('Urgence abcès', 4000, 300, '🚨', 'autre'),
+    s('Extraction dentaire', 3000, 300, '📌', 'autre'),
+    s('Couronne dentaire', 18000, 6000, '👑', 'autre'),
+    s('Implant dentaire', 80000, 35000, '⚙️', 'autre'),
+    s('Blanchiment dentaire', 12000, 2500, '😁', 'autre'),
+    s('Appareil orthodontique enfant', 25000, 8000, '😁', 'autre'),
+    s('Radio panoramique dentaire', 2500, 400, '🩻', 'autre'),
+    s('Urgence abcès dentaire', 4000, 300, '🚨', 'autre'),
   ],
   radio: [
     s('Radio standard', 2000, 300, '🦴', 'autre'),
@@ -728,23 +728,43 @@ const CATALOGS: Record<string, SeedSpec[]> = {
   ],
 }
 
-const FALLBACK = CATALOGS['alim-detail']
+const FALLBACK: SeedSpec[] = []
 
 export function catalogFor(catalogId: string): SeedSpec[] {
+  // Jamais de repli alimentaire : un catalogue inconnu ≠ superette
   return CATALOGS[catalogId] ?? FALLBACK
 }
 
-/** Emoji / fiche du catalogue pour un nom déjà en stock. */
-export function seedByName(name: string): SeedSpec | undefined {
+/**
+ * Emoji / fiche du catalogue pour un nom déjà en stock.
+ * Si `catalogId` est fourni, on cherche d’abord dans ce métier (évite
+ * Consultation dentaire ← emoji médecine / service).
+ * Pas de fuzzy dangereux entre catalogues (mélange dentiste ↔ superette).
+ */
+export function seedByName(
+  name: string,
+  catalogId?: string,
+): SeedSpec | undefined {
   const n = name.trim().toLowerCase()
   if (!n) return undefined
+
+  const lists: SeedSpec[][] = []
+  if (catalogId && CATALOGS[catalogId]) lists.push(CATALOGS[catalogId])
   for (const list of Object.values(CATALOGS)) {
+    if (lists.includes(list)) continue
+    lists.push(list)
+  }
+
+  for (const list of lists) {
     const exact = list.find((x) => x.name.toLowerCase() === n)
     if (exact) return exact
   }
-  for (const list of Object.values(CATALOGS)) {
-    const part = list.find(
-      (x) => n.includes(x.name.toLowerCase()) || x.name.toLowerCase().includes(n),
+  // Fuzzy uniquement dans le catalogue du métier (noms longs)
+  if (catalogId && CATALOGS[catalogId] && n.length >= 4) {
+    const part = CATALOGS[catalogId].find(
+      (x) =>
+        x.name.toLowerCase().includes(n) ||
+        (n.length >= 6 && n.includes(x.name.toLowerCase())),
     )
     if (part) return part
   }
