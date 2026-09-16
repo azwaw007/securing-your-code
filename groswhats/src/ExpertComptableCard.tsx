@@ -8,7 +8,7 @@ import {
   todayOrders,
 } from './store'
 import { modeLabel } from './data/domains'
-import { metierCopy } from './locale/metierPacks'
+import { metierCopy, metierFamilyFor, type MetierFamily } from './locale/metierPacks'
 import { expertAdvice } from './agent/expertise'
 
 /**
@@ -26,17 +26,14 @@ export function ExpertComptableCard({
 }) {
   const mode = state.settings.commerceMode
   const domainId = state.settings.domainId
+  const family = metierFamilyFor(domainId, mode)
   const stock = stockValueDa(state)
   const credits = openCreditsDa(state)
   const profit = annualNetProfitDa(state)
   const today = todayOrders(state)
   const todaySales = today.reduce((s, o) => s + o.totalDa, 0)
-  const section =
-    lang === 'ar'
-      ? modeLabel(mode, lang)
-      : modeLabel(mode, lang)
-  const shopLabel = metierCopy(domainId, mode, lang).homeTitle || section
-  const tipLine = sectionTip(mode, lang)
+  const shopLabel = metierCopy(domainId, mode, lang).homeTitle || modeLabel(mode, lang)
+  const tipLine = sectionTip(mode, family, lang)
 
   return (
     <section className="expert-comptable-card" aria-label={t(lang, 'expertComptaTitle')}>
@@ -81,7 +78,29 @@ export function ExpertComptableCard({
   )
 }
 
-function sectionTip(mode: CommerceMode, lang: Language): string {
+const SPORT_FAMILIES = new Set<MetierFamily>([
+  'gym',
+  'boxing',
+  'football',
+  'yoga',
+  'crossfit',
+  'martial',
+  'swim',
+  'tennis',
+  'danse',
+  'musculation',
+])
+
+function sectionTip(
+  mode: CommerceMode,
+  family: MetierFamily,
+  lang: Language,
+): string {
+  if (SPORT_FAMILIES.has(family)) {
+    return lang === 'ar'
+      ? '🏋️ رياضة: تتبع الاشتراكات (بداية/نهاية) وافصلها عن بيع المعدات.'
+      : '🏋️ Sport : suis les abonnements (début/fin) et sépare-les de la vente matériel.'
+  }
   if (lang === 'ar') {
     switch (mode) {
       case 'gros':

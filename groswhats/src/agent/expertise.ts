@@ -8,7 +8,7 @@ import {
   todayOrders,
 } from '../store'
 import { modeLabel } from '../data/domains'
-import { metierCopy } from '../locale/metierPacks'
+import { metierCopy, metierFamilyFor, type MetierFamily } from '../locale/metierPacks'
 
 export type ExpertDomain =
   | 'sales'
@@ -40,7 +40,38 @@ export function dailyExpertTip(state: AppState, lang: Language): string {
   return '💡 Conseil du jour : note chaque dépense aujourd’hui — les gains seront plus clairs.'
 }
 
-function accountingSectionTips(mode: CommerceMode, lang: Language): string[] {
+const SPORT_FAMILIES = new Set<MetierFamily>([
+  'gym',
+  'boxing',
+  'football',
+  'yoga',
+  'crossfit',
+  'martial',
+  'swim',
+  'tennis',
+  'danse',
+  'musculation',
+])
+
+function accountingSectionTips(
+  mode: CommerceMode,
+  family: MetierFamily,
+  lang: Language,
+): string[] {
+  if (SPORT_FAMILIES.has(family)) {
+    if (lang === 'ar') {
+      return [
+        'رياضة: كل اشتراك = تاريخ بداية/نهاية + مبلغ.',
+        'فرّق دخل الاشتراكات عن بيع المشروبات/المعدات.',
+        'تابع المنخرطين المنتهية صلاحيتهم للتحصيل.',
+      ]
+    }
+    return [
+      'Sport : chaque abonnement = dates début/fin + montant.',
+      'Sépare CA abonnements et vente boissons / matériel.',
+      'Relance les adhérents dont le forfait expire bientôt.',
+    ]
+  }
   if (lang === 'ar') {
     switch (mode) {
       case 'gros':
@@ -127,6 +158,7 @@ export function expertAdvice(
   const profit = annualNetProfitDa(state)
   const mode = state.settings.commerceMode
   const domainId = state.settings.domainId
+  const family = metierFamilyFor(domainId, mode)
   const sectionName =
     metierCopy(domainId, mode, lang).homeTitle || modeLabel(mode, lang)
 
@@ -148,7 +180,7 @@ export function expertAdvice(
           `قيمة المخزون: ${formatDa(stock)}`,
           `ديون الزبائن: ${formatDa(credits)}`,
           `ربح ${profit.year}: صافي ${formatDa(profit.netDa)} (مبيعات ${formatDa(profit.salesProfitDa)} − مصاريف ${formatDa(profit.expensesDa)})`,
-          ...accountingSectionTips(mode, lang),
+          ...accountingSectionTips(mode, family, lang),
         ].join('\n')
       case 'marketing':
         return [
@@ -206,7 +238,7 @@ export function expertAdvice(
         `Valeur stock : ${formatDa(stock)}`,
         `Crédits clients : ${formatDa(credits)}`,
         `Bénéfice ${profit.year} : net ${formatDa(profit.netDa)} (ventes ${formatDa(profit.salesProfitDa)} − dépenses ${formatDa(profit.expensesDa)})`,
-        ...accountingSectionTips(mode, lang),
+        ...accountingSectionTips(mode, family, lang),
       ].join('\n')
     case 'marketing':
       return [
