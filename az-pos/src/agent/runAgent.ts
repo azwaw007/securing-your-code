@@ -28,6 +28,7 @@ import { executeTool } from './tools'
 
 import { runAgentic } from './orchestrator'
 import { answerAnything } from './chat'
+import { runCampaignCommand, runMetaPublishCommand } from './campaignManager'
 
 export type AgentAction =
   | { type: 'none' }
@@ -35,6 +36,10 @@ export type AgentAction =
   | { type: 'open_whatsapp'; phone: string; message: string }
   | { type: 'send_invoice_last' }
   | { type: 'broadcast_arrivages'; message: string }
+  | {
+      type: 'broadcast_prospects'
+      items: Array<{ phone: string; message: string; id: string }>
+    }
 
 export interface AgentResult {
   reply: string
@@ -93,6 +98,8 @@ function help(lang: Language): string {
       '• مخزون ناقص / قيمة المخزون / الديون / ملخص اليوم',
       '• نظّم التطبيق / ثيم الليل / خط كبير / وضع سهل',
       '• خبير مبيعات · خبير محاسبة · خبير تسويق · خبير تسيير',
+      '• حملة: ابدأ حملة · ستوري اليوم · منشور اليوم · حالة الحملة',
+      '• رد آلي: «رد → رسالة الزبون» · devis 3 magasin',
       '• افتح زبائن / بيع / أرباح / صندوق / إعدادات',
       '• أضف زبون / احسب الزكاة / مصاريف',
       '• تعلّم: «apprend X = stock bas» أو اختر بعد سوء الفهم',
@@ -104,6 +111,10 @@ function help(lang: Language): string {
     '• stock bas / valeur stock / crédits / résumé du jour',
     '• organise l’app / thème nuit / gros texte / mode facile',
     '• conseil vente · conseil compta · marketing · gestion',
+    '• campagne : lance campagne · story du jour · ajoute prospect Nom,0555…,Ville',
+    '• prospects : colle prospects · relance prospects 5 · prospects statut',
+    '• meta setup (plus tard, si tu as un compte Facebook Business)',
+    '• réponses : « réponds → message client » · devis 3 magasin',
     '• ouvre clients / ventes / gains / caisse / paramètres',
     '• ajoute client / calcule zakat / dépenses',
     '• enseigne : « apprend khlass = stock bas »',
@@ -531,6 +542,32 @@ export async function runAgent(state: AppState, userText: string): Promise<Agent
   const taught = tryTeachCommand(state, raw, lang)
   if (taught) return taught
 
+  // Campagne vente / stories / réponses auto (AZ Soft)
+  const campaign = runCampaignCommand(state, raw, lang)
+  if (campaign) {
+    const action =
+      campaign.action && campaign.action.type === 'open_whatsapp'
+        ? {
+            type: 'open_whatsapp' as const,
+            phone: campaign.action.phone,
+            message: campaign.action.message,
+          }
+        : campaign.action && campaign.action.type === 'broadcast_prospects'
+          ? {
+              type: 'broadcast_prospects' as const,
+              items: campaign.action.items,
+            }
+        : campaign.action && campaign.action.type === 'navigate'
+          ? { type: 'navigate' as const, screen: campaign.action.screen as Screen }
+          : { type: 'none' as const }
+    return { reply: campaign.reply, action }
+  }
+
+  const metaPub = await runMetaPublishCommand(raw, lang)
+  if (metaPub) {
+    return { reply: metaPub.reply, action: { type: 'none' } }
+  }
+
   // Système agentic d’abord (organiser / configurer / multi-outils)
   const agentic = runAgentic(state, raw)
   if (agentic) {
@@ -807,6 +844,34 @@ export function applyAgentSideEffect(
   if (action.type === 'broadcast_arrivages') {
     state.clients.forEach((c, i) => {
       window.setTimeout(() => openWhatsappText(c.phone, action.message), i * 600)
+    })
+  }
+  if (action.type === 'broadcast_prospects') {
+    action.items.forEach((item, i) => {
+      window.setTimeout(() => {
+        openWhatsappText(item.phone, item.message)
+        try {
+          const raw = localStorage.getItem('az-pos-prospects-v1')
+          if (!raw) return
+          const list = JSON.parse(raw) as Array<{
+            id: string
+            status: string
+            lastContactAt?: string
+          }>
+          const next = list.map((p) =>
+            p.id === item.id
+              ? {
+                  ...p,
+                  status: 'contacted',
+                  lastContactAt: new Date().toISOString(),
+                }
+              : p,
+          )
+          localStorage.setItem('az-pos-prospects-v1', JSON.stringify(next))
+        } catch {
+          /* ignore */
+        }
+      }, i * 900)
     })
   }
 }
