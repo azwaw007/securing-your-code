@@ -3,6 +3,11 @@ import type { DomainVocab, ShopDomain } from '../data/domains'
 import { countryByCode } from '../data/countries'
 import { domainById } from '../data/domains'
 import { isRtl } from './langs'
+import {
+  metierPackFor,
+  metierVocab,
+  type MetierFeatures,
+} from './metierPacks'
 
 const VOCAB: Record<
   CommerceMode,
@@ -36,13 +41,13 @@ const VOCAB: Record<
     de: { client: 'Patient', product: 'Leistung', sell: 'Kasse', sellHint: 'Leistung + Zahlung' },
   },
   auto: {
-    fr: { client: 'Client', product: 'Véhicule / service', sell: 'Facturer', sellHint: 'Location, vente ou réparation' },
-    ar: { client: 'زبون', product: 'مركبة / خدمة', sell: 'فوترة', sellHint: 'كراء أو بيع أو تصليح' },
-    en: { client: 'Customer', product: 'Vehicle / service', sell: 'Invoice', sellHint: 'Rent, sell or repair' },
-    es: { client: 'Cliente', product: 'Vehículo / servicio', sell: 'Facturar', sellHint: 'Alquiler, venta o taller' },
-    tr: { client: 'Müşteri', product: 'Araç / hizmet', sell: 'Faturala', sellHint: 'Kiralama, satış, tamir' },
-    it: { client: 'Cliente', product: 'Veicolo / servizio', sell: 'Fattura', sellHint: 'Noleggio, vendita o officina' },
-    de: { client: 'Kunde', product: 'Fahrzeug / Service', sell: 'Berechnen', sellHint: 'Miete, Verkauf oder Werkstatt' },
+    fr: { client: 'Client', product: 'Véhicule / service', sell: 'Facturer', sellHint: 'Location ou réparation' },
+    ar: { client: 'زبون', product: 'مركبة / خدمة', sell: 'فوترة', sellHint: 'كراء أو تصليح' },
+    en: { client: 'Customer', product: 'Vehicle / service', sell: 'Invoice', sellHint: 'Rent or repair' },
+    es: { client: 'Cliente', product: 'Vehículo / servicio', sell: 'Facturar', sellHint: 'Alquiler o taller' },
+    tr: { client: 'Müşteri', product: 'Araç / hizmet', sell: 'Faturala', sellHint: 'Kiralama veya tamir' },
+    it: { client: 'Cliente', product: 'Veicolo / servizio', sell: 'Fattura', sellHint: 'Noleggio o officina' },
+    de: { client: 'Kunde', product: 'Fahrzeug / Service', sell: 'Berechnen', sellHint: 'Miete oder Werkstatt' },
   },
   services: {
     fr: { client: 'Client', product: 'Prestation', sell: 'Facturer', sellHint: 'Encaisser une prestation' },
@@ -63,12 +68,27 @@ export function vocabLang(lang: Language): keyof (typeof VOCAB)['gros'] {
   return 'fr'
 }
 
-export function shopVocab(mode: CommerceMode | undefined, lang: Language): DomainVocab {
+/** Vocabulaire UI — priorité au pack métier du domaine. */
+export function shopVocab(
+  mode: CommerceMode | undefined,
+  lang: Language,
+  domainId?: string,
+): DomainVocab {
+  if (domainId) {
+    return metierVocab(domainId, mode, lang)
+  }
   return VOCAB[mode || 'gros'][vocabLang(lang)]
 }
 
 export function domainVocab(domain: ShopDomain, lang: Language): DomainVocab {
-  return shopVocab(domain.mode, lang)
+  return shopVocab(domain.mode, lang, domain.id)
+}
+
+export function featuresFor(
+  domainId: string | undefined,
+  mode: CommerceMode | undefined,
+): MetierFeatures {
+  return metierPackFor(domainId, mode).features
 }
 
 export function isWholesale(mode: CommerceMode | undefined): boolean {
@@ -79,39 +99,124 @@ export function isShopRetail(mode: CommerceMode | undefined): boolean {
   return mode === 'detail'
 }
 
-export function showWholesaleTiers(mode: CommerceMode | undefined): boolean {
+export function showWholesaleTiers(
+  mode: CommerceMode | undefined,
+  domainId?: string,
+): boolean {
+  if (domainId) return featuresFor(domainId, mode).wholesaleTiers
   return isWholesale(mode)
 }
 
-export function showDemiGros(mode: CommerceMode | undefined): boolean {
-  return isWholesale(mode)
+export function showDemiGros(
+  mode: CommerceMode | undefined,
+  domainId?: string,
+): boolean {
+  return showWholesaleTiers(mode, domainId)
 }
 
 /** Livraison, arrivages, commandes dépôt — pas une boutique. */
-export function showDepotTools(mode: CommerceMode | undefined): boolean {
+export function showDepotTools(
+  mode: CommerceMode | undefined,
+  domainId?: string,
+): boolean {
+  if (domainId) return featuresFor(domainId, mode).depot
   return isWholesale(mode)
 }
 
 /** Santé / auto / services : on facture une personne, pas un passage anonyme. */
-export function preferClientOnSale(mode: CommerceMode | undefined): boolean {
+export function preferClientOnSale(
+  mode: CommerceMode | undefined,
+  domainId?: string,
+): boolean {
+  if (domainId) return featuresFor(domainId, mode).requireClient
   return mode === 'sante' || mode === 'auto' || mode === 'services'
 }
 
-export function showHomeScan(mode: CommerceMode | undefined): boolean {
+export function showHomeScan(
+  mode: CommerceMode | undefined,
+  domainId?: string,
+): boolean {
+  if (domainId) return featuresFor(domainId, mode).homeScan
   return mode === 'gros' || mode === 'detail' || mode === 'auto'
 }
 
-/** Agenda RDV + rappels WhatsApp (médecins / cliniques). */
-export function showClinicAgenda(mode: CommerceMode | undefined): boolean {
-  return mode === 'sante'
-}
-
-export function showReturns(mode: CommerceMode | undefined): boolean {
+export function showReturns(
+  mode: CommerceMode | undefined,
+  domainId?: string,
+): boolean {
+  if (domainId) return featuresFor(domainId, mode).returns
   return mode === 'gros' || mode === 'detail' || mode === 'auto'
 }
 
-export function showGallery(mode: CommerceMode | undefined): boolean {
+export function showGallery(
+  mode: CommerceMode | undefined,
+  domainId?: string,
+): boolean {
+  if (domainId) return featuresFor(domainId, mode).gallery
   return mode === 'gros' || mode === 'detail'
+}
+
+export function showMedicalDossier(
+  mode: CommerceMode | undefined,
+  domainId?: string,
+): boolean {
+  return featuresFor(domainId, mode).medicalDossier
+}
+
+export function showClinicShare(
+  mode: CommerceMode | undefined,
+  domainId?: string,
+): boolean {
+  return featuresFor(domainId, mode).clinicShare
+}
+
+export function showSpecialtyDossier(
+  mode: CommerceMode | undefined,
+  domainId?: string,
+): boolean {
+  return featuresFor(domainId, mode).specialtyDossier
+}
+
+export function showStaffHr(
+  mode: CommerceMode | undefined,
+  domainId?: string,
+): boolean {
+  return featuresFor(domainId, mode).staffHr
+}
+
+export function showGymCheckin(
+  mode: CommerceMode | undefined,
+  domainId?: string,
+): boolean {
+  return featuresFor(domainId, mode).gymCheckin
+}
+
+export function showClinicAgenda(
+  mode: CommerceMode | undefined,
+  domainId?: string,
+): boolean {
+  return featuresFor(domainId, mode).clinicAgenda
+}
+
+export function showTableService(
+  mode: CommerceMode | undefined,
+  domainId?: string,
+): boolean {
+  return featuresFor(domainId, mode).tableService
+}
+
+export function showRepairOrder(
+  mode: CommerceMode | undefined,
+  domainId?: string,
+): boolean {
+  return featuresFor(domainId, mode).repairOrder
+}
+
+export function usesNoSaleWording(
+  mode: CommerceMode | undefined,
+  domainId?: string,
+): boolean {
+  return featuresFor(domainId, mode).noSaleWording
 }
 
 export function defaultZakatOn(countryCode: string): boolean {

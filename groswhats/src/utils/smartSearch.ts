@@ -20,10 +20,10 @@ const SCREEN_KEYWORDS: Array<{
   fr: string[]
   ar: string[]
 }> = [
-  { screen: 'order', fr: ['vendre', 'vente', 'commande', 'caisse'], ar: ['بيع', 'طلب'] },
+  { screen: 'order', fr: ['vendre', 'vente', 'commande', 'caisse', 'facturer', 'encaisser', 'prestation'], ar: ['بيع', 'طلب', 'فوترة', 'تحصيل'] },
   { screen: 'products', fr: ['stock', 'produit', 'catalogue'], ar: ['مخزون', 'منتج'] },
   { screen: 'clients', fr: ['client', 'magasin', 'zaboun'], ar: ['زبون', 'زبائن'] },
-  { screen: 'history', fr: ['historique', 'facture', 'vente', 'anciennes'], ar: ['سجل', 'فاتورة'] },
+  { screen: 'history', fr: ['historique', 'facture', 'vente', 'anciennes', 'actes', 'prestations'], ar: ['سجل', 'فاتورة'] },
   { screen: 'profits', fr: ['gain', 'benefice', 'profit', 'argent'], ar: ['ربح', 'أرباح'] },
   { screen: 'expenses', fr: ['depense', 'gasoil', 'frais'], ar: ['مصاريف'] },
   { screen: 'gallery', fr: ['photo', 'galerie', 'image'], ar: ['صور', 'معرض'] },

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
-import type { Language } from './types'
+import type { AppState, Language } from './types'
 import { t } from './i18n'
+import { mt } from './locale/modeCopy'
 import { searchApp, suggestNames, type SearchHit } from './utils/smartSearch'
 
 function todayIso() {
@@ -180,7 +181,7 @@ export function GlobalSmartSearch({
   onHit,
   onOpenHistory,
 }: {
-  state: import('./types').AppState
+  state: AppState
   lang: Language
   onHit: (hit: SearchHit) => void
   /** Ouvre l’historique avec filtre dates (icône calendrier) */
@@ -193,6 +194,19 @@ export function GlobalSmartSearch({
   const [dateTo, setDateTo] = useState('')
   const hits = useMemo(() => searchApp(state, q, lang, 10), [state, q, lang])
   const writeHelp = useMemo(() => {
+    const mode = state.settings.commerceMode
+    const saleWord =
+      mode === 'sante'
+        ? lang === 'ar'
+          ? 'تحصيل'
+          : 'encaisser'
+        : mode === 'services'
+          ? lang === 'ar'
+            ? 'فوترة'
+            : 'facturer'
+          : lang === 'ar'
+            ? 'بيع'
+            : 'vente'
     const names = [
       ...state.products.map((p) => p.name),
       ...state.clients.map((c) => c.name),
@@ -205,7 +219,7 @@ export function GlobalSmartSearch({
       lang === 'ar' ? 'زبون' : 'client',
       lang === 'ar' ? 'فاتورة' : 'facture',
       lang === 'ar' ? 'أرباح' : 'gains',
-      lang === 'ar' ? 'بيع' : 'vente',
+      saleWord,
       lang === 'ar' ? 'سجل' : 'historique',
     ]
     return suggestNames(names, q, 10)
@@ -248,7 +262,7 @@ export function GlobalSmartSearch({
       {calOpen ? (
         <div className="smart-dates">
           <div className="muted" style={{ marginBottom: 6 }}>
-            {t(lang, 'searchByDate')} — {t(lang, 'salesHistoryBtn')}
+            {t(lang, 'searchByDate')} — {mt(state.settings.commerceMode, lang, 'salesHistoryBtn')}
           </div>
           <div className="smart-date-presets">
             <button
@@ -311,7 +325,7 @@ export function GlobalSmartSearch({
             />
           </label>
           <button type="button" className="btn block" onClick={applyHistoryDates}>
-            📅 {t(lang, 'salesHistoryBtn')}
+            📅 {mt(state.settings.commerceMode, lang, 'salesHistoryBtn')}
           </button>
         </div>
       ) : null}

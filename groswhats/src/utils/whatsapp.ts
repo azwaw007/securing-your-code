@@ -96,6 +96,7 @@ export function buildArrivalsMessage(
     .join('\n')
 }
 
+
 export function buildAppointmentReminder(
   settings: ShopSettings,
   apt: {

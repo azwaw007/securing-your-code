@@ -30,8 +30,8 @@ const MED = {
   ar: { client: 'مريض', product: 'عمل', sell: 'تحصيل', sellHint: 'عمل طبي + دفع' },
 }
 const CAR = {
-  fr: { client: 'Client', product: 'Véhicule / service', sell: 'Facturer', sellHint: 'Location, vente ou réparation' },
-  ar: { client: 'زبون', product: 'مركبة / خدمة', sell: 'فوترة', sellHint: 'كراء أو بيع أو تصليح' },
+  fr: { client: 'Client', product: 'Véhicule / service', sell: 'Facturer', sellHint: 'Location ou réparation' },
+  ar: { client: 'زبون', product: 'مركبة / خدمة', sell: 'فوترة', sellHint: 'كراء أو تصليح' },
 }
 
 function d(
@@ -57,8 +57,15 @@ export const COMMERCE_MODES: Array<{
   { id: 'gros', icon: '📦', nameFr: 'Gros', nameAr: 'جملة', hintFr: 'Dépôt, carton, livraisons', hintAr: 'مستودع، كرتون، توصيل' },
   { id: 'detail', icon: '🛒', nameFr: 'Détail', nameAr: 'تجزئة', hintFr: 'Boutique, superette, caisse', hintAr: 'محل، سوبرات، صندوق' },
   { id: 'sante', icon: '🩺', nameFr: 'Santé', nameAr: 'صحة', hintFr: 'Cabinet, clinique, labo', hintAr: 'عيادة، مصحة، مخبر' },
-  { id: 'auto', icon: '🚗', nameFr: 'Auto', nameAr: 'سيارات', hintFr: 'Location, vente, garage', hintAr: 'كراء، بيع، ورشة' },
-  { id: 'services', icon: '🧰', nameFr: 'Services', nameAr: 'خدمات', hintFr: 'Prestations et rendez-vous', hintAr: 'خدمات ومواعيد' },
+  { id: 'auto', icon: '🚗', nameFr: 'Auto', nameAr: 'سيارات', hintFr: 'Location, garage, pièces', hintAr: 'كراء، ورشة، قطع' },
+  {
+    id: 'services',
+    icon: '🧰',
+    nameFr: 'Services',
+    nameAr: 'خدمات',
+    hintFr: 'Prestations, rendez-vous, facturation',
+    hintAr: 'خدمات، مواعيد، فوترة',
+  },
 ]
 
 export const DOMAINS: ShopDomain[] = [
@@ -149,7 +156,7 @@ export const DOMAINS: ShopDomain[] = [
   d('auto-pneus', 'auto', '🛞', 'Pneumatiques', 'عجلات', 'pieces-auto', CAR),
 
   d('svc-avocat', 'services', '⚖️', 'Cabinet d’avocat', 'محاماة', 'generic-service', SVC),
-  d('svc-comptable', 'services', '📊', 'Expertise comptable', 'محاسبة', 'generic-service', SVC),
+  /** Pas de domaine « cabinet comptable » : l’expert comptable est horizontal (tous métiers). */
   d('svc-notaire', 'services', '📜', 'Étude notariale', 'توثيق', 'generic-service', SVC),
   d('svc-immo', 'services', '🏠', 'Agence immobilière', 'عقارات', 'immo', SVC),
   d('svc-voyage', 'services', '✈️', 'Agence de voyage', 'سفر', 'voyage', SVC),
@@ -167,7 +174,16 @@ export const DOMAINS: ShopDomain[] = [
   d('svc-securite', 'services', '🛡️', 'Sécurité / gardiennage', 'حراسة', 'generic-service', SVC),
   d('svc-transport', 'services', '🚚', 'Transport / livraison', 'نقل وتوصيل', 'transport', SVC),
   d('svc-info', 'services', '🖥️', 'Dépannage informatique', 'إعلام آلي', 'generic-service', SVC),
-  d('svc-sport', 'services', '🥊', 'Salle de sport', 'قاعة رياضة', 'formation', SVC),
+  d('svc-sport', 'services', '🏋️', 'Salle de sport / fitness', 'قاعة رياضة', 'sport-gym', SVC),
+  d('svc-boxe', 'services', '🥊', 'Club de boxe', 'نادي ملاكمة', 'sport-boxe', SVC),
+  d('svc-football', 'services', '⚽', 'Club de football', 'نادي كرة قدم', 'sport-foot', SVC),
+  d('svc-yoga', 'services', '🧘', 'Studio yoga / pilates', 'يوغا / بيلاتس', 'sport-yoga', SVC),
+  d('svc-crossfit', 'services', '🔥', 'Box CrossFit', 'كروس فت', 'sport-crossfit', SVC),
+  d('svc-arts-martiaux', 'services', '🥋', 'Arts martiaux / judo', 'فنون قتالية', 'sport-martial', SVC),
+  d('svc-natation', 'services', '🏊', 'Piscine / natation', 'سباحة', 'sport-swim', SVC),
+  d('svc-tennis', 'services', '🎾', 'Club de tennis', 'تنس', 'sport-tennis', SVC),
+  d('svc-danse', 'services', '💃', 'École de danse', 'رقص', 'sport-danse', SVC),
+  d('svc-musculation', 'services', '💪', 'Salle de musculation', 'كمال أجسام', 'sport-gym', SVC),
   d('svc-creche', 'services', '🍼', 'Crèche', 'حضانة', 'formation', SVC),
   d('svc-spa', 'services', '🧖', 'Spa / hammam', 'حمام / سبا', 'salon', SVC),
 ]
@@ -176,8 +192,29 @@ export function domainsForMode(mode: CommerceMode): ShopDomain[] {
   return DOMAINS.filter((x) => x.mode === mode)
 }
 
+/**
+ * Anciens shops créés comme « Expertise comptable » (catalogue générique inutile).
+ * On résout encore l’id pour ne pas casser le localStorage, mais ce n’est plus
+ * proposable au setup — l’expert comptable vit sur l’accueil de chaque métier.
+ */
+const LEGACY_DOMAINS: ShopDomain[] = [
+  d(
+    'svc-comptable',
+    'services',
+    '📊',
+    'Expertise comptable (ancien)',
+    'محاسبة (قديم)',
+    'generic-service',
+    SVC,
+  ),
+]
+
 export function domainById(id: string): ShopDomain {
-  return DOMAINS.find((x) => x.id === id) ?? DOMAINS[0]
+  return (
+    DOMAINS.find((x) => x.id === id) ??
+    LEGACY_DOMAINS.find((x) => x.id === id) ??
+    DOMAINS[0]
+  )
 }
 
 export function domainName(domain: ShopDomain, lang: Language): string {

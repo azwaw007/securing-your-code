@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kit lancement — AZ Soft</title>
+    <style>
+      :root {
+        --ink: #10231c;
+        --muted: #4a6358;
+        --brand: #0b6b4a;
+        --bg: #eef8f2;
+        --card: #fff;
+        --line: #c9ddd3;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        color: var(--ink);
+        background: var(--bg);
+        padding: 24px 16px 48px;
+        line-height: 1.45;
+      }
+      main { max-width: 720px; margin: 0 auto; }
+      h1 { font-size: 1.6rem; margin: 0 0 6px; }
+      h2 { font-size: 1.15rem; margin: 28px 0 10px; }
+      .muted { color: var(--muted); margin: 0 0 18px; }
+      .warn {
+        background: #fff7ed;
+        border: 1px solid #fdba74;
+        border-radius: 12px;
+        padding: 12px 14px;
+        margin-bottom: 20px;
+        font-size: 0.92rem;
+      }
+      .grid { display: grid; gap: 10px; }
+      a.btn {
+        display: block;
+        text-decoration: none;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px 16px;
+        color: var(--ink);
+        font-weight: 700;
+      }
+      a.btn span {
+        display: block;
+        font-weight: 500;
+        color: var(--muted);
+        font-size: 0.88rem;
+        margin-top: 4px;
+        word-break: break-all;
+      }
+      a.btn.primary {
+        background: var(--brand);
+        border-color: var(--brand);
+        color: #fff;
+      }
+      a.btn.primary span { color: rgba(255,255,255,0.85); }
+      code {
+        font-size: 0.85rem;
+        background: #fff;
+        padding: 2px 6px;
+        border-radius: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Kit lancement AZ Soft</h1>
+      <p class="muted">Outils & liens pour finir et lancer la publicité.</p>
+      <div class="warn">
+        Fichier <strong>privé vendeur</strong> — ne pas publier sur la vitrine client.
+        Les textes de posts sont dans <code>POSTS-PUB.md</code>.
+      </div>
+
+      <h2>Dossier pour ton PC</h2>
+      <div class="grid">
+        <a class="btn primary" href="/az-soft/AZ-Soft-Kit-Lancement.zip" download="AZ-Soft-Kit-Lancement.zip">
+          Télécharger le dossier ZIP
+          <span>AZ-Soft-Kit-Lancement.zip — liens, posts, visuels</span>
+        </a>
+      </div>
+
+      <h2>Clients / pub</h2>
+      <div class="grid">
+        <a class="btn primary" href="https://az-pos-dz.vercel.app/az-soft/" target="_blank" rel="noreferrer">
+          Vitrine produit
+          <span>https://az-pos-dz.vercel.app/az-soft/</span>
+        </a>
+        <a class="btn primary" href="https://github.com/azwaw007/securing-your-code/releases/download/v1.0.0-win/AZ-POS-Setup-1.0.0.exe" rel="noreferrer">
+          Télécharger démo Windows (.exe)
+          <span>AZ-POS-Setup-1.0.0.exe · essai 15 j</span>
+        </a>
+        <a class="btn" href="https://az-pos-dz.vercel.app" target="_blank" rel="noreferrer">
+          Démo en ligne
+          <span>https://az-pos-dz.vercel.app</span>
+        </a>
+        <a class="btn" href="https://az-pos-dz.vercel.app/az-soft/shots/feat_caisse.webp" target="_blank" rel="noreferrer">
+          Capture caisse (visuel pub)
+          <span>/az-soft/shots/feat_caisse.webp</span>
+        </a>
+      </div>
+
+      <h2>Vendeur</h2>
+      <div class="grid">
+        <a class="btn" href="https://az-pos-dz.vercel.app/seller/pro.html" target="_blank" rel="noreferrer">
+          Page offre Pro
+          <span>/seller/pro.html</span>
+        </a>
+        <a class="btn" href="https://az-pos-dz.vercel.app/seller/license-generator.html" target="_blank" rel="noreferrer">
+          Générateur de licences
+          <span>/seller/license-generator.html</span>
+        </a>
+        <a class="btn" href="https://az-pos-dz.vercel.app/guide.html" target="_blank" rel="noreferrer">
+          Guide utilisateur
+          <span>/guide.html</span>
+        </a>
+        <a class="btn" href="https://github.com/azwaw007/securing-your-code/releases/tag/v1.0.0-win" target="_blank" rel="noreferrer">
+          Release GitHub
+          <span>v1.0.0-win</span>
+        </a>
+      </div>
+
+      <h2>Fichiers dans ce dossier</h2>
+      <div class="grid">
+        <a class="btn" href="./CHECKLIST.md">CHECKLIST.md — avant / pendant la pub</a>
+        <a class="btn" href="./POSTS-PUB.md">POSTS-PUB.md — 7 posts + WhatsApp</a>
+        <a class="btn" href="./TARIFS.md">TARIFS.md — 12k / 25k DA</a>
+        <a class="btn" href="./LIENS.md">LIENS.md — liste complète</a>
+        <a class="btn" href="./README.md">README.md — vue d’ensemble</a>
+      </div>
+    </main>
+  </body>
+</html>
