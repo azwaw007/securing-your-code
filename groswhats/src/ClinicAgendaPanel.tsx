@@ -15,6 +15,7 @@ import {
   openWhatsappText,
 } from './utils/whatsapp'
 import { ensureNotificationPermission } from './utils/notify'
+import { shopVocab } from './locale/adapt'
 
 function formatWhen(iso: string, lang: Language): string {
   try {
@@ -47,6 +48,12 @@ export function ClinicAgendaPanel({
   onFlash: (msg: string) => void
 }) {
   const upcoming = useMemo(() => upcomingAppointments(state, 12), [state])
+  const vocab = shopVocab(
+    state.settings.commerceMode,
+    lang,
+    state.settings.domainId,
+  )
+  const clientLabel = vocab.client
   const [clientId, setClientId] = useState(state.clients[0]?.id ?? '')
   const [when, setWhen] = useState(() => {
     const d = new Date()
@@ -157,10 +164,14 @@ export function ClinicAgendaPanel({
       {showForm ? (
         <div className="clinic-agenda-form">
           <div className="field">
-            <label>{t(lang, 'agendaPatient')}</label>
+            <label>{clientLabel}</label>
             <select value={clientId} onChange={(e) => setClientId(e.target.value)}>
               {state.clients.length === 0 ? (
-                <option value="">{t(lang, 'agendaNoPatients')}</option>
+                <option value="">
+                  {lang === 'ar'
+                    ? `أضف ${clientLabel} أولاً`
+                    : `Ajoutez d’abord un ${clientLabel.toLowerCase()}`}
+                </option>
               ) : (
                 state.clients.map((c) => (
                   <option key={c.id} value={c.id}>

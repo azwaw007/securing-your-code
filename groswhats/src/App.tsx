@@ -205,6 +205,7 @@ import {
 import { ProductBarcodeField, BarcodeCameraModal, isBarcodeCameraSupported } from './BarcodeCamera'
 import { ClientQrCard } from './ClientQrCard'
 import { DossierPatientPanel } from './DossierPatientPanel'
+import { AthleteDossierPanel } from './AthleteDossierPanel'
 import { SpecialtyDossierPanel } from './SpecialtyDossierPanel'
 import { ReceptionCashQueue, SendToCashForm } from './ClinicSharePanels'
 import { GymCheckinPanel } from './GymCheckinPanel'
@@ -4505,14 +4506,28 @@ function ClientsPage({
           const domainId = state.settings.domainId
           const pack = metierPackFor(domainId, mode)
           const family = pack.family
+          /** Fiches dédiées (parallèles) — pas de fusion patient/athlète dans specialty */
           const useMedicalPanel =
             (showMedicalDossier(mode, domainId) || mode === 'sante') &&
             family !== 'vet'
-          const specialty = specialtyProfileFor(family)
+          const useAthletePanel =
+            !useMedicalPanel && showGymCheckin(mode, domainId)
+          const specialty =
+            !useMedicalPanel && !useAthletePanel
+              ? specialtyProfileFor(family)
+              : null
           return (
             <>
               {useMedicalPanel ? (
                 <DossierPatientPanel
+                  state={state}
+                  client={selected}
+                  lang={lang}
+                  onState={onState}
+                  onFlash={onToast}
+                />
+              ) : useAthletePanel ? (
+                <AthleteDossierPanel
                   state={state}
                   client={selected}
                   lang={lang}

@@ -735,6 +735,31 @@ export function catalogFor(catalogId: string): SeedSpec[] {
   return CATALOGS[catalogId] ?? FALLBACK
 }
 
+/** Combien de produits du stock matchent un catalogue (noms exacts). */
+export function catalogNameHits(
+  catalogId: string,
+  productNames: string[],
+): number {
+  const list = CATALOGS[catalogId]
+  if (!list?.length || !productNames.length) return 0
+  const expected = new Set(list.map((c) => c.name.trim().toLowerCase()))
+  return productNames.filter((n) => expected.has(n.trim().toLowerCase())).length
+}
+
+/** Catalogue « étranger » le mieux représenté dans le stock (hors catalogId courant). */
+export function bestForeignCatalogHit(
+  currentCatalogId: string,
+  productNames: string[],
+): { catalogId: string; hits: number } | null {
+  let best: { catalogId: string; hits: number } | null = null
+  for (const id of Object.keys(CATALOGS)) {
+    if (id === currentCatalogId) continue
+    const hits = catalogNameHits(id, productNames)
+    if (!best || hits > best.hits) best = { catalogId: id, hits }
+  }
+  return best && best.hits > 0 ? best : null
+}
+
 /**
  * Emoji / fiche du catalogue pour un nom déjà en stock.
  * Si `catalogId` est fourni, on cherche d’abord dans ce métier (évite

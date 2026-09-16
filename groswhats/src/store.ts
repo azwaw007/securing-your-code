@@ -46,7 +46,7 @@ import {
 } from './agent/permissions'
 import { APP_BRAND } from './brand'
 import { countryByCode, convertPriceDa } from './data/countries'
-import { catalogFor } from './data/catalogs'
+import { bestForeignCatalogHit, catalogFor, catalogNameHits } from './data/catalogs'
 import { domainById } from './data/domains'
 import { catalogImagePath } from './utils/productArt'
 import { parseLanguage } from './locale/langs'
@@ -869,7 +869,7 @@ export function loadState(): AppState {
     for (const key of [STORAGE_KEY, ...LEGACY_STORAGE_KEYS]) {
       const raw = localStorage.getItem(key)
       if (raw) {
-        const migrated = migrate(JSON.parse(raw))
+        const migrated = repairMismatchedCatalog(migrate(JSON.parse(raw)))
         localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated))
         return migrated
       }
@@ -946,7 +946,14 @@ export function applyShopSetup(state: AppState, input: ShopSetupInput): AppState
     }
     return setStockAt(base, locId, stock)
   })
-  const keep = !input.replaceCatalog && state.products.length > 0
+  /** Changer de métier / mode = toujours nouveau catalogue (sinon médecine dans sport, etc.) */
+  const metierChanged =
+    state.settings.domainId !== domain.id ||
+    state.settings.commerceMode !== input.commerceMode
+  const keep =
+    !input.replaceCatalog &&
+    !metierChanged &&
+    state.products.length > 0
   return ensureDefaultLocation({
     ...state,
     settings: {
@@ -967,6 +974,39 @@ export function applyShopSetup(state: AppState, input: ShopSetupInput): AppState
       retailRayons: undefined,
     },
     products: keep ? state.products : products,
+    /** RDV / file clinique d’un autre métier ne doivent pas traîner */
+    appointments: metierChanged ? [] : state.appointments ?? [],
+    clinicCharges: metierChanged ? [] : state.clinicCharges ?? [],
+    medicalDocuments: metierChanged ? [] : state.medicalDocuments ?? [],
+    gymCheckIns: metierChanged ? [] : state.gymCheckIns ?? [],
+  })
+}
+
+/**
+ * Si le stock local appartient clairement à un AUTRE métier
+ * (ex. actes médicaux restés en salle de sport / superette), on resynchronise.
+ * Ne touche pas aux catalogues 100 % personnalisés (aucun match seed).
+ */
+export function repairMismatchedCatalog(state: AppState): AppState {
+  const domainId = state.settings.domainId
+  if (!domainId || !state.settings.setupDone) return state
+  const domain = domainById(domainId)
+  const catalog = catalogFor(domain.catalog)
+  if (catalog.length === 0 || state.products.length === 0) return state
+  const names = state.products.map((p) => p.name)
+  const ownHits = catalogNameHits(domain.catalog, names)
+  const foreign = bestForeignCatalogHit(domain.catalog, names)
+  if (!foreign || foreign.hits < 3) return state
+  if (ownHits >= 2 && ownHits >= foreign.hits) return state
+  if (foreign.hits <= ownHits) return state
+  return applyShopSetup(state, {
+    countryCode: state.settings.countryCode,
+    commerceMode: state.settings.commerceMode,
+    domainId: domain.id,
+    shopName: state.settings.shopName,
+    phone: state.settings.phone,
+    language: state.settings.language,
+    replaceCatalog: true,
   })
 }
 

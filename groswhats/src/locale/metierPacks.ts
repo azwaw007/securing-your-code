@@ -99,7 +99,10 @@ export type MetierFeatures = {
    * Activé pour presque tous les métiers (commerçant ↔ employeur).
    */
   staffHr: boolean
-  /** Dossier client spécialisé (patient, adhérent, véhicule…) */
+  /**
+   * Dossier client paramétré (véhicule, élève, animal…) —
+   * hors fiches dédiées patient (medicalDossier) et athlète (gymCheckin).
+   */
   specialtyDossier: boolean
 }
 
@@ -1312,8 +1315,8 @@ const PACKS: Record<MetierFamily, MetierPack> = {
       ...FEAT.service,
       gymCheckin: true,
       homeScan: true,
-      clinicAgenda: true,
-      specialtyDossier: true,
+      /** Fiche athlète dédiée (AthleteDossierPanel), pas Specialty */
+      specialtyDossier: false,
     },
     {
       client: 'Adhérent',
@@ -1339,7 +1342,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
   boxing: pack(
     'boxing',
     THEME_BOXING,
-    { ...FEAT.service, gymCheckin: true, homeScan: true, specialtyDossier: true, clinicAgenda: true },
+    { ...FEAT.service, gymCheckin: true, homeScan: true, specialtyDossier: false },
     {
       client: 'Boxeur',
       product: 'Abonnement',
@@ -1364,7 +1367,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
   football: pack(
     'football',
     THEME_FOOTBALL,
-    { ...FEAT.service, gymCheckin: true, homeScan: true, specialtyDossier: true, clinicAgenda: true },
+    { ...FEAT.service, gymCheckin: true, homeScan: true, specialtyDossier: false },
     {
       client: 'Joueur',
       product: 'Licence / forfait',
@@ -1389,7 +1392,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
   yoga: pack(
     'yoga',
     THEME_YOGA,
-    { ...FEAT.service, gymCheckin: true, homeScan: true, specialtyDossier: true, clinicAgenda: true },
+    { ...FEAT.service, gymCheckin: true, homeScan: true, specialtyDossier: false },
     {
       client: 'Élève',
       product: 'Cours / abonnement',
@@ -1414,7 +1417,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
   crossfit: pack(
     'crossfit',
     THEME_BOXING,
-    { ...FEAT.service, gymCheckin: true, homeScan: true, specialtyDossier: true, clinicAgenda: true },
+    { ...FEAT.service, gymCheckin: true, homeScan: true, specialtyDossier: false },
     {
       client: 'Athlète',
       product: 'Abonnement',
@@ -1439,7 +1442,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
   martial: pack(
     'martial',
     THEME_GYM,
-    { ...FEAT.service, gymCheckin: true, homeScan: true, specialtyDossier: true, clinicAgenda: true },
+    { ...FEAT.service, gymCheckin: true, homeScan: true, specialtyDossier: false },
     {
       client: 'Pratiquant',
       product: 'Abonnement',
@@ -1464,7 +1467,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
   swim: pack(
     'swim',
     THEME_SWIM,
-    { ...FEAT.service, gymCheckin: true, homeScan: true, specialtyDossier: true, clinicAgenda: true },
+    { ...FEAT.service, gymCheckin: true, homeScan: true, specialtyDossier: false },
     {
       client: 'Nageur',
       product: 'Abonnement',
@@ -1489,7 +1492,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
   tennis: pack(
     'tennis',
     THEME_GYM,
-    { ...FEAT.service, gymCheckin: true, homeScan: true, specialtyDossier: true, clinicAgenda: true },
+    { ...FEAT.service, gymCheckin: true, homeScan: true, specialtyDossier: false },
     {
       client: 'Joueur',
       product: 'Abonnement / court',
@@ -1514,7 +1517,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
   danse: pack(
     'danse',
     THEME_YOGA,
-    { ...FEAT.service, gymCheckin: true, homeScan: true, specialtyDossier: true, clinicAgenda: true },
+    { ...FEAT.service, gymCheckin: true, homeScan: true, specialtyDossier: false },
     {
       client: 'Élève',
       product: 'Cours / abonnement',
@@ -1539,7 +1542,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
   musculation: pack(
     'musculation',
     THEME_GYM,
-    { ...FEAT.service, gymCheckin: true, homeScan: true, specialtyDossier: true, clinicAgenda: true },
+    { ...FEAT.service, gymCheckin: true, homeScan: true, specialtyDossier: false },
     {
       client: 'Adhérent',
       product: 'Abonnement',
