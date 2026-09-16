@@ -18,8 +18,8 @@ export function TableFloorPanel({
   lang: Language
   onState: (next: AppState) => void
   onFlash: (msg: string) => void
-  /** Navigate to order with this held sale */
-  onOpenTable: (tableId: string, heldSaleId: string) => void
+  /** Navigate to order with this held sale (optional if none yet) */
+  onOpenTable: (tableId: string, heldSaleId?: string) => void
 }) {
   const tables = state.tables ?? []
   const [name, setName] = useState(`T${tables.length + 1}`)
