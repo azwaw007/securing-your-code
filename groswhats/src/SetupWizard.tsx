@@ -16,7 +16,7 @@ import { defaultLang, isRtl, LANG_SHORT } from './locale/langs'
 import type { ShopSetupInput } from './store'
 import { catalogFor } from './data/catalogs'
 import { domainById } from './data/domains'
-import { productDisplaySrc } from './utils/productArt'
+import { catalogImagePath } from './utils/productArt'
 
 export function SetupWizard({
   lang,
@@ -47,7 +47,8 @@ export function SetupWizard({
   const [shopName, setShopName] = useState(initial?.shopName || '')
   const [phone, setPhone] = useState(initial?.phone || '')
   const [language, setLanguage] = useState<Language>(lang)
-  const [replaceCatalog, setReplaceCatalog] = useState(existingProducts === 0)
+  const [replaceCatalog, setReplaceCatalog] = useState(true)
+  const initialDomain = initial?.domainId
 
   const countries = useMemo(() => {
     const n = q.trim().toLowerCase()
@@ -74,6 +75,14 @@ export function SetupWizard({
   }, [mode, q])
 
   const preview = catalogFor(domainById(domainId).catalog).slice(0, 8)
+  const domainChanged =
+    !!initialDomain && initialDomain !== domainId && existingProducts > 0
+  const mustReplace = existingProducts === 0 || domainChanged || replaceCatalog
+
+  function pickDomain(id: string) {
+    setDomainId(id)
+    if (existingProducts > 0 && id !== initialDomain) setReplaceCatalog(true)
+  }
 
   function nextFromCountry() {
     setQ('')
@@ -83,7 +92,10 @@ export function SetupWizard({
   function nextFromMode(id: CommerceMode) {
     setMode(id)
     const first = domainsForMode(id)[0]
-    if (first) setDomainId(first.id)
+    if (first) {
+      setDomainId(first.id)
+      if (existingProducts > 0 && first.id !== initialDomain) setReplaceCatalog(true)
+    }
     setQ('')
     setStep(2)
   }
@@ -166,7 +178,7 @@ export function SetupWizard({
                   key={d.id}
                   type="button"
                   className={`choice-card ${domainId === d.id ? 'active' : ''}`}
-                  onClick={() => setDomainId(d.id)}
+                  onClick={() => pickDomain(d.id)}
                 >
                   <span className="choice-emoji">{d.icon}</span>
                   <strong>{domainName(d, language)}</strong>
@@ -177,8 +189,14 @@ export function SetupWizard({
               {preview.map((p) => (
                 <img
                   key={p.name}
-                  src={productDisplaySrc(p.name, p.category)}
+                  src={catalogImagePath(
+                    p.name,
+                    p.category,
+                    p.emoji,
+                    domainById(domainId).catalog,
+                  )}
                   alt={p.name}
+                  title={p.name}
                 />
               ))}
             </div>
@@ -221,14 +239,20 @@ export function SetupWizard({
               />
             </div>
             {existingProducts > 0 ? (
-              <label className="field check-row">
-                <input
-                  type="checkbox"
-                  checked={replaceCatalog}
-                  onChange={(e) => setReplaceCatalog(e.target.checked)}
-                />
-                <span>{t(language, 'setupReplace')}</span>
-              </label>
+              <>
+                {domainChanged ? (
+                  <p className="notice">{t(language, 'setupDomainChangeHint')}</p>
+                ) : null}
+                <label className="field check-row">
+                  <input
+                    type="checkbox"
+                    checked={mustReplace}
+                    disabled={domainChanged}
+                    onChange={(e) => setReplaceCatalog(e.target.checked)}
+                  />
+                  <span>{t(language, 'setupReplace')}</span>
+                </label>
+              </>
             ) : (
               <p className="muted">{t(language, 'setupCatalogHint')}</p>
             )}
@@ -242,7 +266,7 @@ export function SetupWizard({
                   shopName,
                   phone,
                   language,
-                  replaceCatalog: existingProducts === 0 ? true : replaceCatalog,
+                  replaceCatalog: mustReplace,
                 })
               }
             >

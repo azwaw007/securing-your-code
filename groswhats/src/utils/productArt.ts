@@ -1,6 +1,7 @@
 /** Photos / dessins — uniquement si le nom correspond vraiment au dessin. */
 
 import { seedByName } from '../data/catalogs'
+import type { ProductCategory } from '../types'
 
 function norm(s: string): string {
   return s
@@ -9,31 +10,45 @@ function norm(s: string): string {
     .replace(/[\u0300-\u036f]/g, '')
 }
 
-type Rule = { file: string; ok: (n: string) => boolean }
+type RuleKind = 'food' | 'dental' | 'retail' | 'auto' | 'tools'
 
-/** Premier match gagne — règles précises, pas de repli « tout alimentaire = huile ». */
+type Rule = {
+  file: string
+  kind: RuleKind
+  ok: (n: string) => boolean
+}
+
+/** Premier match gagne — scoped par catégorie pour éviter dentiste ↔ superette. */
 const RULES: Rule[] = [
-  { file: 'banana.png', ok: (n) => /\bbanane/.test(n) },
-  { file: 'sugar.png', ok: (n) => /\bsucre\b/.test(n) && !/bonbon|gateau| complementar/.test(n) },
-  { file: 'eggs.png', ok: (n) => /\boeufs?\b/.test(n) },
+  { file: 'banana.png', kind: 'food', ok: (n) => /\bbanane/.test(n) },
+  {
+    file: 'sugar.png',
+    kind: 'food',
+    ok: (n) => /\bsucre\b/.test(n) && !/bonbon|gateau|complement/.test(n),
+  },
+  { file: 'eggs.png', kind: 'food', ok: (n) => /\boeufs?\b/.test(n) },
   {
     file: 'bread.png',
+    kind: 'food',
     ok: (n) => /\b(pain|baguette|croissant|khobz|mhadjeb)\b/.test(n),
   },
   {
     file: 'oil.png',
+    kind: 'food',
     ok: (n) =>
       /\bhuile\b/.test(n) &&
       !/(5w|moteur|vidange|filtre a huile|olive moteur)/.test(n),
   },
   {
     file: 'coffee.png',
+    kind: 'food',
     ok: (n) =>
       (/\bcafe\b/.test(n) || /\bthe\b/.test(n)) &&
       !/glace|energetique|chicha/.test(n),
   },
   {
     file: 'rice.png',
+    kind: 'food',
     ok: (n) =>
       /\b(riz|pates|spaghetti|semoule|farine|couscous|lentille|pois chiche|haricot blanc)\b/.test(
         n,
@@ -41,6 +56,7 @@ const RULES: Rule[] = [
   },
   {
     file: 'milk.png',
+    kind: 'food',
     ok: (n) =>
       !/corporel|hydrat/.test(n) &&
       (/\b(yaourt|fromage|beurre|lait sterilise|lait en poudre|lait 1|lait caille)\b/.test(
@@ -50,58 +66,50 @@ const RULES: Rule[] = [
   },
   {
     file: 'water.png',
+    kind: 'food',
     ok: (n) =>
-      (/\beau minerale\b/.test(n) ||
-        /\beau 1/.test(n) ||
-        /\beau 0/.test(n) ||
-        /\beau 50/.test(n) ||
-        /^eau\b/.test(n) ||
-        /\b(soda|boisson energetique)\b/.test(n)) &&
-      !/javel|cologne|florale|micellaire|de cologne|de javel/.test(n),
+      /\b(eau minerale|eau 1|eau 0|soda|jus d|jus orange|jus cocktail)\b/.test(n) ||
+      /^eau\b/.test(n),
   },
-  { file: 'tomato.png', ok: (n) => /\btomate\b/.test(n) },
+  { file: 'tomato.png', kind: 'food', ok: (n) => /\btomate\b/.test(n) },
   {
     file: 'chicken.png',
-    ok: (n) =>
-      /\b(poulet|viande|merguez|kefta|ovine|bovine|escalope|grillade)\b/.test(n),
+    kind: 'food',
+    ok: (n) => /\b(poulet|viande|merguez|kefta|ovine|bovine)\b/.test(n),
   },
   {
     file: 'shoes.png',
+    kind: 'retail',
     ok: (n) =>
-      /\b(chaussure|basket|sandale|mocassin|botte|tong|escarpin|running)\b/.test(
-        n,
-      ),
+      /\b(basket|sandale|mocassin|escarpin|botte|tong|chaussure)\b/.test(n),
   },
   {
     file: 'tshirt.png',
+    kind: 'retail',
     ok: (n) =>
-      /\b(t-shirt|tee-shirt|chemise|pantalon|jean|robe|veste|hijab|qamis|gandoura|pyjama|jogging|casquette|ceinture)\b/.test(
-        n,
-      ) && !/pressing|repassage/.test(n),
+      /\b(t-shirt|chemise|pantalon|robe|hijab|qamis|jogging|pyjama)\b/.test(n),
   },
   {
     file: 'phone.png',
-    ok: (n) =>
-      /\b(telephone|smartphone|ecouteur|chargeur|cable usb|coque protection|powerbank|montre connect)\b/.test(
-        n,
-      ),
+    kind: 'retail',
+    ok: (n) => /\b(telephone|smartphone|iphone|samsung|chargeur|ecouteurs)\b/.test(n),
   },
   {
     file: 'shampoo.png',
+    kind: 'retail',
     ok: (n) =>
-      /\b(shampoing|gel douche|savon de beaute|deodorant|dentifrice|brosse a dents)\b/.test(
-        n,
-      ) && !/animal/.test(n),
-  },
-  {
-    file: 'lipstick.png',
-    ok: (n) =>
-      /\b(rouge a levres|mascara|vernis|parfum|fond de teint|lipstick|eau de cologne)\b/.test(
+      /\b(shampoing|gel douche|savon|deodorant|creme hydrat|lait corporel)\b/.test(
         n,
       ),
   },
   {
+    file: 'lipstick.png',
+    kind: 'retail',
+    ok: (n) => /\b(rouge a levres|mascara|fond de teint|vernis|parfum)\b/.test(n),
+  },
+  {
     file: 'detergent.png',
+    kind: 'retail',
     ok: (n) =>
       /\b(lessive|javel|vaisselle|detergent|sacs? poubelle|eponge|balai|serpille|papier toilette|essuie-tout)\b/.test(
         n,
@@ -109,6 +117,7 @@ const RULES: Rule[] = [
   },
   {
     file: 'hammer.png',
+    kind: 'tools',
     ok: (n) =>
       /\b(marteau|tournevis|pince universelle|metre 5|cadenas|serrure|cheville|vis 4x)\b/.test(
         n,
@@ -116,6 +125,7 @@ const RULES: Rule[] = [
   },
   {
     file: 'car.png',
+    kind: 'auto',
     ok: (n) =>
       (/\b(citadine|berline|4x4|utilitaire|suv|location citadine|location berline)\b/.test(
         n,
@@ -125,53 +135,99 @@ const RULES: Rule[] = [
   },
   {
     file: 'tooth.png',
+    kind: 'dental',
     ok: (n) =>
-      /\b(detartrage|carie|implant|couronne|blanchiment|dentaire|panoramique)\b/.test(
+      /\b(detartrage|carie|implant|couronne|blanchiment|dentaire|panoramique|extraction|abces)\b/.test(
         n,
-      ) || /\bdent\b/.test(n),
+      ) ||
+      // dentifrice / brosse : cosmétique / para seulement (pas un acte cabinet)
+      /\b(dentifrice|brosse a dents|bain de bouche)\b/.test(n),
   },
 ]
 
-const EMOJI: Array<[RegExp, string]> = [
-  [/huile(?! 5w)/i, '🫒'],
-  [/lait|yaourt|fromage|beurre/i, '🥛'],
-  [/eau|soda|jus/i, '💧'],
-  [/sucre/i, '🍬'],
-  [/riz|pates|semoule|farine|couscous/i, '🍚'],
-  [/cafe|the/i, '☕'],
-  [/pain|baguette|croissant/i, '🥖'],
-  [/poulet|viande|merguez/i, '🍗'],
-  [/tomate|oignon|carotte|orange|pomme|banane/i, '🍅'],
-  [/oeuf/i, '🥚'],
-  [/chaussure|basket|sandale/i, '👟'],
-  [/t-shirt|chemise|pantalon|robe|hijab/i, '👕'],
-  [/telephone|smartphone|chargeur/i, '📱'],
-  [/shampoing|savon|douche/i, '🧴'],
-  [/parfum|mascara|levres/i, '💄'],
-  [/lessive|javel|poubelle/i, '🧹'],
-  [/marteau|visse|pince/i, '🔨'],
-  [/voiture|citadine|berline|pneu/i, '🚗'],
-  [/dent|detartrage/i, '🦷'],
-  [/poulet|viande/i, '🍗'],
+function ruleAllowedForCategory(kind: RuleKind, category: string): boolean {
+  if (kind === 'food') return category === 'alimentaire'
+  if (kind === 'dental') {
+    // Actes santé (autre) + hygiène bucco (cosmetique/consommable) — jamais sur l’alimentaire
+    return (
+      category === 'autre' ||
+      category === 'cosmetique' ||
+      category === 'consommable'
+    )
+  }
+  if (kind === 'retail') {
+    return (
+      category === 'textile' ||
+      category === 'cosmetique' ||
+      category === 'consommable' ||
+      category === 'quincaillerie' ||
+      category === 'autre'
+    )
+  }
+  if (kind === 'auto') return category === 'autre' || category === 'quincaillerie'
+  if (kind === 'tools') return category === 'quincaillerie' || category === 'autre'
+  return true
+}
+
+const EMOJI: Array<[RegExp, string, ProductCategory | 'any']> = [
+  [/huile(?! 5w)/i, '🫒', 'alimentaire'],
+  [/lait|yaourt|fromage|beurre/i, '🥛', 'alimentaire'],
+  [/eau|soda|jus/i, '💧', 'alimentaire'],
+  [/sucre/i, '🍬', 'alimentaire'],
+  [/riz|pates|semoule|farine|couscous/i, '🍚', 'alimentaire'],
+  [/cafe|the/i, '☕', 'alimentaire'],
+  [/pain|baguette|croissant/i, '🥖', 'alimentaire'],
+  [/poulet|viande|merguez/i, '🍗', 'alimentaire'],
+  [/tomate|oignon|carotte|orange|pomme|banane/i, '🍅', 'alimentaire'],
+  [/oeuf/i, '🥚', 'alimentaire'],
+  [/chaussure|basket|sandale/i, '👟', 'textile'],
+  [/t-shirt|chemise|pantalon|robe|hijab/i, '👕', 'textile'],
+  [/telephone|smartphone|chargeur/i, '📱', 'autre'],
+  [/shampoing|savon|douche/i, '🧴', 'cosmetique'],
+  [/parfum|mascara|levres/i, '💄', 'cosmetique'],
+  [/lessive|javel|poubelle/i, '🧹', 'consommable'],
+  [/marteau|visse|pince/i, '🔨', 'quincaillerie'],
+  [/voiture|citadine|berline|pneu/i, '🚗', 'autre'],
+  [/dent|detartrage|carie|implant|couronne|blanchiment|extraction/i, '🦷', 'autre'],
 ]
 
-export function catalogFileFor(name: string): string | null {
+export function catalogFileFor(
+  name: string,
+  category: string = 'autre',
+): string | null {
   const n = norm(name)
-  const hit = RULES.find((r) => r.ok(n))
+  const hit = RULES.find(
+    (r) => r.ok(n) && ruleAllowedForCategory(r.kind, category),
+  )
   return hit?.file ?? null
 }
 
-export function catalogImagePath(name: string, category = 'autre'): string {
-  const file = catalogFileFor(name)
+/** Image seed : emoji du catalogue métier, pas de photo alimentaire pour un acte. */
+export function catalogImagePath(
+  name: string,
+  category = 'autre',
+  emoji?: string,
+  catalogId?: string,
+): string {
+  const file = catalogFileFor(name, category)
   if (file) return `catalog/${file}`
-  return productArt(name, emojiFor(name, category), category)
+  const em =
+    emoji && !emoji.includes(' ')
+      ? emoji
+      : emojiFor(name, category, catalogId)
+  return productArt(name, em, category)
 }
 
-export function emojiFor(name: string, category = 'autre'): string {
-  const seed = seedByName(name)
+export function emojiFor(
+  name: string,
+  category = 'autre',
+  catalogId?: string,
+): string {
+  const seed = seedByName(name, catalogId)
   if (seed?.emoji && !seed.emoji.includes(' ')) return seed.emoji
-  const n = name
-  const hit = EMOJI.find(([re]) => re.test(n))
+  const hit = EMOJI.find(
+    ([re, , cat]) => re.test(name) && (cat === 'any' || cat === category),
+  )
   if (hit) return hit[1]
   const byCat: Record<string, string> = {
     alimentaire: '🛒',
@@ -191,14 +247,23 @@ function isUserPhoto(src?: string): boolean {
   return src.startsWith('data:')
 }
 
-/** Image à l’écran : photo du commerçant, sinon dessin exact, sinon carte avec le nom. */
+/** Image déjà résolue au seed (catalog/… ou SVG métier) — ne pas recalculer. */
+function isTrustedStoredArt(src?: string): boolean {
+  if (!src) return false
+  if (isUserPhoto(src)) return true
+  if (src.startsWith('catalog/')) return true
+  if (src.startsWith('data:image')) return true
+  return false
+}
+
+/** Image à l’écran : photo du commerçant, sinon art seed, sinon dessin recalculé. */
 export function productDisplaySrc(
   name: string,
   category = 'autre',
   stored?: string,
 ): string {
-  if (isUserPhoto(stored)) return productImageSrc(stored)!
-  const file = catalogFileFor(name)
+  if (isTrustedStoredArt(stored)) return productImageSrc(stored)!
+  const file = catalogFileFor(name, category)
   if (file) return productImageSrc(`catalog/${file}`)!
   return productArt(name, emojiFor(name, category), category)
 }
@@ -236,14 +301,13 @@ export function productArt(name: string, emoji: string, category = 'autre'): str
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
   <defs>
     <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="${a}"/>
-      <stop offset="1" stop-color="${b}"/>
+      <stop offset="0%" stop-color="${a}"/>
+      <stop offset="100%" stop-color="${b}"/>
     </linearGradient>
   </defs>
   <rect width="512" height="512" rx="48" fill="url(#g)"/>
-  <circle cx="256" cy="200" r="108" fill="rgba(255,255,255,0.2)"/>
-  <text x="256" y="222" text-anchor="middle" font-size="112">${emoji}</text>
-  <text x="256" y="390" text-anchor="middle" fill="#fff" font-size="26" font-family="Segoe UI, Arial" font-weight="700">${esc(short)}</text>
+  <text x="256" y="220" text-anchor="middle" font-size="140">${esc(emoji)}</text>
+  <text x="256" y="380" text-anchor="middle" font-size="36" fill="#fff" font-family="system-ui,sans-serif" font-weight="700">${esc(short)}</text>
 </svg>`
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
 }

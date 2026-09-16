@@ -936,7 +936,12 @@ export function applyShopSetup(state: AppState, input: ShopSetupInput): AppState
           ? convertPriceDa(seed.priceDa * pack * 0.8, factor)
           : undefined,
       packPriceDa: gros,
-      imageDataUrl: catalogImagePath(seed.name, seed.category),
+      imageDataUrl: catalogImagePath(
+        seed.name,
+        seed.category,
+        seed.emoji,
+        domain.catalog,
+      ),
       createdAt: new Date().toISOString(),
     }
     return setStockAt(base, locId, stock)
