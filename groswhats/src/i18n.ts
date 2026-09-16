@@ -732,6 +732,9 @@ const fr: Dict = {
   expertComptaCredits: 'Crédits clients',
   expertComptaCta: 'Conseil compta détaillé',
   expertComptaMore: 'Voir le détail',
+  themeSourceUser: 'Couleurs choisies manuellement (thème ci-dessous).',
+  themeSourceMetier: 'Couleurs adaptées au métier. Choisis un thème pour forcer.',
+  themeUseMetier: 'Revenir aux couleurs du métier',
   clinicShare: 'Partage médecin / réception',
   clinicShareHint:
     'Deux postes : le médecin soigne, la réception encaisse. Active puis choisis le rôle sur chaque téléphone.',
@@ -1626,6 +1629,9 @@ const ar: Dict = {
   expertComptaCredits: 'ديون الزبائن',
   expertComptaCta: 'نصيحة محاسبة مفصّلة',
   expertComptaMore: 'عرض التفاصيل',
+  themeSourceUser: 'ألوان يدوية (الثيم أدناه).',
+  themeSourceMetier: 'ألوان حسب النشاط. اختر ثيمًا لتثبيتها.',
+  themeUseMetier: 'العودة لألوان النشاط',
   clinicShare: 'مشاركة طبيب / استقبال',
   clinicShareHint:
     'منصبان: الطبيب يعالج، الاستقبال يحصّل. فعّل ثم اختر الدور على كل هاتف.',

@@ -85,7 +85,7 @@ button {
   height: 44px;
   border-radius: 999px;
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--card);
   color: var(--ink);
   font-size: 1.35rem;
   font-weight: 800;
@@ -99,7 +99,7 @@ button {
 
 .back-btn:active {
   transform: scale(0.94);
-  background: #f3f4f6;
+  background: var(--bg-2);
 }
 
 .back-btn.map-back {
@@ -212,10 +212,11 @@ button {
   min-width: 108px;
   padding: 10px 12px;
   border-radius: 16px;
-  background: rgba(255, 253, 248, 0.78);
-  border: 1px solid rgba(217, 208, 192, 0.85);
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+  border: 1px solid var(--line);
   backdrop-filter: blur(10px);
-  box-shadow: 0 6px 18px rgba(28, 25, 20, 0.05);
+  box-shadow: var(--shadow);
+  color: var(--ink);
 }
 
 .home-chip span {
@@ -255,8 +256,9 @@ button {
   margin: 10px 0 14px;
   padding: 14px 16px;
   border-radius: 16px;
-  background: linear-gradient(145deg, #f4faf7 0%, #e8f1ec 55%, #f7f3ea 100%);
-  border: 1px solid rgba(20, 80, 50, 0.12);
+  background: color-mix(in srgb, var(--brand) 12%, var(--card));
+  border: 1px solid var(--line);
+  color: var(--ink);
 }
 
 .expert-comptable-head {
@@ -269,6 +271,7 @@ button {
 .expert-comptable-head h3 {
   margin: 0;
   font-size: 1.05rem;
+  color: var(--ink);
 }
 
 .expert-comptable-section {
@@ -295,12 +298,14 @@ button {
 
 .expert-comptable-stats strong {
   font-size: 1rem;
+  color: var(--ink);
 }
 
 .expert-comptable-tip {
   margin: 0 0 10px;
   font-size: 0.92rem;
   line-height: 1.35;
+  color: var(--ink);
 }
 
 .expert-comptable-details {
@@ -310,7 +315,7 @@ button {
 .expert-comptable-details summary {
   cursor: pointer;
   font-size: 0.88rem;
-  color: #2a5a40;
+  color: var(--brand);
 }
 
 .expert-comptable-body {
@@ -319,6 +324,7 @@ button {
   font-family: inherit;
   font-size: 0.86rem;
   line-height: 1.4;
+  color: var(--ink);
 }
 
 .home-apps {
@@ -525,10 +531,11 @@ button {
 }
 
 .stat {
-  background: linear-gradient(180deg, #fff, #f6f1e7);
+  background: color-mix(in srgb, var(--bg-2) 70%, var(--card));
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 12px;
+  color: var(--ink);
 }
 
 .stat strong {
@@ -553,7 +560,7 @@ button {
 }
 
 .btn.secondary {
-  background: #efe8da;
+  background: var(--bg-2);
   color: var(--ink);
 }
 
@@ -600,7 +607,7 @@ button {
   border-radius: 10px;
   object-fit: cover;
   flex-shrink: 0;
-  background: color-mix(in srgb, var(--brand) 10%, white);
+  background: color-mix(in srgb, var(--brand) 10%, var(--card));
   border: 1px solid var(--line);
 }
 
@@ -635,7 +642,7 @@ button {
   border: 1px solid var(--line);
   border-radius: 16px;
   overflow: hidden;
-  background: #fff;
+  background: var(--card);
   padding: 0;
   text-align: start;
   cursor: pointer;
@@ -648,7 +655,7 @@ button {
   aspect-ratio: 1;
   object-fit: cover;
   display: block;
-  background: color-mix(in srgb, var(--brand) 8%, white);
+  background: color-mix(in srgb, var(--brand) 8%, var(--card));
 }
 
 .gallery-tile-ph {
@@ -656,7 +663,7 @@ button {
   aspect-ratio: 1;
   display: grid;
   place-items: center;
-  background: color-mix(in srgb, var(--brand) 10%, white);
+  background: color-mix(in srgb, var(--brand) 10%, var(--card));
   color: var(--muted, #6b7280);
   font-weight: 700;
   font-size: 0.9rem;
@@ -693,7 +700,7 @@ button {
   width: min(520px, 100%);
   max-height: min(90vh, 900px);
   overflow: auto;
-  background: #fff;
+  background: var(--card);
   border-radius: 18px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
 }
@@ -718,7 +725,7 @@ button {
   border: 1px solid var(--line);
   border-radius: 14px;
   overflow: hidden;
-  background: #fff;
+  background: var(--card);
   display: flex;
   flex-direction: column;
 }
@@ -732,7 +739,7 @@ button {
   width: 100%;
   aspect-ratio: 1;
   object-fit: cover;
-  background: color-mix(in srgb, var(--brand) 8%, white);
+  background: color-mix(in srgb, var(--brand) 8%, var(--card));
   display: block;
 }
 
@@ -885,7 +892,7 @@ button {
   display: inline-block;
   padding: 2px 8px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--brand) 16%, white);
+  background: color-mix(in srgb, var(--brand) 16%, var(--card));
   color: var(--brand);
   font-size: 0.78rem;
   font-weight: 700;
@@ -905,7 +912,7 @@ button {
   white-space: nowrap;
   padding: 4px 10px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--brand) 14%, white);
+  background: color-mix(in srgb, var(--brand) 14%, var(--card));
   color: var(--brand);
   font-size: 0.78rem;
   font-weight: 700;
@@ -931,7 +938,7 @@ button {
   padding: 10px 12px;
   border: 1px dashed var(--line);
   border-radius: 14px;
-  background: color-mix(in srgb, var(--brand) 4%, white);
+  background: color-mix(in srgb, var(--brand) 4%, var(--card));
 }
 
 .location-row {
@@ -971,7 +978,8 @@ button {
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 12px;
-  background: white;
+  background: var(--card);
+  color: var(--ink);
 }
 
 .check-row {
@@ -990,7 +998,8 @@ button {
   text-align: start;
   border: 1px solid var(--line);
   border-radius: 14px;
-  background: white;
+  background: var(--card);
+  color: var(--ink);
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -1005,7 +1014,7 @@ button {
 .style-card.active {
   border-color: var(--style-accent, var(--brand));
   box-shadow: inset 0 0 0 2px var(--style-accent, var(--brand));
-  background: color-mix(in srgb, var(--style-accent, var(--brand)) 8%, white);
+  background: color-mix(in srgb, var(--style-accent, var(--brand)) 8%, var(--card));
 }
 
 .smart-search {
@@ -1145,7 +1154,7 @@ button {
   padding: 14px 16px;
   border-radius: 14px;
   border: 1px solid var(--line);
-  background: color-mix(in srgb, var(--brand) 12%, white);
+  background: color-mix(in srgb, var(--brand) 12%, var(--card));
   color: var(--ink);
   font-weight: 700;
   cursor: pointer;
@@ -1440,13 +1449,14 @@ button {
   height: 36px;
   border-radius: 10px;
   border: 1px solid var(--line);
-  background: white;
+  background: var(--card);
+  color: var(--ink);
   font-weight: 800;
 }
 
 .notice {
-  background: color-mix(in srgb, var(--brand) 10%, white);
-  border: 1px solid color-mix(in srgb, var(--brand) 28%, white);
+  background: color-mix(in srgb, var(--brand) 10%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--brand) 28%, var(--card));
   color: var(--brand);
   border-radius: 12px;
   padding: 10px 12px;
@@ -1488,7 +1498,8 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 12px;
-  background: white;
+  background: var(--card);
+  color: var(--ink);
   width: 100%;
   resize: vertical;
 }
@@ -1559,8 +1570,8 @@ textarea {
   font-size: 1.25rem;
   font-weight: 700;
   cursor: pointer;
-  background: #f3eee4;
-  color: #1a2332;
+  background: var(--bg-2);
+  color: var(--ink);
 }
 
 .calc-key:active {
@@ -1568,12 +1579,12 @@ textarea {
 }
 
 .calc-num {
-  background: #fff;
+  background: var(--card);
   border: 1px solid var(--line);
 }
 
 .calc-fn {
-  background: color-mix(in srgb, var(--brand) 14%, white);
+  background: color-mix(in srgb, var(--brand) 14%, var(--card));
   color: var(--brand);
 }
 
@@ -1599,8 +1610,9 @@ textarea {
 
 .bubble.agent {
   align-self: flex-start;
-  background: #f3eee4;
+  background: var(--bg-2);
   border: 1px solid var(--line);
+  color: var(--ink);
 }
 
 .chip-row {
@@ -1612,7 +1624,8 @@ textarea {
 
 .chip {
   border: 1px solid var(--line);
-  background: white;
+  background: var(--card);
+  color: var(--ink);
   border-radius: 999px;
   padding: 6px 10px;
   font-size: 0.78rem;
@@ -1629,11 +1642,11 @@ textarea {
   padding: 10px;
   border-radius: 12px;
   border: 1px dashed var(--brand);
-  background: color-mix(in srgb, var(--brand) 8%, white);
+  background: color-mix(in srgb, var(--brand) 8%, var(--card));
 }
 
 .teach-chip {
-  background: color-mix(in srgb, var(--brand) 16%, white);
+  background: color-mix(in srgb, var(--brand) 16%, var(--card));
   border-color: var(--brand);
   font-weight: 700;
 }
@@ -1766,7 +1779,7 @@ html[dir='rtl'] .style-card {
   height: 48px;
   border-radius: 999px;
   border: none;
-  background: #fff;
+  background: var(--card);
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
   font-size: 1.25rem;
 }
@@ -1824,7 +1837,7 @@ html[dir='rtl'] .style-card {
   align-items: center;
   padding: 10px;
   border-radius: 14px;
-  background: color-mix(in srgb, var(--brand) 10%, white);
+  background: color-mix(in srgb, var(--brand) 10%, var(--card));
   border: 1px solid var(--line);
   margin-bottom: 8px;
 }
@@ -1923,7 +1936,7 @@ html[dir='rtl'] .style-card {
   width: 22px;
   height: 22px;
   border-radius: 999px;
-  background: #fff;
+  background: var(--card);
   box-shadow: 0 0 0 2px #2563eb, 0 4px 12px rgba(37, 99, 235, 0.45);
 }
 
@@ -1964,7 +1977,7 @@ html[dir='rtl'] .style-card {
 
 .tier-chip {
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--card);
   border-radius: 999px;
   padding: 4px 10px;
   font-size: 0.75rem;
@@ -2013,7 +2026,7 @@ html[dir='rtl'] .style-card {
   padding: 10px;
   border-radius: 14px;
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--card);
 }
 
 .driver-stop.done {
@@ -2146,7 +2159,7 @@ html[dir='rtl'] .style-card {
 .client-qr-frame {
   display: inline-block;
   padding: 12px;
-  background: #fff;
+  background: var(--card);
   border-radius: 12px;
   margin: 8px 0;
 }
@@ -2168,7 +2181,7 @@ html[dir='rtl'] .style-card {
     left: 0;
     top: 0;
     width: 100%;
-    background: #fff;
+    background: var(--card);
   }
   .client-qr-card .btn {
     display: none !important;
@@ -2184,7 +2197,7 @@ html[dir='rtl'] .style-card {
 
 .choice-card {
   border: 2px solid var(--line);
-  background: #fff;
+  background: var(--card);
   border-radius: 16px;
   padding: 14px 10px;
   display: flex;
@@ -2199,7 +2212,7 @@ html[dir='rtl'] .style-card {
 
 .choice-card.active {
   border-color: var(--brand);
-  background: color-mix(in srgb, var(--brand) 12%, white);
+  background: color-mix(in srgb, var(--brand) 12%, var(--card));
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand) 20%, transparent);
 }
 
@@ -2214,12 +2227,14 @@ html[dir='rtl'] .style-card {
 
 .choice-card.pay-cash.active {
   border-color: #15803d;
-  background: #ecfdf5;
+  background: color-mix(in srgb, #16a34a 18%, var(--card));
+  color: var(--ink);
 }
 
 .choice-card.pay-credit.active {
   border-color: #b45309;
-  background: #fff7ed;
+  background: color-mix(in srgb, #d97706 16%, var(--card));
+  color: var(--ink);
 }
 
 .client-pick-grid {
@@ -2237,7 +2252,7 @@ html[dir='rtl'] .style-card {
   gap: 12px;
   width: 100%;
   border: 2px solid var(--line);
-  background: #fff;
+  background: var(--card);
   border-radius: 14px;
   padding: 10px 12px;
   text-align: start;
@@ -2247,7 +2262,7 @@ html[dir='rtl'] .style-card {
 
 .client-pick.active {
   border-color: var(--brand);
-  background: color-mix(in srgb, var(--brand) 10%, white);
+  background: color-mix(in srgb, var(--brand) 10%, var(--card));
 }
 
 .client-avatar {
@@ -2397,7 +2412,7 @@ html[dir='rtl'] .style-card {
   margin-bottom: 10px;
   border-radius: 14px;
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--card);
 }
 
 .pricing-row:last-child {
@@ -2750,7 +2765,7 @@ html.easy-mode .home-tile {
   padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: #fff;
+  background: var(--card);
 }
 
 .setup-grid {
@@ -2973,7 +2988,7 @@ html.easy-mode .home-tile {
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 10px;
-  background: #fff;
+  background: var(--card);
   text-align: start;
   cursor: pointer;
   display: flex;
@@ -2990,17 +3005,17 @@ html.easy-mode .home-tile {
 }
 
 .table-tile.is-free {
-  background: color-mix(in srgb, #16a34a 12%, white);
+  background: color-mix(in srgb, #16a34a 12%, var(--card));
   border-color: #16a34a;
 }
 
 .table-tile.is-busy {
-  background: color-mix(in srgb, #f59e0b 14%, white);
+  background: color-mix(in srgb, #f59e0b 14%, var(--card));
   border-color: #f59e0b;
 }
 
 .table-tile.is-bill {
-  background: color-mix(in srgb, #dc2626 14%, white);
+  background: color-mix(in srgb, #dc2626 14%, var(--card));
   border-color: #dc2626;
 }
 
@@ -3026,7 +3041,7 @@ html.easy-mode .home-tile {
 
 .repair-status-chip {
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--card);
   border-radius: 999px;
   padding: 4px 10px;
   font-size: 0.75rem;
@@ -3045,4 +3060,52 @@ html.easy-mode .home-tile {
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
+}
+
+/* Mode nuit : surfaces / texte toujours lisibles */
+html[data-theme='night'] .notice.warn,
+html[data-theme='night'] .alert-card,
+html[data-theme='night'] .notice.warn-text,
+html[data-theme='night'] .warn-text {
+  background: color-mix(in srgb, #d97706 18%, var(--card));
+  border-color: color-mix(in srgb, #d97706 45%, var(--line));
+  color: #fbbf24;
+}
+
+html[data-theme='night'] .list-item,
+html[data-theme='night'] .product-card,
+html[data-theme='night'] .client-row,
+html[data-theme='night'] .home-chip {
+  color: var(--ink);
+}
+
+html[data-theme='night'] .bubble {
+  color: var(--ink);
+}
+
+html[data-theme='night'] .bubble.user {
+  color: #fff;
+}
+
+html[data-theme='night'] input,
+html[data-theme='night'] select,
+html[data-theme='night'] textarea,
+html[data-theme='night'] .field input,
+html[data-theme='night'] .field select,
+html[data-theme='night'] .field textarea {
+  background: var(--bg-2);
+  color: var(--ink);
+  border-color: var(--line);
+  color-scheme: dark;
+}
+
+html[data-theme='night'] input::placeholder,
+html[data-theme='night'] textarea::placeholder {
+  color: var(--muted);
+  opacity: 0.9;
+}
+
+html[data-theme='night'] option {
+  background: var(--bg-2);
+  color: var(--ink);
 }
