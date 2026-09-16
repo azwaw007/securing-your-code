@@ -563,10 +563,27 @@ export default function App() {
           </div>
         </div>
         <div className="topbar-actions">
-          {state.settings.multiLocationEnabled && activeLocation(state) ? (
-            <span className="location-pill" title={t(lang, 'activeLocation')}>
-              🏪 {activeLocation(state)?.name}
-            </span>
+          {state.settings.multiLocationEnabled && state.locations.length > 0 ? (
+            <label className="location-pill location-switch" title={t(lang, 'activeLocation')}>
+              <span aria-hidden>🏪</span>
+              <select
+                value={activeLocationId(state)}
+                aria-label={t(lang, 'activeLocation')}
+                onChange={(e) => {
+                  const id = e.target.value
+                  setState((s) => setActiveLocation(s, id))
+                  const name =
+                    state.locations.find((l) => l.id === id)?.name || id
+                  setToast(`${t(lang, 'activeLocation')}: ${name}`)
+                }}
+              >
+                {state.locations.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
+            </label>
           ) : null}
           {toast ? <div className="badge">{toast}</div> : null}
           <button
@@ -1434,9 +1451,32 @@ function SettingsPage({
               {t(lang, 'proUpsellLink')}
             </a>
             <a href="/az-soft/" target="_blank" rel="noreferrer">
-              Site AZ Soft
+              {t(lang, 'azSoftSite')}
             </a>
           </span>
+        </div>
+        <div className="card install-help" style={{ marginTop: 10 }}>
+          <h3 style={{ margin: '0 0 6px' }}>{t(lang, 'installTitle')}</h3>
+          <p className="muted" style={{ margin: '0 0 10px' }}>
+            {t(lang, 'installHint')}
+          </p>
+          <ul className="install-steps">
+            <li>{t(lang, 'installIos')}</li>
+            <li>{t(lang, 'installAndroid')}</li>
+            <li>{t(lang, 'installDesktop')}</li>
+          </ul>
+          <div className="btn-row" style={{ marginTop: 10 }}>
+            <a
+              className="btn secondary"
+              href="https://github.com/azwaw007/securing-your-code/releases/download/v1.0.0-win/AZ-POS-Setup-1.0.0.exe"
+              rel="noreferrer"
+            >
+              {t(lang, 'installWindows')}
+            </a>
+            <a className="btn ghost" href="/az-soft/" target="_blank" rel="noreferrer">
+              {t(lang, 'azSoftSite')}
+            </a>
+          </div>
         </div>
         <div className="field">
           <label>Clé de licence</label>
@@ -1842,6 +1882,18 @@ function SettingsPage({
                     value={xferQty}
                     onChange={(e) => setXferQty(e.target.value)}
                   />
+                  {(() => {
+                    const p = state.products.find((x) => x.id === xferProductId)
+                    if (!p || !xferFrom) return null
+                    return (
+                      <p className="muted" style={{ margin: '6px 0 0' }}>
+                        {t(lang, 'transferAvailable')} :{' '}
+                        <strong>
+                          {formatQty(stockAt(p, xferFrom))} {unitLabel(lang, p.unit)}
+                        </strong>
+                      </p>
+                    )
+                  })()}
                 </div>
                 <button
                   type="button"
