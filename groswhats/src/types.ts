@@ -33,6 +33,7 @@ export type Screen =
   | 'caisse'
   | 'returns'
   | 'purchases'
+  | 'staff'
 
 export type ExpenseCategory =
   | 'personnel'
@@ -63,6 +64,11 @@ export interface Product {
   id: string
   name: string
   category: ProductCategory
+  /**
+   * Rayon caisse détail (spécialité boutique).
+   * Ex. smartphones, laitiers, pain — distinct de ProductCategory.
+   */
+  aisleId?: string
   unit: Unit
   /** Prix pièce (DA) — tarif unitaire */
   priceDa: number
@@ -86,6 +92,16 @@ export interface Product {
   imageDataUrl?: string
   /** Code-barres / EAN / code interne */
   barcode?: string
+  /** IMEI / N° série (téléphonie, électro) */
+  imei?: string
+  /** Taille / pointure (prêt-à-porter, chaussures) */
+  size?: string
+  /** Couleur / variante */
+  color?: string
+  /** Réf. constructeur / OEM (pièces auto, quincaillerie, électro) */
+  oemRef?: string
+  /** Favori caisse (accès rapide) */
+  favorite?: boolean
   createdAt: string
 }
 
@@ -150,6 +166,24 @@ export interface SaleReturn {
   createdAt: string
 }
 
+export type AppointmentRemindStage = '24h' | '2h'
+
+/** RDV médecin / clinique — rappels WhatsApp auto */
+export interface Appointment {
+  id: string
+  clientId: string
+  clientName: string
+  clientPhone: string
+  /** Date-heure ISO du rendez-vous */
+  at: string
+  note: string
+  status: 'planned' | 'done' | 'cancelled'
+  /** Stages de rappel déjà envoyés */
+  remindStages: AppointmentRemindStage[]
+  remindedAt?: string
+  createdAt: string
+}
+
 export interface Client {
   id: string
   name: string
@@ -159,6 +193,8 @@ export interface Client {
   address: string
   /** Note libre (horaires, contact, etc.) */
   notes: string
+  /** Salle de sport — UID puce NFC / badge adhérent */
+  nfcUid?: string
   /** GPS optionnel */
   lat?: number
   lng?: number
@@ -167,6 +203,157 @@ export interface Client {
    * Solde affiché = reste des factures + balanceAdjustDa
    */
   balanceAdjustDa?: number
+  /** Santé — date de naissance YYYY-MM-DD */
+  birthDate?: string
+  /** Santé — sexe */
+  sex?: 'M' | 'F' | 'X'
+  /** Santé — groupe sanguin */
+  bloodGroup?: string
+  /** Santé — allergies (critique) */
+  allergies?: string
+  /** Santé — antécédents médicaux */
+  antecedents?: string
+  /**
+   * Sport / salle — abonnement & suivi coach
+   * (même logique « dossier » que patient / employé).
+   */
+  /** Début abonnement YYYY-MM-DD */
+  membershipStart?: string
+  /** Fin abonnement YYYY-MM-DD */
+  membershipEnd?: string
+  /** Formule (mensuel, trimestriel, séances…) */
+  membershipPlan?: string
+  /** Objectif (perte de poids, force, compétition…) */
+  sportGoal?: string
+  /** Programme d’entraînement assigné par le coach */
+  trainingProgram?: string
+  /** Régime / plan alimentaire */
+  dietPlan?: string
+  /** Notes de suivi coach (mesures, bilans…) */
+  coachNotes?: string
+  /** Dentaire / soins — plan de traitement */
+  treatmentPlan?: string
+  /** Véto — espèce / race */
+  petSpecies?: string
+  /** Boxe — catégorie poids */
+  weightClass?: string
+  /** Foot — équipe */
+  teamName?: string
+  /** Foot — poste */
+  playerPosition?: string
+  /** Yoga / natation / école — niveau */
+  level?: string
+  /** Arts martiaux — grade / ceinture */
+  beltGrade?: string
+  /** Salon — formule couleur */
+  colorFormula?: string
+  /** Salon / resto / hôtel — préférences */
+  preferences?: string
+  /** Garage — immat */
+  vehiclePlate?: string
+  /** Garage — modèle */
+  vehicleModel?: string
+  /** Garage — prochain entretien */
+  nextService?: string
+  /** Location — n° permis */
+  licenseId?: string
+  /** Avocat — réf affaire */
+  caseRef?: string
+  createdAt: string
+}
+
+export type MedicalDocKind =
+  | 'ordonnance'
+  | 'orientation'
+  | 'certificat'
+  | 'compte_rendu'
+
+/** Document médical (ordonnance, lettre d’orientation, …) */
+export interface MedicalDocument {
+  id: string
+  clientId: string
+  clientName: string
+  kind: MedicalDocKind
+  title: string
+  body: string
+  createdAt: string
+}
+
+/** Check-in / check-out salle de sport */
+export interface GymCheckIn {
+  id: string
+  clientId: string
+  clientName: string
+  kind: 'in' | 'out'
+  at: string
+  source: 'nfc' | 'qr' | 'manual' | 'wedge'
+}
+
+/** Rôle employé (commerçant, cabinet, atelier…) */
+export type EmployeeRole =
+  | 'vendeur'
+  | 'caissier'
+  | 'livreur'
+  | 'manager'
+  | 'technicien'
+  | 'assistant'
+  | 'autre'
+
+/**
+ * Dossier employé — même logique que le dossier patient :
+ * dates clés (contrat, congés, assurance) + argent (paie, avances, dettes).
+ * Utile à tous les métiers : boutique, dépôt, cabinet, garage, resto…
+ */
+export interface Employee {
+  id: string
+  name: string
+  phone: string
+  role: EmployeeRole
+  /** Début de contrat YYYY-MM-DD */
+  contractStart?: string
+  /** Fin de contrat (CDD / fin prévue) */
+  contractEnd?: string
+  /** Salaire mensuel convenu (DA) */
+  salaryDa: number
+  /** Début couverture assurance / mutuelle */
+  insuranceStart?: string
+  /** Fin couverture assurance */
+  insuranceEnd?: string
+  insuranceNote?: string
+  notes: string
+  active: boolean
+  createdAt: string
+}
+
+export type LeaveKind = 'conge' | 'maladie' | 'sans_solde' | 'autre'
+
+export interface EmployeeLeave {
+  id: string
+  employeeId: string
+  kind: LeaveKind
+  /** Début congé / absence */
+  startDate: string
+  /** Fin congé / absence */
+  endDate: string
+  note: string
+  createdAt: string
+}
+
+/** Mouvements argent employés : avance, dette, paiement salaire, remboursement */
+export type StaffMoneyKind =
+  | 'avance'
+  | 'dette'
+  | 'paiement_salaire'
+  | 'remboursement'
+
+export interface StaffLedgerEntry {
+  id: string
+  employeeId: string
+  kind: StaffMoneyKind
+  amountDa: number
+  note: string
+  /** Mois / période ex. 2026-09 */
+  periodLabel?: string
   createdAt: string
 }
 
@@ -193,6 +380,50 @@ export interface OrderLine {
   lineTotalDa: number
   /** Tarif appliqué (pièce / demi-gros / gros / super-gros) */
   priceTier?: PriceTier
+  /** IMEI saisi à la caisse (téléphonie) */
+  imei?: string
+  /** Remise % sur la ligne (0–100) */
+  discountPercent?: number
+}
+
+/** Table de salle (resto) */
+export interface FloorTable {
+  id: string
+  name: string
+  seats: number
+  status: 'free' | 'busy' | 'bill'
+  /** HeldSale id when occupied */
+  heldSaleId?: string
+  note?: string
+}
+
+export type RepairStatus = 'devis' | 'or' | 'done' | 'cancelled'
+
+/** Ordre de réparation (garage, atelier, électro…) */
+export interface RepairOrder {
+  id: string
+  clientId: string
+  clientName: string
+  clientPhone: string
+  /** véhicule / appareil / objet */
+  title: string
+  status: RepairStatus
+  estimateDa: number
+  note: string
+  createdAt: string
+  updatedAt: string
+}
+
+/** Ticket mis en attente (park) — caisse détail */
+export interface HeldSale {
+  id: string
+  label: string
+  clientId: string
+  qtyMap: Record<string, number>
+  tierMap: Record<string, PriceTier>
+  imeiMap?: Record<string, string>
+  discountPercent?: number
+  createdAt: string
 }
 
 export interface Order {
@@ -200,8 +431,16 @@ export interface Order {
   clientId: string
   clientName: string
   clientPhone: string
+  /** Magasin / dépôt de la vente (multi-emplacement) */
+  locationId?: string
   lines: OrderLine[]
   totalDa: number
+  /** Sous-total avant remise ticket */
+  subtotalDa?: number
+  /** Remise % sur le ticket (0–100) */
+  discountPercent?: number
+  /** Montant remisé (DA) */
+  discountDa?: number
   /** Montant encaissé maintenant → caisse */
   paidDa: number
   /** Reste dû → solde client */
@@ -210,6 +449,8 @@ export interface Order {
   payment: 'paye' | 'credit'
   /** Date d’échéance (YYYY-MM-DD) si reste dû > 0 */
   dueDate?: string
+  /** Note libre (acte cabinet, etc.) */
+  note?: string
   createdAt: string
   whatsappSent: boolean
   invoiceNumber?: string
@@ -260,6 +501,11 @@ export interface ShopSettings {
   easyMode: boolean
   /** Couleurs / ambiance (modifiable par l’agent vocal) */
   themePreset: ThemePreset
+  /**
+   * `metier` = thème dérivé du domaine (défaut).
+   * `user` = l’utilisateur a choisi un preset manuel.
+   */
+  themeSource?: 'metier' | 'user'
   /** Taille du texte */
   fontScale: FontScale
   /** Afficher zakat sur l’accueil */
@@ -274,6 +520,27 @@ export interface ShopSettings {
   multiLocationEnabled?: boolean
   /** Magasin actif à la caisse / stock */
   activeLocationId?: string
+  /**
+   * Santé : partage médecin ↔ réception/caisse (plusieurs téléphones / postes).
+   * Le médecin soigne ; la réception encaisse.
+   */
+  clinicShareEnabled?: boolean
+  /** Poste actuel si clinicShareEnabled */
+  clinicStation?: ClinicStation
+  /** Choix médecin / réception déjà fait */
+  clinicStationChosen?: boolean
+  /** Santé / RDV : rappels WhatsApp auto (défaut true) */
+  appointmentAutoRemind?: boolean
+  /**
+   * Paramétrage rayons caisse détail (activer / renommer).
+   * Absent = tous les rayons du métier sont actifs avec libellés par défaut.
+   */
+  retailRayons?: Array<{
+    id: string
+    enabled: boolean
+    labelFr?: string
+    labelAr?: string
+  }>
 }
 
 export interface ZakatRecord {
@@ -298,6 +565,24 @@ export interface Expense {
 }
 
 export type TeamRole = 'owner' | 'driver'
+
+/** Poste cabinet (santé) — médecin vs réception/caisse */
+export type ClinicStation = 'doctor' | 'reception'
+
+/** Acte à encaisser — le médecin envoie, la réception encaisse */
+export interface ClinicCharge {
+  id: string
+  clientId: string
+  clientName: string
+  clientPhone: string
+  label: string
+  amountDa: number
+  note: string
+  status: 'pending' | 'paid' | 'cancelled'
+  createdAt: string
+  paidAt?: string
+  orderId?: string
+}
 
 export interface Driver {
   id: string
@@ -376,6 +661,24 @@ export interface AppState {
   purchases: Purchase[]
   cashSessions: CashSession[]
   returns: SaleReturn[]
+  /** Dossier médical — ordonnances, lettres d’orientation, etc. */
+  medicalDocuments: MedicalDocument[]
+  /** File d’attente caisse (médecin → réception) */
+  clinicCharges: ClinicCharge[]
+  /** Présences salle de sport (check-in NFC) */
+  gymCheckIns: GymCheckIn[]
+  /** Équipe / RH lean */
+  employees: Employee[]
+  employeeLeaves: EmployeeLeave[]
+  staffLedger: StaffLedgerEntry[]
+  /** Tickets caisse mis en attente */
+  heldSales: HeldSale[]
+  /** Agenda RDV (santé / salon / clubs…) */
+  appointments: Appointment[]
+  /** Tables de salle (resto) */
+  tables: FloorTable[]
+  /** Ordres de réparation (garage, atelier…) */
+  repairOrders: RepairOrder[]
 }
 
 export const ALL_UNITS: Unit[] = [

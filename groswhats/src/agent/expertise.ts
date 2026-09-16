@@ -131,12 +131,12 @@ export function expertAdvice(
       ].join('\n')
     case 'marketing':
       return [
-        '📣 Expert marketing + campagne AZ Soft',
-        '1) Écris « lance campagne » pour la file 7 jours',
-        '2) « story du jour » / « post du jour »',
-        '3) « réponds → message client » (prix, démo, Pro)',
-        '4) Page : /seller/campagne.html',
-        '5) Objectif : 10 démos · 3 devis Pro · 1 licence',
+        '📣 Marketing magasin (sans fausse publication auto)',
+        '1) Photo produit nette + prix clair dans le stock',
+        '2) WhatsApp clients sur les arrivages (bouton Arrivages)',
+        '3) Promo : copie un texte depuis la fiche produit si tu veux une story manuelle',
+        '4) Fidélité : rappelle les crédits / clients dormants',
+        'Je ne publie pas sur Facebook/Instagram — caisse & stock seulement.',
       ].join('\n')
     case 'management':
       return [

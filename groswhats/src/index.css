@@ -1110,6 +1110,171 @@ button {
   margin-bottom: 8px;
 }
 
+.dossier-patient {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line, #ddd);
+}
+
+.dossier-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.dossier-head h3 {
+  margin: 0;
+}
+
+.dossier-allergy {
+  background: #fef2f2;
+  color: #991b1b;
+  padding: 8px 10px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  font-size: 0.95rem;
+}
+
+.dossier-form {
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(14, 116, 144, 0.06);
+  margin-bottom: 10px;
+}
+
+.dossier-profile {
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+}
+
+.dossier-body {
+  white-space: pre-wrap;
+  background: #f8fafc;
+  padding: 12px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  max-height: 280px;
+  overflow: auto;
+}
+
+.dossier-doc-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  text-align: start;
+  padding: 10px 0;
+  border: 0;
+  border-top: 1px solid var(--line, #eee);
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.reception-queue {
+  margin-bottom: 12px;
+  border: 2px solid #0e7490;
+  background: linear-gradient(145deg, rgba(14, 116, 144, 0.1), transparent);
+}
+
+.clinic-charge-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.clinic-charge-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+  padding-top: 10px;
+  border-top: 1px solid var(--line, #ddd);
+}
+
+
+
+.table-floor { margin-bottom: 12px; }
+.table-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 8px;
+  margin: 10px 0;
+}
+.table-tile {
+  border-radius: 12px;
+  padding: 10px 8px;
+  text-align: center;
+  border: 2px solid var(--line, #ddd);
+  background: rgba(255,255,255,0.5);
+}
+.table-tile.is-free { border-color: #16a34a; background: rgba(22,163,74,0.12); }
+.table-tile.is-busy { border-color: #d97706; background: rgba(217,119,6,0.14); }
+.table-tile.is-bill { border-color: #dc2626; background: rgba(220,38,38,0.12); }
+.table-tile strong { display: block; font-size: 1.05rem; }
+.table-tile .muted { font-size: 0.8rem; }
+.repair-panel { margin-bottom: 12px; }
+.repair-status-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.repair-item { padding: 10px 0; border-top: 1px solid var(--line, #ddd); }
+
+.clinic-agenda {
+  margin-bottom: 12px;
+  border: 2px solid #0e7490;
+  background: linear-gradient(145deg, rgba(14, 116, 144, 0.1), rgba(14, 116, 144, 0.02));
+}
+
+.clinic-agenda-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.clinic-auto {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.clinic-agenda-hint {
+  margin: 0 0 10px;
+  font-size: 0.85rem;
+}
+
+.clinic-agenda-form {
+  margin-bottom: 12px;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.clinic-agenda-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.clinic-agenda-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 0;
+  border-top: 1px solid var(--line, #ddd);
+}
+
 .ticket-preview {
   white-space: pre-wrap;
   background: #f7f2e8;
@@ -2549,7 +2714,7 @@ html.easy-mode .home-tile {
   box-shadow: 0 12px 28px rgba(15, 118, 110, 0.35);
 }
 
-/* Détail = caisse boutique */
+/* Détail = caisse boutique (grille dense type Easy Management) */
 .app-shell.mode-detail .sell-cta {
   background: linear-gradient(135deg, #9a3412, #ea580c);
   box-shadow: 0 12px 28px rgba(234, 88, 12, 0.35);
@@ -2557,11 +2722,92 @@ html.easy-mode .home-tile {
 
 .app-shell.mode-detail .product-catalog {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (min-width: 720px) {
+  .app-shell.mode-detail .product-catalog {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 980px) {
+  .app-shell.mode-detail .product-catalog {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.app-shell.easy-ui.mode-detail .product-catalog {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (min-width: 720px) {
+  .app-shell.easy-ui.mode-detail .product-catalog {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .app-shell.mode-detail .product-card-img,
 .app-shell.mode-detail .product-card-img.placeholder {
-  min-height: 120px;
+  min-height: 100px;
+}
+
+.app-shell.mode-detail .retail-cat-chips {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 8px 0 12px;
+  margin: 0 0 4px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.app-shell.mode-detail .retail-cat-chips .chip {
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.app-shell.mode-detail .retail-cat-chips .chip.active {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+
+/* Rayons spécialisés détail */
+.app-shell.metier-grocery .product-catalog,
+.app-shell.metier-bakery .product-catalog,
+.app-shell.metier-butcher .product-catalog {
+  gap: 8px;
+}
+
+.app-shell.metier-restaurant .product-catalog,
+.app-shell.metier-cafe .product-catalog {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (min-width: 720px) {
+  .app-shell.metier-restaurant .product-catalog,
+  .app-shell.metier-cafe .product-catalog {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.app-shell.metier-salon .product-catalog,
+.app-shell.metier-pressing .product-catalog {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 600px) {
+  .app-shell.metier-salon .product-catalog,
+  .app-shell.metier-pressing .product-catalog {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .app-shell.mode-gros .product-catalog {
@@ -2583,3 +2829,166 @@ html.easy-mode .home-tile {
   box-shadow: 0 12px 28px rgba(124, 58, 237, 0.35);
 }
 
+
+/* Favoris + stock bas caisse détail */
+.app-shell.mode-detail .retail-fav-chips {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 0 8px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.app-shell.mode-detail .retail-fav-chips .fav-chip {
+  flex: 0 0 auto;
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  color: #9a3412;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-weight: 600;
+}
+
+.product-card {
+  position: relative;
+}
+
+.product-card .fav-toggle {
+  position: absolute;
+  top: 6px;
+  inset-inline-end: 6px;
+  z-index: 2;
+  border: none;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 999px;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.product-card .fav-toggle.on {
+  background: #fff7ed;
+}
+
+.product-card .stock-low-badge {
+  position: absolute;
+  top: 6px;
+  inset-inline-start: 6px;
+  z-index: 2;
+  background: #b91c1c;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.product-card.low-stock {
+  outline: 2px solid rgba(185, 28, 28, 0.35);
+}
+
+.warn-text {
+  color: #b91c1c !important;
+  font-weight: 600;
+}
+
+.table-floor .table-floor-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.table-floor .table-floor-form input {
+  flex: 1;
+  min-width: 90px;
+}
+
+.table-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.table-tile {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px;
+  background: #fff;
+  text-align: start;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.table-tile strong {
+  font-size: 0.95rem;
+}
+
+.table-tile .muted {
+  font-size: 0.75rem;
+}
+
+.table-tile.is-free {
+  background: color-mix(in srgb, #16a34a 12%, white);
+  border-color: #16a34a;
+}
+
+.table-tile.is-busy {
+  background: color-mix(in srgb, #f59e0b 14%, white);
+  border-color: #f59e0b;
+}
+
+.table-tile.is-bill {
+  background: color-mix(in srgb, #dc2626 14%, white);
+  border-color: #dc2626;
+}
+
+.table-tile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.table-tile-actions .btn {
+  padding: 4px 8px;
+  font-size: 0.72rem;
+  border-radius: 8px;
+}
+
+.repair-status-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 10px;
+}
+
+.repair-status-chip {
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  color: var(--ink);
+}
+
+.repair-status-chip.active {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+
+.repair-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}

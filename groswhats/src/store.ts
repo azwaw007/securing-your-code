@@ -19,12 +19,26 @@ import type {
   PurchaseLine,
   ReturnLine,
   SaleReturn,
+  MedicalDocument,
+  MedicalDocKind,
+  ClinicCharge,
+  ClinicStation,
+  GymCheckIn,
+  Employee,
+  EmployeeLeave,
+  StaffLedgerEntry,
   ShopLocation,
   ShopSettings,
   StopStatus,
   Supplier,
   TeamSettings,
+  HeldSale,
+  Appointment,
+  AppointmentRemindStage,
   ZakatRecord,
+  PriceTier,
+  FloorTable,
+  RepairOrder,
 } from './types'
 import {
   DEFAULT_AGENT_PERMISSIONS,
@@ -73,6 +87,7 @@ function defaultSettings(): ShopSettings {
     uiSoundsEnabled: true,
     easyMode: true,
     themePreset: 'forest',
+    themeSource: 'metier',
     fontScale: 'normal',
     showZakat: true,
     showCalculator: true,
@@ -80,6 +95,10 @@ function defaultSettings(): ShopSettings {
     agentPermissions: { ...DEFAULT_AGENT_PERMISSIONS },
     multiLocationEnabled: false,
     activeLocationId: DEFAULT_LOCATION_ID,
+    clinicShareEnabled: false,
+    clinicStation: undefined,
+    clinicStationChosen: false,
+    appointmentAutoRemind: true,
   }
 }
 
@@ -175,6 +194,8 @@ export function addLocation(
 ): AppState {
   const trimmed = name.trim()
   if (!trimmed) return state
+  /** Offre Pro : jusqu’à 3 magasins / dépôts */
+  if (state.locations.length >= 3) return state
   const loc: ShopLocation = {
     id: uid('loc'),
     name: trimmed,
@@ -332,6 +353,16 @@ function seedState(): AppState {
     purchases: [],
     cashSessions: [],
     returns: [],
+    medicalDocuments: [],
+    clinicCharges: [],
+    gymCheckIns: [],
+    employees: [],
+    employeeLeaves: [],
+    staffLedger: [],
+    heldSales: [],
+    appointments: [],
+    tables: [],
+    repairOrders: [],
   }
 }
 
@@ -353,6 +384,15 @@ function migrate(raw: unknown): AppState {
     purchases?: Purchase[]
     cashSessions?: CashSession[]
     returns?: SaleReturn[]
+    medicalDocuments?: MedicalDocument[]
+    clinicCharges?: ClinicCharge[]
+    gymCheckIns?: GymCheckIn[]
+    employees?: Employee[]
+    employeeLeaves?: EmployeeLeave[]
+    staffLedger?: StaffLedgerEntry[]
+    appointments?: Appointment[]
+    tables?: FloorTable[]
+    repairOrders?: RepairOrder[]
   }
   const incoming = data.settings ?? {}
   const defaults = defaultSettings()
@@ -381,6 +421,7 @@ function migrate(raw: unknown): AppState {
     themePreset: themeOk.includes(incoming.themePreset as (typeof themeOk)[number])
       ? (incoming.themePreset as ShopSettings['themePreset'])
       : defaults.themePreset,
+    themeSource: incoming.themeSource === 'user' ? 'user' : 'metier',
     fontScale: fontOk.includes(incoming.fontScale as (typeof fontOk)[number])
       ? (incoming.fontScale as ShopSettings['fontScale'])
       : defaults.fontScale,
@@ -396,6 +437,33 @@ function migrate(raw: unknown): AppState {
       typeof incoming.activeLocationId === 'string' && incoming.activeLocationId
         ? incoming.activeLocationId
         : defaults.activeLocationId,
+    clinicShareEnabled: incoming.clinicShareEnabled === true,
+    clinicStation:
+      incoming.clinicStation === 'doctor' || incoming.clinicStation === 'reception'
+        ? incoming.clinicStation
+        : undefined,
+    clinicStationChosen: incoming.clinicStationChosen === true,
+    retailRayons: Array.isArray(incoming.retailRayons)
+      ? incoming.retailRayons
+          .filter(
+            (r): r is NonNullable<ShopSettings['retailRayons']>[number] =>
+              !!r &&
+              typeof (r as { id?: string }).id === 'string' &&
+              (r as { id: string }).id.length > 0,
+          )
+          .map((r) => ({
+            id: String((r as { id: string }).id),
+            enabled: (r as { enabled?: boolean }).enabled !== false,
+            labelFr:
+              typeof (r as { labelFr?: string }).labelFr === 'string'
+                ? (r as { labelFr: string }).labelFr
+                : undefined,
+            labelAr:
+              typeof (r as { labelAr?: string }).labelAr === 'string'
+                ? (r as { labelAr: string }).labelAr
+                : undefined,
+          }))
+      : undefined,
   }
   const teamDefaults = defaultTeam()
   const team: TeamSettings = {
@@ -454,6 +522,27 @@ function migrate(raw: unknown): AppState {
           typeof (p as Product).barcode === 'string'
             ? (p as Product).barcode!.trim()
             : undefined,
+        aisleId:
+          typeof (p as Product).aisleId === 'string' && (p as Product).aisleId!.trim()
+            ? (p as Product).aisleId!.trim()
+            : undefined,
+        imei:
+          typeof (p as Product).imei === 'string' && (p as Product).imei!.trim()
+            ? (p as Product).imei!.trim()
+            : undefined,
+        size:
+          typeof (p as Product).size === 'string' && (p as Product).size!.trim()
+            ? (p as Product).size!.trim()
+            : undefined,
+        color:
+          typeof (p as Product).color === 'string' && (p as Product).color!.trim()
+            ? (p as Product).color!.trim()
+            : undefined,
+        oemRef:
+          typeof (p as Product).oemRef === 'string' && (p as Product).oemRef!.trim()
+            ? (p as Product).oemRef!.trim()
+            : undefined,
+        favorite: (p as Product).favorite === true,
         demiGrosPriceDa:
           typeof p.demiGrosPriceDa === 'number' && p.demiGrosPriceDa > 0
             ? p.demiGrosPriceDa
@@ -475,6 +564,36 @@ function migrate(raw: unknown): AppState {
       lng: typeof c.lng === 'number' ? c.lng : undefined,
       balanceAdjustDa:
         typeof c.balanceAdjustDa === 'number' ? c.balanceAdjustDa : 0,
+      birthDate: typeof c.birthDate === 'string' ? c.birthDate : undefined,
+      sex: c.sex === 'M' || c.sex === 'F' || c.sex === 'X' ? c.sex : undefined,
+      bloodGroup: typeof c.bloodGroup === 'string' ? c.bloodGroup : undefined,
+      allergies: typeof c.allergies === 'string' ? c.allergies : undefined,
+      antecedents: typeof c.antecedents === 'string' ? c.antecedents : undefined,
+      membershipStart: typeof c.membershipStart === 'string' ? c.membershipStart : undefined,
+      membershipEnd: typeof c.membershipEnd === 'string' ? c.membershipEnd : undefined,
+      membershipPlan: typeof c.membershipPlan === 'string' ? c.membershipPlan : undefined,
+      sportGoal: typeof c.sportGoal === 'string' ? c.sportGoal : undefined,
+      trainingProgram: typeof c.trainingProgram === 'string' ? c.trainingProgram : undefined,
+      dietPlan: typeof c.dietPlan === 'string' ? c.dietPlan : undefined,
+      coachNotes: typeof c.coachNotes === 'string' ? c.coachNotes : undefined,
+      treatmentPlan: typeof c.treatmentPlan === 'string' ? c.treatmentPlan : undefined,
+      petSpecies: typeof c.petSpecies === 'string' ? c.petSpecies : undefined,
+      weightClass: typeof c.weightClass === 'string' ? c.weightClass : undefined,
+      teamName: typeof c.teamName === 'string' ? c.teamName : undefined,
+      playerPosition: typeof c.playerPosition === 'string' ? c.playerPosition : undefined,
+      level: typeof c.level === 'string' ? c.level : undefined,
+      beltGrade: typeof c.beltGrade === 'string' ? c.beltGrade : undefined,
+      colorFormula: typeof c.colorFormula === 'string' ? c.colorFormula : undefined,
+      preferences: typeof c.preferences === 'string' ? c.preferences : undefined,
+      vehiclePlate: typeof c.vehiclePlate === 'string' ? c.vehiclePlate : undefined,
+      vehicleModel: typeof c.vehicleModel === 'string' ? c.vehicleModel : undefined,
+      nextService: typeof c.nextService === 'string' ? c.nextService : undefined,
+      licenseId: typeof c.licenseId === 'string' ? c.licenseId : undefined,
+      caseRef: typeof c.caseRef === 'string' ? c.caseRef : undefined,
+      nfcUid:
+        typeof c.nfcUid === 'string' && c.nfcUid.trim()
+          ? c.nfcUid.trim().toUpperCase().replace(/[\s:.-]+/g, '')
+          : undefined,
     })),
     orders: (data.orders ?? []).map((o) => {
       const total = typeof o.totalDa === 'number' ? o.totalDa : 0
@@ -575,6 +694,172 @@ function migrate(raw: unknown): AppState {
       note: typeof r.note === 'string' ? r.note : '',
       createdAt: r.createdAt || new Date().toISOString(),
     })),
+    medicalDocuments: (data.medicalDocuments ?? [])
+      .filter((d) => d && typeof d.clientId === 'string')
+      .map((d) => ({
+        id: d.id || uid('mdoc'),
+        clientId: d.clientId,
+        clientName: d.clientName || '',
+        kind: (['ordonnance', 'orientation', 'certificat', 'compte_rendu'] as const).includes(
+          d.kind as MedicalDocKind,
+        )
+          ? (d.kind as MedicalDocKind)
+          : 'ordonnance',
+        title: typeof d.title === 'string' ? d.title : '',
+        body: typeof d.body === 'string' ? d.body : '',
+        createdAt: d.createdAt || new Date().toISOString(),
+      })),
+    clinicCharges: (data.clinicCharges ?? [])
+      .filter((c) => c && typeof c.clientId === 'string')
+      .map((c) => ({
+        id: c.id || uid('chg'),
+        clientId: c.clientId,
+        clientName: c.clientName || '',
+        clientPhone: typeof c.clientPhone === 'string' ? c.clientPhone : '',
+        label: typeof c.label === 'string' ? c.label : '',
+        amountDa: typeof c.amountDa === 'number' ? c.amountDa : 0,
+        note: typeof c.note === 'string' ? c.note : '',
+        status:
+          c.status === 'paid' || c.status === 'cancelled' ? c.status : 'pending',
+        createdAt: c.createdAt || new Date().toISOString(),
+        paidAt: typeof c.paidAt === 'string' ? c.paidAt : undefined,
+        orderId: typeof c.orderId === 'string' ? c.orderId : undefined,
+      })),
+    gymCheckIns: (data.gymCheckIns ?? [])
+      .filter((g) => g && typeof g.clientId === 'string')
+      .map((g) => ({
+        id: g.id || uid('gin'),
+        clientId: g.clientId,
+        clientName: g.clientName || '',
+        kind: g.kind === 'out' ? 'out' : 'in',
+        at: g.at || new Date().toISOString(),
+        source:
+          g.source === 'qr' ||
+          g.source === 'manual' ||
+          g.source === 'wedge' ||
+          g.source === 'nfc'
+            ? g.source
+            : 'manual',
+      })),
+    employees: (data.employees ?? [])
+      .filter((e) => e && typeof e.name === 'string')
+      .map((e) => ({
+        id: e.id || uid('emp'),
+        name: e.name,
+        phone: typeof e.phone === 'string' ? e.phone : '',
+        role: (['vendeur','caissier','livreur','manager','technicien','assistant','autre'] as const).includes(e.role as never)
+          ? e.role
+          : 'autre',
+        contractStart: typeof e.contractStart === 'string' ? e.contractStart : undefined,
+        contractEnd: typeof e.contractEnd === 'string' ? e.contractEnd : undefined,
+        salaryDa: typeof e.salaryDa === 'number' ? e.salaryDa : 0,
+        insuranceStart: typeof e.insuranceStart === 'string' ? e.insuranceStart : undefined,
+        insuranceEnd: typeof e.insuranceEnd === 'string' ? e.insuranceEnd : undefined,
+        insuranceNote: typeof e.insuranceNote === 'string' ? e.insuranceNote : undefined,
+        notes: typeof e.notes === 'string' ? e.notes : '',
+        active: e.active !== false,
+        createdAt: e.createdAt || new Date().toISOString(),
+      })),
+    employeeLeaves: (data.employeeLeaves ?? [])
+      .filter((l) => l && typeof l.employeeId === 'string')
+      .map((l) => ({
+        id: l.id || uid('elv'),
+        employeeId: l.employeeId,
+        kind: (['conge','maladie','sans_solde','autre'] as const).includes(l.kind as never) ? l.kind : 'conge',
+        startDate: l.startDate || '',
+        endDate: l.endDate || '',
+        note: typeof l.note === 'string' ? l.note : '',
+        createdAt: l.createdAt || new Date().toISOString(),
+      })),
+    staffLedger: (data.staffLedger ?? [])
+      .filter((s) => s && typeof s.employeeId === 'string')
+      .map((s) => ({
+        id: s.id || uid('sledg'),
+        employeeId: s.employeeId,
+        kind: (['avance','dette','paiement_salaire','remboursement'] as const).includes(s.kind as never)
+          ? s.kind
+          : 'avance',
+        amountDa: typeof s.amountDa === 'number' ? s.amountDa : 0,
+        note: typeof s.note === 'string' ? s.note : '',
+        periodLabel: typeof s.periodLabel === 'string' ? s.periodLabel : undefined,
+        createdAt: s.createdAt || new Date().toISOString(),
+      })),
+    heldSales: Array.isArray((data as { heldSales?: HeldSale[] }).heldSales)
+      ? ((data as { heldSales: HeldSale[] }).heldSales)
+          .filter((h) => h && typeof h.id === 'string')
+          .map((h) => ({
+            id: h.id || uid('hold'),
+            label: typeof h.label === 'string' && h.label.trim() ? h.label.trim() : 'En attente',
+            clientId: typeof h.clientId === 'string' ? h.clientId : '',
+            qtyMap:
+              h.qtyMap && typeof h.qtyMap === 'object'
+                ? (h.qtyMap as Record<string, number>)
+                : {},
+            tierMap:
+              h.tierMap && typeof h.tierMap === 'object'
+                ? (h.tierMap as Record<string, PriceTier>)
+                : {},
+            imeiMap:
+              h.imeiMap && typeof h.imeiMap === 'object'
+                ? (h.imeiMap as Record<string, string>)
+                : undefined,
+            discountPercent:
+              typeof h.discountPercent === 'number' && h.discountPercent > 0
+                ? h.discountPercent
+                : undefined,
+            createdAt: h.createdAt || new Date().toISOString(),
+          }))
+      : [],
+    appointments: (data.appointments ?? [])
+      .filter((a) => a && typeof a.clientId === 'string' && a.at)
+      .map((a) => ({
+        id: a.id || uid('rdv'),
+        clientId: a.clientId,
+        clientName: a.clientName || '',
+        clientPhone: typeof a.clientPhone === 'string' ? a.clientPhone : '',
+        at: a.at,
+        note: typeof a.note === 'string' ? a.note : '',
+        status:
+          a.status === 'done' || a.status === 'cancelled' ? a.status : 'planned',
+        remindStages: Array.isArray(a.remindStages)
+          ? a.remindStages.filter(
+              (st): st is AppointmentRemindStage => st === '24h' || st === '2h',
+            )
+          : [],
+        remindedAt: typeof a.remindedAt === 'string' ? a.remindedAt : undefined,
+        createdAt: a.createdAt || new Date().toISOString(),
+      })),
+    tables: (data.tables ?? [])
+      .filter((tb) => tb && typeof tb.name === 'string')
+      .slice(0, 40)
+      .map((tb) => ({
+        id: tb.id || uid('tbl'),
+        name: tb.name,
+        seats: typeof tb.seats === 'number' && tb.seats > 0 ? tb.seats : 2,
+        status:
+          tb.status === 'busy' || tb.status === 'bill' ? tb.status : 'free',
+        heldSaleId: typeof tb.heldSaleId === 'string' ? tb.heldSaleId : undefined,
+        note: typeof tb.note === 'string' ? tb.note : undefined,
+      })),
+    repairOrders: (data.repairOrders ?? [])
+      .filter((r) => r && typeof r.title === 'string')
+      .map((r) => ({
+        id: r.id || uid('rep'),
+        clientId: typeof r.clientId === 'string' ? r.clientId : '',
+        clientName: typeof r.clientName === 'string' ? r.clientName : '',
+        clientPhone: typeof r.clientPhone === 'string' ? r.clientPhone : '',
+        title: r.title,
+        status:
+          (['devis', 'or', 'done', 'cancelled'] as const).includes(
+            r.status as never,
+          )
+            ? r.status
+            : 'devis',
+        estimateDa: typeof r.estimateDa === 'number' ? r.estimateDa : 0,
+        note: typeof r.note === 'string' ? r.note : '',
+        createdAt: r.createdAt || new Date().toISOString(),
+        updatedAt: r.updatedAt || r.createdAt || new Date().toISOString(),
+      })),
   }
   return ensureDefaultLocation(base)
 }
@@ -636,6 +921,7 @@ export function applyShopSetup(state: AppState, input: ShopSetupInput): AppState
       id: uid('p'),
       name: seed.name,
       category: seed.category,
+      aisleId: seed.aisleId,
       unit: seed.unit,
       priceDa: price,
       costDa: cost,
@@ -669,6 +955,11 @@ export function applyShopSetup(state: AppState, input: ShopSetupInput): AppState
       phone: input.phone.trim(),
       language: input.language,
       showZakat: defaultZakatOn(country.code),
+      themeSource: 'metier',
+      clinicShareEnabled: domain.mode === 'sante',
+      clinicStationChosen: false,
+      clinicStation: undefined,
+      retailRayons: undefined,
     },
     products: keep ? state.products : products,
   })
@@ -709,6 +1000,28 @@ export function updateProduct(state: AppState, id: string, patch: Partial<Produc
 
 export function deleteProduct(state: AppState, id: string): AppState {
   return { ...state, products: state.products.filter((p) => p.id !== id) }
+}
+
+export function holdSale(
+  state: AppState,
+  input: Omit<HeldSale, 'id' | 'createdAt'>,
+): AppState {
+  const held: HeldSale = {
+    ...input,
+    id: uid('hold'),
+    createdAt: new Date().toISOString(),
+  }
+  return {
+    ...state,
+    heldSales: [held, ...(state.heldSales || [])].slice(0, 30),
+  }
+}
+
+export function removeHeldSale(state: AppState, id: string): AppState {
+  return {
+    ...state,
+    heldSales: (state.heldSales || []).filter((h) => h.id !== id),
+  }
 }
 
 export function addClient(
@@ -760,14 +1073,448 @@ export function updateClient(
   id: string,
   patch: Partial<Omit<Client, 'id' | 'createdAt'>>,
 ): AppState {
+  const clean = { ...patch }
+  if (patch.nfcUid !== undefined) {
+    clean.nfcUid = patch.nfcUid
+      ? patch.nfcUid.trim().toUpperCase().replace(/[\s:.-]+/g, '')
+      : undefined
+  }
   return {
     ...state,
-    clients: state.clients.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+    clients: state.clients.map((c) => (c.id === id ? { ...c, ...clean } : c)),
   }
 }
 
+
+export function addAppointment(
+  state: AppState,
+  input: {
+    clientId: string
+    at: string
+    note?: string
+  },
+): AppState {
+  const client = state.clients.find((c) => c.id === input.clientId)
+  if (!client || !input.at) return state
+  const item: Appointment = {
+    id: uid('rdv'),
+    clientId: client.id,
+    clientName: client.name,
+    clientPhone: client.phone,
+    at: input.at,
+    note: (input.note || '').trim(),
+    status: 'planned',
+    remindStages: [],
+    createdAt: new Date().toISOString(),
+  }
+  return {
+    ...state,
+    appointments: [item, ...(state.appointments ?? [])].slice(0, 500),
+  }
+}
+
+export function updateAppointment(
+  state: AppState,
+  id: string,
+  patch: Partial<Omit<Appointment, 'id' | 'createdAt'>>,
+): AppState {
+  return {
+    ...state,
+    appointments: (state.appointments ?? []).map((a) =>
+      a.id === id ? { ...a, ...patch } : a,
+    ),
+  }
+}
+
+export function deleteAppointment(state: AppState, id: string): AppState {
+  return {
+    ...state,
+    appointments: (state.appointments ?? []).filter((a) => a.id !== id),
+  }
+}
+
+export function upcomingAppointments(
+  state: AppState,
+  limit = 20,
+  now = new Date(),
+): Appointment[] {
+  const t0 = now.getTime() - 30 * 60_000
+  return (state.appointments ?? [])
+    .filter((a) => a.status === 'planned' && new Date(a.at).getTime() >= t0)
+    .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime())
+    .slice(0, limit)
+}
+
+export type AppointmentRemindNeed = {
+  appointment: Appointment
+  stage: AppointmentRemindStage
+}
+
+/** RDV planifiés à rappeler : fenêtre 24h puis 2h avant. */
+export function appointmentsNeedingReminder(
+  state: AppState,
+  now = new Date(),
+): AppointmentRemindNeed[] {
+  const tNow = now.getTime()
+  const out: AppointmentRemindNeed[] = []
+  for (const a of state.appointments ?? []) {
+    if (a.status !== 'planned') continue
+    const tAt = new Date(a.at).getTime()
+    if (!Number.isFinite(tAt)) continue
+    const msLeft = tAt - tNow
+    if (msLeft < -15 * 60_000) continue
+    const stages = a.remindStages || []
+    if (msLeft <= 2 * 60 * 60_000 && !stages.includes('2h')) {
+      out.push({ appointment: a, stage: '2h' })
+    } else if (msLeft <= 24 * 60 * 60_000 && !stages.includes('24h')) {
+      out.push({ appointment: a, stage: '24h' })
+    }
+  }
+  out.sort(
+    (x, y) =>
+      new Date(x.appointment.at).getTime() - new Date(y.appointment.at).getTime(),
+  )
+  return out
+}
+
+export function markAppointmentReminded(
+  state: AppState,
+  id: string,
+  stage: AppointmentRemindStage,
+): AppState {
+  return {
+    ...state,
+    appointments: (state.appointments ?? []).map((a) => {
+      if (a.id !== id) return a
+      const stages = a.remindStages || []
+      if (stages.includes(stage)) return a
+      return {
+        ...a,
+        remindStages: [...stages, stage],
+        remindedAt: new Date().toISOString(),
+      }
+    }),
+  }
+}
+
+const MAX_TABLES = 40
+
+export function upsertFloorTable(
+  state: AppState,
+  input: { id?: string; name: string; seats: number },
+): AppState {
+  const tables = state.tables ?? []
+  if (input.id) {
+    return {
+      ...state,
+      tables: tables.map((tb) =>
+        tb.id === input.id ? { ...tb, name: input.name, seats: input.seats } : tb,
+      ),
+    }
+  }
+  if (tables.length >= MAX_TABLES) return state
+  const table: FloorTable = {
+    id: uid('tbl'),
+    name: input.name,
+    seats: input.seats,
+    status: 'free',
+  }
+  return { ...state, tables: [...tables, table] }
+}
+
+export function deleteFloorTable(state: AppState, id: string): AppState {
+  return {
+    ...state,
+    tables: (state.tables ?? []).filter((tb) => tb.id !== id),
+  }
+}
+
+export function setTableStatus(
+  state: AppState,
+  id: string,
+  status: FloorTable['status'],
+  heldSaleId?: string,
+): AppState {
+  return {
+    ...state,
+    tables: (state.tables ?? []).map((tb) =>
+      tb.id === id
+        ? {
+            ...tb,
+            status,
+            heldSaleId: status === 'free' ? undefined : heldSaleId ?? tb.heldSaleId,
+          }
+        : tb,
+    ),
+  }
+}
+
+export function addRepairOrder(
+  state: AppState,
+  input: Omit<RepairOrder, 'id' | 'createdAt' | 'updatedAt'>,
+): AppState {
+  const now = new Date().toISOString()
+  const order: RepairOrder = {
+    ...input,
+    id: uid('rep'),
+    createdAt: now,
+    updatedAt: now,
+  }
+  return { ...state, repairOrders: [order, ...(state.repairOrders ?? [])] }
+}
+
+export function updateRepairOrder(
+  state: AppState,
+  id: string,
+  patch: Partial<Omit<RepairOrder, 'id' | 'createdAt'>>,
+): AppState {
+  return {
+    ...state,
+    repairOrders: (state.repairOrders ?? []).map((r) =>
+      r.id === id
+        ? { ...r, ...patch, updatedAt: new Date().toISOString() }
+        : r,
+    ),
+  }
+}
+
+export function deleteRepairOrder(state: AppState, id: string): AppState {
+  return {
+    ...state,
+    repairOrders: (state.repairOrders ?? []).filter((r) => r.id !== id),
+  }
+}
+
+/** Filtre ventes du magasin actif (si multi-emplacement). */
+export function ordersForActiveLocation(state: AppState): Order[] {
+  if (!state.settings.multiLocationEnabled) return state.orders
+  const loc = activeLocationId(state)
+  return state.orders.filter((o) => !o.locationId || o.locationId === loc)
+}
+
+export function todayOrdersAtActiveLocation(state: AppState): Order[] {
+  const day = new Date().toISOString().slice(0, 10)
+  return ordersForActiveLocation(state).filter((o) => o.createdAt.slice(0, 10) === day)
+}
+
 export function deleteClient(state: AppState, id: string): AppState {
-  return { ...state, clients: state.clients.filter((c) => c.id !== id) }
+  return {
+    ...state,
+    clients: state.clients.filter((c) => c.id !== id),
+    medicalDocuments: (state.medicalDocuments ?? []).filter((d) => d.clientId !== id),
+  }
+}
+
+export function findClientByNfcUid(
+  state: AppState,
+  rawUid: string,
+): Client | undefined {
+  const uid = rawUid.trim().toUpperCase().replace(/[\s:.-]+/g, '')
+  if (!uid) return undefined
+  return state.clients.find((c) => c.nfcUid && c.nfcUid === uid)
+}
+
+function gymDayKey(iso: string): string {
+  return iso.slice(0, 10)
+}
+
+/** Dernier événement du jour par client → présents = last kind === 'in' */
+export function gymPresentClientIds(state: AppState, at = new Date()): string[] {
+  const today = gymDayKey(at.toISOString())
+  const last = new Map<string, GymCheckIn>()
+  for (const ev of state.gymCheckIns ?? []) {
+    if (gymDayKey(ev.at) !== today) continue
+    const prev = last.get(ev.clientId)
+    if (!prev || ev.at >= prev.at) last.set(ev.clientId, ev)
+  }
+  const ids: string[] = []
+  for (const [clientId, ev] of last) {
+    if (ev.kind === 'in') ids.push(clientId)
+  }
+  return ids
+}
+
+export function gymOccupancyCount(state: AppState): number {
+  return gymPresentClientIds(state).length
+}
+
+export function isClientPresentInGym(state: AppState, clientId: string): boolean {
+  return gymPresentClientIds(state).includes(clientId)
+}
+
+/** Entrée si absent, sortie si déjà présent. */
+export function toggleGymCheckIn(
+  state: AppState,
+  clientId: string,
+  source: GymCheckIn['source'] = 'manual',
+): { state: AppState; kind: 'in' | 'out'; client: Client } | null {
+  const client = state.clients.find((c) => c.id === clientId)
+  if (!client) return null
+  const kind: 'in' | 'out' = isClientPresentInGym(state, clientId) ? 'out' : 'in'
+  const entry: GymCheckIn = {
+    id: uid('gin'),
+    clientId: client.id,
+    clientName: client.name,
+    kind,
+    at: new Date().toISOString(),
+    source,
+  }
+  return {
+    state: {
+      ...state,
+      gymCheckIns: [entry, ...(state.gymCheckIns ?? [])].slice(0, 2000),
+    },
+    kind,
+    client,
+  }
+}
+
+export function gymCheckInByUid(
+  state: AppState,
+  rawUid: string,
+  source: GymCheckIn['source'] = 'nfc',
+):
+  | { state: AppState; kind: 'in' | 'out'; client: Client }
+  | { error: 'unknown_chip' | 'empty' } {
+  const raw = rawUid.trim()
+  if (!raw) return { error: 'empty' }
+  const client = findClientByNfcUid(state, raw)
+  if (!client) return { error: 'unknown_chip' }
+  const res = toggleGymCheckIn(state, client.id, source)
+  if (!res) return { error: 'unknown_chip' }
+  return res
+}
+
+export function medicalDocsForClient(
+  state: AppState,
+  clientId: string,
+): MedicalDocument[] {
+  return (state.medicalDocuments ?? [])
+    .filter((d) => d.clientId === clientId)
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+}
+
+export function addMedicalDocument(
+  state: AppState,
+  input: {
+    clientId: string
+    kind: MedicalDocKind
+    title: string
+    body: string
+  },
+): AppState {
+  const client = state.clients.find((c) => c.id === input.clientId)
+  if (!client) return state
+  const doc: MedicalDocument = {
+    id: uid('mdoc'),
+    clientId: client.id,
+    clientName: client.name,
+    kind: input.kind,
+    title: input.title.trim() || input.kind,
+    body: input.body.trim(),
+    createdAt: new Date().toISOString(),
+  }
+  return {
+    ...state,
+    medicalDocuments: [doc, ...(state.medicalDocuments ?? [])].slice(0, 1000),
+  }
+}
+
+export function updateMedicalDocument(
+  state: AppState,
+  id: string,
+  patch: Partial<Pick<MedicalDocument, 'title' | 'body' | 'kind'>>,
+): AppState {
+  return {
+    ...state,
+    medicalDocuments: (state.medicalDocuments ?? []).map((d) =>
+      d.id === id ? { ...d, ...patch } : d,
+    ),
+  }
+}
+
+export function deleteMedicalDocument(state: AppState, id: string): AppState {
+  return {
+    ...state,
+    medicalDocuments: (state.medicalDocuments ?? []).filter((d) => d.id !== id),
+  }
+}
+
+export function pendingClinicCharges(state: AppState): ClinicCharge[] {
+  return (state.clinicCharges ?? [])
+    .filter((c) => c.status === 'pending')
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+}
+
+/** Médecin → file d’attente de la réception / caisse */
+export function sendToReceptionCash(
+  state: AppState,
+  input: {
+    clientId: string
+    label: string
+    amountDa: number
+    note?: string
+  },
+): AppState {
+  const client = state.clients.find((c) => c.id === input.clientId)
+  if (!client) return state
+  const amount = Math.max(0, +input.amountDa.toFixed(2))
+  if (amount <= 0) return state
+  const charge: ClinicCharge = {
+    id: uid('chg'),
+    clientId: client.id,
+    clientName: client.name,
+    clientPhone: client.phone,
+    label: input.label.trim() || 'Consultation',
+    amountDa: amount,
+    note: (input.note || '').trim(),
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+  }
+  return {
+    ...state,
+    clinicCharges: [charge, ...(state.clinicCharges ?? [])].slice(0, 500),
+  }
+}
+
+export function cancelClinicCharge(state: AppState, id: string): AppState {
+  return {
+    ...state,
+    clinicCharges: (state.clinicCharges ?? []).map((c) =>
+      c.id === id && c.status === 'pending' ? { ...c, status: 'cancelled' } : c,
+    ),
+  }
+}
+
+export function markClinicChargePaid(
+  state: AppState,
+  id: string,
+  orderId?: string,
+): AppState {
+  return {
+    ...state,
+    clinicCharges: (state.clinicCharges ?? []).map((c) =>
+      c.id === id
+        ? {
+            ...c,
+            status: 'paid',
+            paidAt: new Date().toISOString(),
+            orderId: orderId || c.orderId,
+          }
+        : c,
+    ),
+  }
+}
+
+export function setClinicStation(
+  state: AppState,
+  station: ClinicStation,
+): AppState {
+  return updateSettings(state, {
+    clinicStation: station,
+    clinicStationChosen: true,
+    clinicShareEnabled: true,
+  })
 }
 
 /** Normalise paidDa / remainingDa (anciennes factures paye|credit). */
@@ -813,6 +1560,7 @@ export function createOrder(
   orderInput: Omit<Order, 'id' | 'createdAt' | 'whatsappSent' | 'invoiceNumber'>,
 ): AppState {
   const invoiceNumber = String(state.settings.nextInvoiceNumber).padStart(4, '0')
+  const locIdForOrder = orderInput.locationId || activeLocationId(state)
   const order: Order = {
     ...orderInput,
     ...normalizeOrderAmounts(
@@ -825,6 +1573,7 @@ export function createOrder(
       orderInput.totalDa,
     ),
     id: uid('o'),
+    locationId: locIdForOrder,
     createdAt: new Date().toISOString(),
     whatsappSent: false,
     invoiceNumber,
@@ -941,11 +1690,25 @@ export function updateIncomingOrder(
 
 /** Valeur marchande du stock (prix de vente) — base classique zakat marchandises */
 export function stockValueDa(state: AppState): number {
+  if (state.settings.multiLocationEnabled) {
+    const loc = activeLocationId(state)
+    return state.products.reduce(
+      (sum, p) => sum + p.priceDa * stockAt(p, loc),
+      0,
+    )
+  }
   return state.products.reduce((sum, p) => sum + p.priceDa * p.stock, 0)
 }
 
 /** Coût d'achat du stock */
 export function stockCostDa(state: AppState): number {
+  if (state.settings.multiLocationEnabled) {
+    const loc = activeLocationId(state)
+    return state.products.reduce(
+      (sum, p) => sum + (p.costDa || 0) * stockAt(p, loc),
+      0,
+    )
+  }
   return state.products.reduce((sum, p) => sum + (p.costDa || 0) * p.stock, 0)
 }
 
@@ -1156,8 +1919,8 @@ export function setClientDisplayedBalance(
 }
 
 export function todayOrders(state: AppState): Order[] {
-  const today = new Date().toDateString()
-  return state.orders.filter((o) => new Date(o.createdAt).toDateString() === today)
+  const day = new Date().toISOString().slice(0, 10)
+  return ordersForActiveLocation(state).filter((o) => o.createdAt.slice(0, 10) === day)
 }
 
 export function lowStockProducts(state: AppState): Product[] {
@@ -1281,7 +2044,8 @@ export function profitInRange(
 } {
   const a = startOfDay(from).getTime()
   const b = endOfDay(to).getTime()
-  const orders = state.orders.filter((o) => {
+  const scoped = ordersForActiveLocation(state)
+  const orders = scoped.filter((o) => {
     const t = new Date(o.createdAt).getTime()
     return t >= a && t <= b
   })
@@ -1946,4 +2710,118 @@ export function createSaleReturn(
     next = applyClientPayment(next, input.clientId, totalDa)
   }
   return next
+}
+
+export function addEmployee(
+  state: AppState,
+  input: Omit<Employee, 'id' | 'createdAt'>,
+): AppState {
+  const emp: Employee = {
+    ...input,
+    id: uid('emp'),
+    createdAt: new Date().toISOString(),
+  }
+  return { ...state, employees: [emp, ...(state.employees ?? [])] }
+}
+
+export function updateEmployee(
+  state: AppState,
+  id: string,
+  patch: Partial<Omit<Employee, 'id' | 'createdAt'>>,
+): AppState {
+  return {
+    ...state,
+    employees: (state.employees ?? []).map((e) =>
+      e.id === id ? { ...e, ...patch } : e,
+    ),
+  }
+}
+
+export function deleteEmployee(state: AppState, id: string): AppState {
+  return {
+    ...state,
+    employees: (state.employees ?? []).filter((e) => e.id !== id),
+    employeeLeaves: (state.employeeLeaves ?? []).filter((l) => l.employeeId !== id),
+    staffLedger: (state.staffLedger ?? []).filter((s) => s.employeeId !== id),
+  }
+}
+
+export function employeeLeavesFor(
+  state: AppState,
+  employeeId: string,
+): EmployeeLeave[] {
+  return (state.employeeLeaves ?? [])
+    .filter((l) => l.employeeId === employeeId)
+    .sort((a, b) => (a.startDate < b.startDate ? 1 : -1))
+}
+
+export function addEmployeeLeave(
+  state: AppState,
+  input: Omit<EmployeeLeave, 'id' | 'createdAt'>,
+): AppState {
+  const leave: EmployeeLeave = {
+    ...input,
+    id: uid('elv'),
+    createdAt: new Date().toISOString(),
+  }
+  return {
+    ...state,
+    employeeLeaves: [leave, ...(state.employeeLeaves ?? [])].slice(0, 2000),
+  }
+}
+
+export function deleteEmployeeLeave(state: AppState, id: string): AppState {
+  return {
+    ...state,
+    employeeLeaves: (state.employeeLeaves ?? []).filter((l) => l.id !== id),
+  }
+}
+
+export function staffLedgerFor(
+  state: AppState,
+  employeeId: string,
+): StaffLedgerEntry[] {
+  return (state.staffLedger ?? [])
+    .filter((s) => s.employeeId === employeeId)
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+}
+
+export function addStaffLedgerEntry(
+  state: AppState,
+  input: Omit<StaffLedgerEntry, 'id' | 'createdAt'>,
+): AppState {
+  const row: StaffLedgerEntry = {
+    ...input,
+    id: uid('sledg'),
+    createdAt: new Date().toISOString(),
+  }
+  return {
+    ...state,
+    staffLedger: [row, ...(state.staffLedger ?? [])].slice(0, 5000),
+  }
+}
+
+/** Avances ouvertes, dettes employé, reste à payer ce mois (salaire − avances + dettes). */
+export function staffBalanceFor(
+  state: AppState,
+  employeeId: string,
+): { avancesOuvertes: number; detteEmploye: number; resteAPayer: number } {
+  const emp = (state.employees ?? []).find((e) => e.id === employeeId)
+  const salary = emp?.salaryDa ?? 0
+  let avances = 0
+  let dettes = 0
+  let paiements = 0
+  let remboursements = 0
+  for (const row of state.staffLedger ?? []) {
+    if (row.employeeId !== employeeId) continue
+    if (row.kind === 'avance') avances += row.amountDa
+    else if (row.kind === 'dette') dettes += row.amountDa
+    else if (row.kind === 'paiement_salaire') paiements += row.amountDa
+    else if (row.kind === 'remboursement') remboursements += row.amountDa
+  }
+  const avancesOuvertes = Math.max(0, avances - remboursements)
+  const detteEmploye = Math.max(0, dettes)
+  // Ce que le patron doit encore verser ce cycle : salaire − avances ouvertes − déjà payé + 0
+  const resteAPayer = Math.max(0, salary - avancesOuvertes - paiements + detteEmploye)
+  return { avancesOuvertes, detteEmploye, resteAPayer }
 }

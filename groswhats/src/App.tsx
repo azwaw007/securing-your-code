@@ -14,6 +14,7 @@ import type {
   ThemePreset,
   FontScale,
   Unit,
+  ClinicStation,
 } from './types'
 import { ALL_UNITS, EXPENSE_CATEGORIES } from './types'
 import {
@@ -76,8 +77,13 @@ import {
   setActiveLocation,
   setMultiLocationEnabled,
   transferStock,
+  holdSale,
+  removeHeldSale,
+  setClinicStation,
+  setTableStatus,
 } from './store'
 import { isDecimalUnit, qtyStep, t, unitLabel } from './i18n'
+import { mt } from './locale/modeCopy'
 import { formatDa, formatQty, setActiveCurrency, setActiveLocale } from './utils/format'
 import { productDisplaySrc } from './utils/productArt'
 import { SetupWizard } from './SetupWizard'
@@ -104,12 +110,29 @@ import {
   showDemiGros,
   showDepotTools,
   showGallery,
+  showGymCheckin,
+  showClinicAgenda,
   showHomeScan,
+  showTableService,
+  showRepairOrder,
+  showMedicalDossier,
   showReturns,
+  showStaffHr,
   showWholesaleTiers,
 } from './locale/adapt'
+import { metierCopy, metierPackFor } from './locale/metierPacks'
+import { specialtyProfileFor } from './locale/specialtyParams'
+import {
+  defaultCategoryForAisle,
+  retailChipRayons,
+  resolveRetailRayons,
+  rayonLabel,
+  showImeiTracking,
+  showOemRef,
+  showRetailVariants,
+} from './locale/retailRayons'
 import { LanguagePicker } from './locale/LanguagePicker'
-import { applyUiTheme, themeLabel, THEME_PRESETS } from './utils/theme'
+import { applyEffectiveTheme, applyUiTheme, themeLabel, THEME_PRESETS } from './utils/theme'
 import {
   DEFAULT_AGENT_PERMISSIONS,
   type AgentPermissions,
@@ -181,12 +204,52 @@ import {
 } from './PosOps'
 import { ProductBarcodeField, BarcodeCameraModal, isBarcodeCameraSupported } from './BarcodeCamera'
 import { ClientQrCard } from './ClientQrCard'
+import { DossierPatientPanel } from './DossierPatientPanel'
+import { SpecialtyDossierPanel } from './SpecialtyDossierPanel'
+import { ReceptionCashQueue, SendToCashForm } from './ClinicSharePanels'
+import { GymCheckinPanel } from './GymCheckinPanel'
+import { ClinicAgendaPanel } from './ClinicAgendaPanel'
+import { TableFloorPanel } from './TableFloorPanel'
+import { RepairOrderPanel } from './RepairOrderPanel'
+import { StaffPanel } from './StaffPanel'
 import { classifyHomeScan } from './utils/clientQr'
 import { APP_BRAND } from './brand'
 import { APP_VERSION, activateLicense, getAccessStatus } from './license/license'
 
-function navItems(mode: CommerceMode | undefined): Array<{ id: Screen; icon: string }> {
+function clinicStationOf(state: {
+  settings: {
+    commerceMode: string
+    clinicShareEnabled?: boolean
+    clinicStation?: ClinicStation
+  }
+}): ClinicStation | null {
+  if (state.settings.commerceMode !== 'sante' || !state.settings.clinicShareEnabled) {
+    return null
+  }
+  return state.settings.clinicStation === 'reception' ? 'reception' : 'doctor'
+}
+
+function navItems(
+  mode: CommerceMode | undefined,
+  station: ClinicStation | null,
+): Array<{ id: Screen; icon: string }> {
   if (mode === 'sante') {
+    if (station === 'doctor') {
+      return [
+        { id: 'home', icon: '🏠' },
+        { id: 'clients', icon: '👤' },
+        { id: 'products', icon: '📋' },
+        { id: 'history', icon: '📜' },
+      ]
+    }
+    if (station === 'reception') {
+      return [
+        { id: 'home', icon: '🏠' },
+        { id: 'order', icon: '💵' },
+        { id: 'clients', icon: '👤' },
+        { id: 'caisse', icon: '🧾' },
+      ]
+    }
     return [
       { id: 'home', icon: '🏠' },
       { id: 'order', icon: '🩺' },
@@ -247,6 +310,7 @@ export default function App() {
   const [seedProductBarcode, setSeedProductBarcode] = useState<string | null>(null)
   const [seedProductQuery, setSeedProductQuery] = useState<string | null>(null)
   const [seedSellProductId, setSeedSellProductId] = useState<string | null>(null)
+  const [seedHeldId, setSeedHeldId] = useState<string | null>(null)
   const [seedClientNotes, setSeedClientNotes] = useState<string | null>(null)
   const [historySeed, setHistorySeed] = useState<{
     from: string
@@ -255,7 +319,9 @@ export default function App() {
   const [agentSeed, setAgentSeed] = useState<string | null>(null)
   const [redoSetup, setRedoSetup] = useState(false)
   const lang = state.settings.language
-  const vocab = shopVocab(state.settings.commerceMode, lang)
+  const domainId = state.settings.domainId
+  const vocab = shopVocab(state.settings.commerceMode, lang, domainId)
+  const metier = metierPackFor(domainId, state.settings.commerceMode)
 
   useEffect(() => {
     registerMuteAskHandler(null)
@@ -307,12 +373,25 @@ export default function App() {
   }, [lang])
 
   useEffect(() => {
-    applyUiTheme(state.settings.themePreset, state.settings.fontScale)
+    applyEffectiveTheme({
+      themeSource: state.settings.themeSource,
+      themePreset: state.settings.themePreset,
+      fontScale: state.settings.fontScale,
+      domainId: state.settings.domainId,
+      commerceMode: state.settings.commerceMode,
+    })
     document.documentElement.classList.toggle(
       'easy-mode',
       state.settings.easyMode !== false,
     )
-  }, [state.settings.themePreset, state.settings.fontScale, state.settings.easyMode])
+  }, [
+    state.settings.themePreset,
+    state.settings.themeSource,
+    state.settings.fontScale,
+    state.settings.easyMode,
+    state.settings.domainId,
+    state.settings.commerceMode,
+  ])
 
   useEffect(() => {
     setUiSoundsEnabled(state.settings.uiSoundsEnabled !== false)
@@ -368,8 +447,16 @@ export default function App() {
   const low = lowStockProducts(state)
   const isDriverMode =
     state.team.multiPosteEnabled && state.team.role === 'driver'
+  const clinicStation = clinicStationOf(state)
+  const isClinicDoctor = clinicStation === 'doctor'
+  const isClinicReception = clinicStation === 'reception'
   const needRolePick =
     state.team.multiPosteEnabled && !state.team.hasChosenRole
+  const needClinicRolePick =
+    state.settings.commerceMode === 'sante' &&
+    state.settings.clinicShareEnabled === true &&
+    !state.settings.clinicStationChosen
+
 
   useEffect(() => {
     if (isDriverMode && screen !== 'missions') goTo('missions')
@@ -396,9 +483,9 @@ export default function App() {
 
   return (
     <div
-      className={`app-shell mode-${state.settings.commerceMode || 'gros'} ${screen === 'delivery' ? 'map-mode' : ''} ${
+      className={`app-shell mode-${state.settings.commerceMode || 'gros'} metier-${metier.family} ${screen === 'delivery' ? 'map-mode' : ''} ${
         state.settings.easyMode !== false ? 'easy-ui' : ''
-      } ${isDriverMode ? 'driver-mode' : ''}`}
+      } ${isDriverMode ? 'driver-mode' : ''} ${isClinicDoctor ? 'clinic-doctor' : ''} ${isClinicReception ? 'clinic-reception' : ''}`}
     >
       {needSetup ? (
         <SetupWizard
@@ -437,7 +524,17 @@ export default function App() {
         />
       ) : null}
 
-      {!needSetup && !needRolePick && screen !== 'delivery' && !isDriverMode ? (
+      {!needSetup && !needRolePick && needClinicRolePick ? (
+        <ClinicRolePickGate
+          lang={lang}
+          onPick={(station) => {
+            setState((s) => setClinicStation(s, station))
+            goTo('home')
+          }}
+        />
+      ) : null}
+
+      {!needSetup && !needRolePick && !needClinicRolePick && screen !== 'delivery' && !isDriverMode ? (
       <header className="topbar">
         <div className="topbar-left">
           {showBackBtn && screen !== 'home' ? (
@@ -555,6 +652,9 @@ export default function App() {
           stats={stats}
           lang={lang}
           low={low}
+          clinicStation={clinicStation}
+          onState={setState}
+          onFlash={(msg) => setToast(msg)}
           onGo={goTo}
           onFocusClient={(id) => setFocusClientId(id)}
           onFocusProduct={(id) => setFocusProductId(id)}
@@ -572,6 +672,27 @@ export default function App() {
           }}
           onSeedSell={(productId) => {
             setSeedSellProductId(productId)
+          }}
+          onOpenTableOrder={(tableId, heldSaleId) => {
+            const existing = heldSaleId
+              ? state.heldSales?.find((h) => h.id === heldSaleId)
+              : undefined
+            if (existing) {
+              setSeedHeldId(existing.id)
+              goTo('order', vocab.sell)
+              return
+            }
+            const table = state.tables?.find((tb) => tb.id === tableId)
+            const held = holdSale(state, {
+              label: table?.name || t(lang, 'tableFloorTitle'),
+              clientId: '',
+              qtyMap: {},
+              tierMap: {},
+            })
+            const newHeldId = held.heldSales[0]?.id
+            setState(setTableStatus(held, tableId, 'busy', newHeldId))
+            if (newHeldId) setSeedHeldId(newHeldId)
+            goTo('order', vocab.sell)
           }}
           onOpenHistoryDates={(from, to) => {
             setHistorySeed({ from, to })
@@ -653,12 +774,14 @@ export default function App() {
         <ClientsPage
           state={state}
           lang={lang}
+          clinicStation={clinicStation}
           initialClientId={focusClientId}
           seedNotes={seedClientNotes}
           onSeedConsumed={() => {
             setFocusClientId(null)
             setSeedClientNotes(null)
           }}
+          onState={setState}
           onAdd={(c) => {
             setState((s) => addClient(s, c))
             flash('clientAdded')
@@ -685,6 +808,7 @@ export default function App() {
             flash('clientDeleted')
           }}
           onFlash={flash}
+          onToast={(msg) => setToast(msg)}
         />
         </div>
       ) : null}
@@ -699,7 +823,13 @@ export default function App() {
           lang={lang}
           seedProductId={seedSellProductId}
           onSeedConsumed={() => setSeedSellProductId(null)}
+          seedHeldId={seedHeldId}
+          onSeedHeldConsumed={() => setSeedHeldId(null)}
           onGo={goTo}
+          onFlash={flash}
+          onUpdateProduct={(id, patch) => setState((s) => updateProduct(s, id, patch))}
+          onHoldSale={(input) => setState((s) => holdSale(s, input))}
+          onRemoveHeld={(id) => setState((s) => removeHeldSale(s, id))}
           onCreate={(order) => {
             const next = createOrder(state, order)
             setState(next)
@@ -984,6 +1114,20 @@ export default function App() {
         />
         </div>
       ) : null}
+      {isAlive('staff') && !isDriverMode ? (
+        <div
+          className={`screen-pane ${screen === 'staff' ? 'is-active' : 'is-cached'}`}
+          aria-hidden={screen !== 'staff'}
+          inert={screen !== 'staff' ? true : undefined}
+        >
+          <StaffPanel
+            state={state}
+            lang={lang}
+            onState={setState}
+            onFlash={(msg) => setToast(msg)}
+          />
+        </div>
+      ) : null}
       {isAlive('settings') && !isDriverMode ? (
         <div
           className={`screen-pane ${screen === 'settings' ? 'is-active' : 'is-cached'}`}
@@ -1049,7 +1193,7 @@ export default function App() {
 
       {!needSetup && !needRolePick && !isDriverMode ? (
       <nav className="bottom-nav" aria-label="Navigation">
-        {navItems(state.settings.commerceMode).map((item) => (
+        {navItems(state.settings.commerceMode, clinicStation).map((item) => (
           <button
             key={item.id}
             className={`nav-btn ${screen === item.id ? 'active' : ''}`}
@@ -1103,6 +1247,43 @@ function RolePickGate({
             <span className="choice-emoji">🚚</span>
             <strong>{t(lang, 'roleDriver')}</strong>
             <span className="muted">{t(lang, 'roleDriverHint')}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ClinicRolePickGate({
+  lang,
+  onPick,
+}: {
+  lang: Language
+  onPick: (station: ClinicStation) => void
+}) {
+  return (
+    <div className="page role-pick">
+      <div className="card">
+        <h2>🩺 {t(lang, 'clinicRoleTitle')}</h2>
+        <p className="muted">{t(lang, 'clinicRoleHint')}</p>
+        <div className="choice-grid">
+          <button
+            type="button"
+            className="choice-card"
+            onClick={() => onPick('doctor')}
+          >
+            <span className="choice-emoji">👨‍⚕️</span>
+            <strong>{t(lang, 'clinicRoleDoctor')}</strong>
+            <span className="muted">{t(lang, 'clinicRoleDoctorHint')}</span>
+          </button>
+          <button
+            type="button"
+            className="choice-card"
+            onClick={() => onPick('reception')}
+          >
+            <span className="choice-emoji">🧾</span>
+            <strong>{t(lang, 'clinicRoleReception')}</strong>
+            <span className="muted">{t(lang, 'clinicRoleReceptionHint')}</span>
           </button>
         </div>
       </div>
@@ -1221,6 +1402,7 @@ function SettingsPage({
       uiSoundsEnabled,
       easyMode,
       themePreset,
+      themeSource: extra?.themeSource ?? state.settings.themeSource ?? 'metier',
       fontScale,
       showZakat,
       showCalculator,
@@ -1244,9 +1426,6 @@ function SettingsPage({
           <span style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <a href="/seller/pro.html" target="_blank" rel="noreferrer">
               {t(lang, 'proUpsellLink')}
-            </a>
-            <a href="/seller/campagne.html" target="_blank" rel="noreferrer">
-              Campagne AZ Soft
             </a>
             <a href="/az-soft/" target="_blank" rel="noreferrer">
               Site AZ Soft
@@ -1300,15 +1479,31 @@ function SettingsPage({
 
         <div className="field">
           <label>{t(lang, 'themeTitle')}</label>
+          <p className="muted">
+            {state.settings.themeSource === 'user'
+              ? t(lang, 'themeSourceUser')
+              : t(lang, 'themeSourceMetier')}
+          </p>
+          <button
+            type="button"
+            className="btn secondary block"
+            style={{ marginBottom: 8 }}
+            onClick={() => {
+              saveAll({ themeSource: 'metier' })
+            }}
+          >
+            {t(lang, 'themeUseMetier')}
+          </button>
           <div className="btn-row" style={{ flexWrap: 'wrap' }}>
             {(Object.keys(THEME_PRESETS) as ThemePreset[]).map((id) => (
               <button
                 key={id}
                 type="button"
-                className={`btn ${themePreset === id ? '' : 'ghost'}`}
+                className={`btn ${themePreset === id && state.settings.themeSource === 'user' ? '' : 'ghost'}`}
                 onClick={() => {
                   setThemePreset(id)
                   applyUiTheme(id, fontScale)
+                  saveAll({ themePreset: id, themeSource: 'user' })
                 }}
               >
                 {themeLabel(lang, id)}
@@ -1316,6 +1511,40 @@ function SettingsPage({
             ))}
           </div>
         </div>
+
+        {state.settings.commerceMode === 'sante' ? (
+          <div className="field">
+            <label>{t(lang, 'clinicShare')}</label>
+            <p className="muted">{t(lang, 'clinicShareHint')}</p>
+            <div className="btn-row" style={{ flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className={`btn ${state.settings.clinicShareEnabled ? '' : 'ghost'}`}
+                onClick={() =>
+                  saveAll({
+                    clinicShareEnabled: true,
+                    clinicStationChosen: false,
+                  })
+                }
+              >
+                {t(lang, 'clinicShareOn')}
+              </button>
+              <button
+                type="button"
+                className={`btn ${!state.settings.clinicShareEnabled ? '' : 'ghost'}`}
+                onClick={() =>
+                  saveAll({
+                    clinicShareEnabled: false,
+                    clinicStationChosen: false,
+                    clinicStation: undefined,
+                  })
+                }
+              >
+                {t(lang, 'clinicShareOff')}
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         <div className="field">
           <label>{t(lang, 'fontTitle')}</label>
@@ -1538,7 +1767,7 @@ function SettingsPage({
               <button
                 type="button"
                 className="btn secondary"
-                disabled={!newLocName.trim()}
+                disabled={!newLocName.trim() || state.locations.length >= 3}
                 onClick={() => {
                   onAddLocation(newLocName)
                   setNewLocName('')
@@ -1547,6 +1776,11 @@ function SettingsPage({
                 {t(lang, 'addLocation')}
               </button>
             </div>
+            {state.locations.length >= 3 ? (
+              <p className="muted" style={{ marginTop: 6 }}>
+                {t(lang, 'locationsMaxHint')}
+              </p>
+            ) : null}
 
             {state.locations.length > 1 && state.products.length > 0 ? (
               <div className="transfer-block">
@@ -1685,6 +1919,84 @@ function SettingsPage({
         </button>
       </div>
 
+      {isShopRetail(state.settings.commerceMode) ? (
+        <div className="card">
+          <h2>{t(lang, 'retailRayonsTitle')}</h2>
+          <p className="muted">{t(lang, 'retailRayonsHint')}</p>
+          {resolveRetailRayons(
+            state.settings.domainId,
+            state.settings,
+            lang,
+          ).map((r) => {
+            const overrides = state.settings.retailRayons || []
+            const current = overrides.find((o) => o.id === r.id)
+            const labelValue =
+              lang === 'ar'
+                ? current?.labelAr ?? r.labelAr
+                : current?.labelFr ?? r.labelFr
+            return (
+              <div className="field" key={r.id} style={{ marginBottom: 10 }}>
+                <label className="check-row">
+                  <input
+                    type="checkbox"
+                    checked={r.enabled}
+                    onChange={(e) => {
+                      const enabled = e.target.checked
+                      const next = resolveRetailRayons(
+                        state.settings.domainId,
+                        state.settings,
+                        lang,
+                      ).map((x) => {
+                        const prev = overrides.find((o) => o.id === x.id)
+                        return {
+                          id: x.id,
+                          enabled: x.id === r.id ? enabled : x.enabled,
+                          labelFr: prev?.labelFr,
+                          labelAr: prev?.labelAr,
+                        }
+                      })
+                      onSave({ retailRayons: next })
+                    }}
+                  />
+                  <span>
+                    {r.emoji ? `${r.emoji} ` : ''}
+                    <strong>{r.label}</strong>
+                    <div className="muted">{t(lang, 'retailRayonEnabled')}</div>
+                  </span>
+                </label>
+                <input
+                  value={labelValue}
+                  placeholder={t(lang, 'retailRayonLabel')}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    const next = resolveRetailRayons(
+                      state.settings.domainId,
+                      state.settings,
+                      lang,
+                    ).map((x) => {
+                      const prev = overrides.find((o) => o.id === x.id)
+                      return {
+                        id: x.id,
+                        enabled: x.enabled,
+                        labelFr:
+                          x.id === r.id && lang !== 'ar'
+                            ? v
+                            : prev?.labelFr,
+                        labelAr:
+                          x.id === r.id && lang === 'ar'
+                            ? v
+                            : prev?.labelAr,
+                      }
+                    })
+                    onSave({ retailRayons: next })
+                  }}
+                />
+              </div>
+            )
+          })}
+        </div>
+      ) : null}
+
       <div className="card">
         <h2>{t(lang, 'shopInfo')}</h2>
         <div className="field">
@@ -1722,6 +2034,9 @@ function HomePage({
   stats,
   lang,
   low,
+  clinicStation,
+  onState,
+  onFlash,
   onGo,
   onFocusClient,
   onFocusProduct,
@@ -1729,6 +2044,7 @@ function HomePage({
   onSeedProductSearch,
   onSeedNewClient,
   onSeedSell,
+  onOpenTableOrder,
   onOpenHistoryDates,
   onEnableAlerts,
   onWhatsapp,
@@ -1755,6 +2071,9 @@ function HomePage({
   }
   lang: Language
   low: Product[]
+  clinicStation: ClinicStation | null
+  onState: (next: AppState) => void
+  onFlash: (msg: string) => void
   onGo: (s: Screen, spokenLabel?: string) => void
   onFocusClient: (id: string) => void
   onFocusProduct: (id: string) => void
@@ -1762,6 +2081,8 @@ function HomePage({
   onSeedProductSearch: (query: string) => void
   onSeedNewClient: (note: string) => void
   onSeedSell: (productId: string) => void
+  /** Ouvre une table (resto) : crée/reprend le ticket en attente puis va à la caisse */
+  onOpenTableOrder: (tableId: string, heldSaleId?: string) => void
   onOpenHistoryDates: (from: string, to: string) => void
   onEnableAlerts: () => void
   onWhatsapp: (order: Order) => void
@@ -1769,7 +2090,10 @@ function HomePage({
   onBoth: (order: Order) => Promise<void>
   onInvoice: (order: Order) => void
 }) {
-  const vocab = shopVocab(state.settings.commerceMode, lang)
+  const domainId = state.settings.domainId
+  const vocab = shopVocab(state.settings.commerceMode, lang, domainId)
+  const mcopy = metierCopy(domainId, state.settings.commerceMode, lang)
+  const feats = metierPackFor(domainId, state.settings.commerceMode).features
   const recent = (todayOrders(state).length > 0 ? todayOrders(state) : state.orders).slice(0, 4)
   const [scanOpen, setScanOpen] = useState(false)
   const [unknownCode, setUnknownCode] = useState<string | null>(null)
@@ -1794,6 +2118,18 @@ function HomePage({
       onGo('clients', t(lang, 'appClients'))
       return
     }
+    if (hit.kind === 'member') {
+      if (hit.clientId) {
+        onFocusClient(hit.clientId)
+        onGo('clients', vocab.client)
+        return
+      }
+      if (hit.nfcUid) {
+        onSeedNewClient(`NFC:${hit.nfcUid}`)
+        onGo('clients', vocab.client)
+        return
+      }
+    }
     if (hit.kind === 'product' && hit.productId) {
       if (isWholesale(state.settings.commerceMode)) {
         onFocusProduct(hit.productId)
@@ -1809,6 +2145,8 @@ function HomePage({
   }
 
   const mode = state.settings.commerceMode
+  const isDoctor = clinicStation === 'doctor'
+  const isReception = clinicStation === 'reception'
   const dailyApps: Array<{
     id: Screen
     label: string
@@ -1816,7 +2154,26 @@ function HomePage({
     tone: string
     badge?: number
   }> =
-    mode === 'sante'
+    isDoctor
+      ? [
+          { id: 'clients', label: vocab.client, icon: '👤', tone: 'navy' },
+          {
+            id: 'products',
+            label: vocab.product,
+            icon: '📋',
+            tone: 'blue',
+            badge: stats.lowStock,
+          },
+          { id: 'history', label: mcopy.historyLabel, icon: '📜', tone: 'slate' },
+        ]
+      : isReception
+        ? [
+            { id: 'order', label: vocab.sell, icon: '💵', tone: 'amber' },
+            { id: 'clients', label: vocab.client, icon: '👤', tone: 'navy' },
+            { id: 'caisse', label: t(lang, 'appCaisse'), icon: '💵', tone: 'amber' },
+            { id: 'history', label: t(lang, 'appHistory'), icon: '📜', tone: 'slate' },
+          ]
+        : mode === 'sante'
       ? [
           { id: 'clients', label: vocab.client, icon: '👤', tone: 'navy' },
           {
@@ -1827,33 +2184,33 @@ function HomePage({
             badge: stats.lowStock,
           },
           { id: 'caisse', label: t(lang, 'appCaisse'), icon: '💵', tone: 'amber' },
-          { id: 'history', label: t(lang, 'appHistory'), icon: '📜', tone: 'slate' },
+          { id: 'history', label: mcopy.historyLabel, icon: '📜', tone: 'slate' },
         ]
       : mode === 'auto'
         ? [
             {
               id: 'products',
               label: vocab.product,
-              icon: '🔧',
+              icon: feats.repairOrder ? '🛠️' : '🔧',
               tone: 'blue',
               badge: stats.lowStock,
             },
             { id: 'clients', label: vocab.client, icon: '👥', tone: 'navy' },
             { id: 'caisse', label: t(lang, 'appCaisse'), icon: '💵', tone: 'amber' },
-            { id: 'history', label: t(lang, 'appHistory'), icon: '📜', tone: 'slate' },
+            { id: 'history', label: mcopy.historyLabel, icon: '📜', tone: 'slate' },
           ]
         : mode === 'services'
           ? [
               {
                 id: 'products',
                 label: vocab.product,
-                icon: '📝',
+                icon: feats.gymCheckin ? '🏋️' : '📝',
                 tone: 'blue',
                 badge: stats.lowStock,
               },
               { id: 'clients', label: vocab.client, icon: '👥', tone: 'navy' },
               { id: 'caisse', label: t(lang, 'appCaisse'), icon: '💵', tone: 'amber' },
-              { id: 'history', label: t(lang, 'appHistory'), icon: '📜', tone: 'slate' },
+              { id: 'history', label: mcopy.historyLabel, icon: '📜', tone: 'slate' },
             ]
           : isWholesale(mode)
             ? [
@@ -1866,22 +2223,22 @@ function HomePage({
                   tone: 'blue',
                   badge: stats.lowStock,
                 },
-                { id: 'history', label: t(lang, 'appHistory'), icon: '📜', tone: 'slate' },
+                { id: 'history', label: mcopy.historyLabel, icon: '📜', tone: 'slate' },
               ]
             : [
                 {
                   id: 'products',
                   label: vocab.product,
-                  icon: '🛍️',
+                  icon: feats.tableService ? '🍽️' : '🛍️',
                   tone: 'blue',
                   badge: stats.lowStock,
                 },
                 { id: 'caisse', label: t(lang, 'appCaisse'), icon: '💵', tone: 'amber' },
-                { id: 'history', label: t(lang, 'appHistory'), icon: '📜', tone: 'slate' },
+                { id: 'history', label: mcopy.historyLabel, icon: '📜', tone: 'slate' },
                 { id: 'clients', label: vocab.client, icon: '👥', tone: 'navy' },
               ]
 
-  const depot = showDepotTools(state.settings.commerceMode)
+  const depot = showDepotTools(state.settings.commerceMode, domainId)
   const moreApps: Array<{
     id: Screen
     label: string
@@ -1914,10 +2271,10 @@ function HomePage({
           { id: 'arrivages' as Screen, label: t(lang, 'appArrivals'), icon: '🆕', tone: 'lime' },
         ]
       : []),
-    ...(state.settings.showGallery !== false && showGallery(state.settings.commerceMode)
+    ...(state.settings.showGallery !== false && showGallery(state.settings.commerceMode, domainId)
       ? [{ id: 'gallery' as Screen, label: t(lang, 'appGallery'), icon: '🖼️', tone: 'blue' }]
       : []),
-    ...(showReturns(state.settings.commerceMode)
+    ...(showReturns(state.settings.commerceMode, domainId)
       ? [{ id: 'returns' as Screen, label: t(lang, 'appReturns'), icon: '↩️', tone: 'coral' }]
       : []),
     { id: 'agent', label: t(lang, 'appAgent'), icon: '🤖', tone: 'slate' },
@@ -1929,6 +2286,9 @@ function HomePage({
       : []),
     ...(state.settings.showCalculator !== false
       ? [{ id: 'calculator' as Screen, label: t(lang, 'appCalc'), icon: '🧮', tone: 'steel' }]
+      : []),
+    ...(feats.staffHr || showStaffHr(mode, domainId)
+      ? [{ id: 'staff' as Screen, label: t(lang, 'staffTitle'), icon: '👥', tone: 'navy' }]
       : []),
     { id: 'settings', label: t(lang, 'appSettings'), icon: '⚙️', tone: 'charcoal' },
   ]
@@ -1954,6 +2314,64 @@ function HomePage({
         }}
       />
 
+      {showClinicAgenda(mode, domainId) ? (
+        <ClinicAgendaPanel
+          state={state}
+          lang={lang}
+          onState={onState}
+          onFlash={onFlash}
+        />
+      ) : null}
+
+      {showTableService(mode, domainId) ? (
+        <TableFloorPanel
+          state={state}
+          lang={lang}
+          onState={onState}
+          onFlash={onFlash}
+          onOpenTable={(tableId, heldSaleId) => onOpenTableOrder(tableId, heldSaleId)}
+        />
+      ) : null}
+
+      {showRepairOrder(mode, domainId) ? (
+        <RepairOrderPanel
+          state={state}
+          lang={lang}
+          onState={onState}
+          onFlash={onFlash}
+        />
+      ) : null}
+
+      {showGymCheckin(mode, domainId) ? (
+        <GymCheckinPanel
+          state={state}
+          lang={lang}
+          onState={onState}
+          onFlash={onFlash}
+          onBindUnknown={(uid) => {
+            onSeedNewClient(`NFC:${uid}`)
+            onGo('clients', vocab.client)
+          }}
+        />
+      ) : null}
+
+      {isReception ? (
+        <ReceptionCashQueue
+          state={state}
+          lang={lang}
+          onState={onState}
+          onFlash={onFlash}
+          onFocusClient={(id) => {
+            onFocusClient(id)
+            onGo('clients', vocab.client)
+          }}
+          onGoEncaisser={(clientId) => {
+            onFocusClient(clientId)
+            onGo('order', vocab.sell)
+          }}
+        />
+      ) : null}
+
       <section className="home-hero">
         <div className="home-hero-text">
           <div className="muted">{t(lang, 'todayStrip')}</div>
@@ -1965,7 +2383,7 @@ function HomePage({
           onHit={handleHit}
           onOpenHistory={onOpenHistoryDates}
         />
-        {showHomeScan(state.settings.commerceMode) ? (
+        {showHomeScan(mode, domainId) ? (
         <button
           type="button"
           className="scan-cta"
@@ -1982,9 +2400,9 @@ function HomePage({
             <strong>
               {t(
                 lang,
-                isWholesale(state.settings.commerceMode)
+                isWholesale(mode)
                   ? 'homeScanTitleGros'
-                  : state.settings.commerceMode === 'auto'
+                  : mode === 'auto'
                     ? 'homeScanTitleAuto'
                     : 'homeScanTitleRetail',
               )}
@@ -1992,9 +2410,9 @@ function HomePage({
             <small>
               {t(
                 lang,
-                isWholesale(state.settings.commerceMode)
+                isWholesale(mode)
                   ? 'homeScanHintGros'
-                  : state.settings.commerceMode === 'auto'
+                  : mode === 'auto'
                     ? 'homeScanHintAuto'
                     : 'homeScanHintRetail',
               )}
@@ -2002,34 +2420,36 @@ function HomePage({
           </span>
         </button>
         ) : null}
+        {!isDoctor ? (
         <button type="button" className="sell-cta" onClick={() => onGo('order', vocab.sell)}>
           <span className="sell-cta-emoji">
-            {state.settings.commerceMode === 'sante'
+            {mode === 'sante'
               ? '🩺'
-              : state.settings.commerceMode === 'auto'
+              : mode === 'auto'
                 ? '🚗'
-                : state.settings.commerceMode === 'services'
+                : mode === 'services'
                   ? '🧰'
-                  : isWholesale(state.settings.commerceMode)
+                  : isWholesale(mode)
                     ? '📦'
                     : '🛒'}
           </span>
           <span>
-            <strong>{vocab.sell}</strong>
+            <strong>{mcopy.primaryCta || vocab.sell}</strong>
             <small>{vocab.sellHint}</small>
           </span>
         </button>
+        ) : null}
         <button
           type="button"
           className="history-cta"
           onClick={() => onGo('history', t(lang, 'appHistory'))}
         >
           <span className="cal">📅</span>
-          <span>📜 {t(lang, 'salesHistoryBtn')}</span>
+          <span>📜 {mt(state.settings.commerceMode, lang, 'salesHistoryBtn')}</span>
         </button>
         <div className="home-chips">
           <div className="home-chip">
-            <span>🧾 {t(lang, 'todayOrders')}</span>
+            <span>🧾 {mt(state.settings.commerceMode, lang, 'todayOrders')}</span>
             <strong>{stats.todayCount}</strong>
           </div>
           <div className="home-chip accent">
@@ -2142,13 +2562,13 @@ function HomePage({
 
       <div className="card home-recent">
         <div className="list-item" style={{ borderBottom: 'none', paddingTop: 0 }}>
-          <h2 style={{ margin: 0 }}>{t(lang, 'lastOrders')}</h2>
-          <button type="button" className="btn secondary" onClick={() => onGo('history', t(lang, 'history'))}>
-            📜 {t(lang, 'history')}
+          <h2 style={{ margin: 0 }}>{mt(state.settings.commerceMode, lang, 'lastOrders')}</h2>
+          <button type="button" className="btn secondary" onClick={() => onGo('history', mt(state.settings.commerceMode, lang, 'history'))}>
+            📜 {mt(state.settings.commerceMode, lang, 'history')}
           </button>
         </div>
         {recent.length === 0 ? (
-          <div className="empty">{t(lang, 'noOrdersToday')}</div>
+          <div className="empty">{mt(state.settings.commerceMode, lang, 'noOrdersToday')}</div>
         ) : (
           recent.map((o) => (
             <div className="order-block" key={o.id}>
@@ -2165,6 +2585,7 @@ function HomePage({
                 <strong>{formatDa(o.totalDa)}</strong>
               </div>
               <OrderShareButtons
+                mode={state.settings.commerceMode}
                 lang={lang}
                 hasPhone={!!o.clientPhone}
                 onWhatsapp={() => onWhatsapp(o)}
@@ -2299,7 +2720,7 @@ function HistoryPage({
         .map((o) => o.invoiceNumber)
         .filter(Boolean)
         .map((n) => `N°${n}`),
-      t(lang, 'act_order'),
+      mt(state.settings.commerceMode, lang, 'act_order'),
       t(lang, 'act_invoice'),
       t(lang, 'act_client'),
       t(lang, 'act_cash'),
@@ -2329,8 +2750,8 @@ function HistoryPage({
   return (
     <div className="page">
       <div className="card">
-        <h2>📜 {t(lang, 'history')}</h2>
-        <p className="muted">{t(lang, 'historyActivityHint')}</p>
+        <h2>📜 {mt(state.settings.commerceMode, lang, 'history')}</h2>
+        <p className="muted">{mt(state.settings.commerceMode, lang, 'historyActivityHint')}</p>
 
         <SmartSearchBar
           lang={lang}
@@ -2376,7 +2797,7 @@ function HistoryPage({
             onChange={(e) => setKind(e.target.value as ActivityKind)}
           >
             <option value="all">{t(lang, 'act_all')}</option>
-            <option value="order">{t(lang, 'act_order')}</option>
+            <option value="order">{mt(state.settings.commerceMode, lang, 'act_order')}</option>
             <option value="invoice">{t(lang, 'act_invoice')}</option>
             <option value="client">{t(lang, 'act_client')}</option>
             <option value="cash">{t(lang, 'act_cash')}</option>
@@ -2459,7 +2880,7 @@ function HistoryPage({
 
       {ordersInView.length > 0 && (kind === 'all' || kind === 'order' || kind === 'invoice') ? (
         <div className="card">
-          <h3>{t(lang, 'ordersInPeriod')}</h3>
+          <h3>{mt(state.settings.commerceMode, lang, 'ordersInPeriod')}</h3>
           {ordersInView.map((o) => (
             <div className="order-block" key={o.id}>
               <div className="list-item">
@@ -2473,6 +2894,7 @@ function HistoryPage({
                 <strong>{formatDa(o.totalDa)}</strong>
               </div>
               <OrderShareButtons
+                mode={state.settings.commerceMode}
                 lang={lang}
                 hasPhone={!!o.clientPhone}
                 onWhatsapp={() => onWhatsapp(o)}
@@ -2490,6 +2912,7 @@ function HistoryPage({
 
 function OrderShareButtons({
   lang,
+  mode,
   onWhatsapp,
   onPrint,
   onBoth,
@@ -2498,6 +2921,7 @@ function OrderShareButtons({
   hasPhone = true,
 }: {
   lang: Language
+  mode?: CommerceMode
   onWhatsapp: () => void
   onPrint: () => void | Promise<void>
   onBoth: () => void | Promise<void>
@@ -2529,7 +2953,7 @@ function OrderShareButtons({
           </button>
         </>
       ) : (
-        <div className="muted">{t(lang, 'noWhatsappQuick')}</div>
+        <div className="muted">{mt(mode, lang, 'noWhatsappQuick')}</div>
       )}
     </div>
   )
@@ -2789,8 +3213,10 @@ function ProductPricingFields({
       </div>
 
       <div className="pricing-board">
-        <h3 className="pricing-board-title">💰 {t(lang, 'pricingBoardTitle')}</h3>
-        <p className="muted pricing-board-hint">{t(lang, 'pricingBoardHint')}</p>
+        <h3 className="pricing-board-title">💰 {mt(commerceMode, lang, 'pricingBoardTitle')}</h3>
+        {showWholesaleTiers(commerceMode) ? (
+          <p className="muted pricing-board-hint">{t(lang, 'pricingBoardHint')}</p>
+        ) : null}
 
         <div className="pricing-row tone-piece">
           <div className="pricing-emoji">1️⃣</div>
@@ -2943,7 +3369,22 @@ function ProductsPage({
   onSeedConsumed?: () => void
 }) {
   const [name, setName] = useState('')
-  const [category, setCategory] = useState<ProductCategory>('alimentaire')
+  const [category, setCategory] = useState<ProductCategory>(() =>
+    defaultCategoryForAisle(
+      state.settings.domainId,
+      retailChipRayons(state.settings.domainId, state.settings, lang)[0]?.id,
+    ),
+  )
+  const [aisleId, setAisleId] = useState(
+    () =>
+      retailChipRayons(state.settings.domainId, state.settings, lang)[0]?.id ||
+      '',
+  )
+  const [imei, setImei] = useState('')
+  const [size, setSize] = useState('')
+  const [color, setColor] = useState('')
+  const [oemRef, setOemRef] = useState('')
+  const [favorite, setFavorite] = useState(false)
   const [unit, setUnit] = useState<Unit>('piece')
   const [costDa, setCostDa] = useState('')
   const [priceDa, setPriceDa] = useState('')
@@ -2981,6 +3422,12 @@ function ProductsPage({
   }, [initialProductId, seedBarcode, seedQuery, onSeedConsumed])
 
   const editing = state.products.find((p) => p.id === editId) ?? null
+  const domainId = state.settings.domainId
+  const retailMode = isShopRetail(state.settings.commerceMode)
+  const aisleOptions = retailChipRayons(domainId, state.settings, lang)
+  const trackImei = showImeiTracking(domainId)
+  const trackVariants = showRetailVariants(domainId)
+  const trackOem = showOemRef(domainId)
 
   const productSuggestions = useMemo(() => {
     const names = [
@@ -3029,6 +3476,8 @@ function ProductsPage({
       <ProductEditCard
         lang={lang}
         commerceMode={state.settings.commerceMode}
+        domainId={state.settings.domainId}
+        settings={state.settings}
         product={editing}
         stockValue={displayStock(state, editing)}
         photoBusy={photoBusy}
@@ -3056,7 +3505,7 @@ function ProductsPage({
       <div className="card">
         <h2>{t(lang, 'newProduct')}</h2>
         <div className="muted" style={{ marginBottom: 10 }}>
-          {t(lang, 'profitHint')}
+          {mt(state.settings.commerceMode, lang, 'profitHint')}
         </div>
         <div className="product-photo-field">
           {name.trim() || imageDataUrl ? (
@@ -3110,6 +3559,74 @@ function ProductsPage({
             </select>
           </div>
         </div>
+        {retailMode && aisleOptions.length > 0 ? (
+          <div className="field">
+            <label>{t(lang, 'retailAisle')}</label>
+            <select
+              value={aisleId}
+              onChange={(e) => {
+                const id = e.target.value
+                setAisleId(id)
+                if (id) setCategory(defaultCategoryForAisle(domainId, id))
+              }}
+            >
+              <option value="">—</option>
+              {aisleOptions.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.emoji ? `${a.emoji} ` : ''}
+                  {a.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
+        {trackImei ? (
+          <div className="field">
+            <label>{t(lang, 'productImei')}</label>
+            <input
+              value={imei}
+              onChange={(e) => setImei(e.target.value)}
+              placeholder="35…"
+            />
+            <div className="muted">{t(lang, 'productImeiHint')}</div>
+          </div>
+        ) : null}
+        {trackVariants ? (
+          <div className="grid-2">
+            <div className="field">
+              <label>{t(lang, 'productSize')}</label>
+              <input value={size} onChange={(e) => setSize(e.target.value)} />
+            </div>
+            <div className="field">
+              <label>{t(lang, 'productColor')}</label>
+              <input value={color} onChange={(e) => setColor(e.target.value)} />
+            </div>
+          </div>
+        ) : null}
+        {trackOem ? (
+          <div className="field">
+            <label>{t(lang, 'productOemRef')}</label>
+            <input
+              value={oemRef}
+              onChange={(e) => setOemRef(e.target.value)}
+              placeholder="OEM…"
+            />
+            <div className="muted">{t(lang, 'productOemRefHint')}</div>
+          </div>
+        ) : null}
+        {retailMode ? (
+          <label className="field check-row">
+            <input
+              type="checkbox"
+              checked={favorite}
+              onChange={(e) => setFavorite(e.target.checked)}
+            />
+            <span>
+              <strong>{t(lang, 'productFavorite')}</strong>
+              <div className="muted">{t(lang, 'productFavoriteHint')}</div>
+            </span>
+          </label>
+        ) : null}
         <ProductPricingFields
           lang={lang}
           commerceMode={state.settings.commerceMode}
@@ -3145,6 +3662,7 @@ function ProductsPage({
             onAdd({
               name: name.trim(),
               category,
+              aisleId: aisleId || undefined,
               unit,
               costDa: Number(costDa) || 0,
               priceDa: Number(priceDa) || 0,
@@ -3157,9 +3675,28 @@ function ProductsPage({
               packPriceDa: ppp > 0 && gros > 0 ? gros : undefined,
               imageDataUrl,
               barcode: barcode.trim() || undefined,
+              imei: imei.trim() || undefined,
+              size: size.trim() || undefined,
+              color: color.trim() || undefined,
+              oemRef: oemRef.trim() || undefined,
+              favorite: favorite || undefined,
             })
             setName('')
             setBarcode('')
+            setAisleId(
+              retailChipRayons(domainId, state.settings, lang)[0]?.id || '',
+            )
+            setCategory(
+              defaultCategoryForAisle(
+                domainId,
+                retailChipRayons(domainId, state.settings, lang)[0]?.id,
+              ),
+            )
+            setImei('')
+            setSize('')
+            setColor('')
+            setOemRef('')
+            setFavorite(false)
             setCostDa('')
             setPriceDa('')
             setDemiGrosPriceDa('')
@@ -3211,7 +3748,13 @@ function ProductsPage({
               <div className="product-main">
                 <strong>{p.name}</strong>
                 <div className="muted">
-                  {t(lang, `cat_${p.category}`)} · {unitLabel(lang, p.unit)}
+                  {p.aisleId
+                    ? rayonLabel(p.aisleId, domainId, lang, state.settings)
+                    : t(lang, `cat_${p.category}`)}{' '}
+                  · {unitLabel(lang, p.unit)}
+                  {p.imei ? ` · IMEI ${p.imei}` : ''}
+                  {p.size ? ` · ${p.size}` : ''}
+                  {p.color ? ` · ${p.color}` : ''}
                 </div>
                 <div className="muted" style={{ marginTop: 4 }}>
                   {t(lang, 'buyPriceShort')} {formatDa(p.costDa || 0)} →{' '}
@@ -3363,6 +3906,8 @@ function ProductsPage({
 function ProductEditCard({
   lang,
   commerceMode,
+  domainId,
+  settings,
   product,
   stockValue,
   photoBusy,
@@ -3374,6 +3919,8 @@ function ProductEditCard({
 }: {
   lang: Language
   commerceMode?: CommerceMode
+  domainId?: string
+  settings?: AppState['settings']
   product: Product
   stockValue: number
   photoBusy: boolean
@@ -3385,6 +3932,12 @@ function ProductEditCard({
 }) {
   const [name, setName] = useState(product.name)
   const [category, setCategory] = useState<ProductCategory>(product.category)
+  const [aisleId, setAisleId] = useState(product.aisleId || '')
+  const [imei, setImei] = useState(product.imei || '')
+  const [size, setSize] = useState(product.size || '')
+  const [color, setColor] = useState(product.color || '')
+  const [oemRef, setOemRef] = useState(product.oemRef || '')
+  const [favorite, setFavorite] = useState(product.favorite === true)
   const [unit, setUnit] = useState<Unit>(product.unit)
   const [costDa, setCostDa] = useState(String(product.costDa || 0))
   const [priceDa, setPriceDa] = useState(String(product.priceDa))
@@ -3405,6 +3958,12 @@ function ProductEditCard({
   const [stock, setStock] = useState(String(stockValue))
   const [lowStockAt, setLowStockAt] = useState(String(product.lowStockAt))
   const [barcode, setBarcode] = useState(product.barcode || '')
+
+  const retailMode = isShopRetail(commerceMode)
+  const aisleOptions = retailChipRayons(domainId, settings, lang)
+  const trackImei = showImeiTracking(domainId)
+  const trackVariants = showRetailVariants(domainId)
+  const trackOem = showOemRef(domainId)
 
   return (
     <div className="card">
@@ -3462,6 +4021,66 @@ function ProductEditCard({
           </select>
         </div>
       </div>
+      {retailMode && aisleOptions.length > 0 ? (
+        <div className="field">
+          <label>{t(lang, 'retailAisle')}</label>
+          <select
+            value={aisleId}
+            onChange={(e) => {
+              const id = e.target.value
+              setAisleId(id)
+              if (id) setCategory(defaultCategoryForAisle(domainId, id))
+            }}
+          >
+            <option value="">—</option>
+            {aisleOptions.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.emoji ? `${a.emoji} ` : ''}
+                {a.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
+      {trackImei ? (
+        <div className="field">
+          <label>{t(lang, 'productImei')}</label>
+          <input value={imei} onChange={(e) => setImei(e.target.value)} />
+          <div className="muted">{t(lang, 'productImeiHint')}</div>
+        </div>
+      ) : null}
+      {trackVariants ? (
+        <div className="grid-2">
+          <div className="field">
+            <label>{t(lang, 'productSize')}</label>
+            <input value={size} onChange={(e) => setSize(e.target.value)} />
+          </div>
+          <div className="field">
+            <label>{t(lang, 'productColor')}</label>
+            <input value={color} onChange={(e) => setColor(e.target.value)} />
+          </div>
+        </div>
+      ) : null}
+      {trackOem ? (
+        <div className="field">
+          <label>{t(lang, 'productOemRef')}</label>
+          <input value={oemRef} onChange={(e) => setOemRef(e.target.value)} />
+          <div className="muted">{t(lang, 'productOemRefHint')}</div>
+        </div>
+      ) : null}
+      {retailMode ? (
+        <label className="field check-row">
+          <input
+            type="checkbox"
+            checked={favorite}
+            onChange={(e) => setFavorite(e.target.checked)}
+          />
+          <span>
+            <strong>{t(lang, 'productFavorite')}</strong>
+            <div className="muted">{t(lang, 'productFavoriteHint')}</div>
+          </span>
+        </label>
+      ) : null}
       <ProductPricingFields
         lang={lang}
         commerceMode={commerceMode}
@@ -3498,6 +4117,7 @@ function ProductEditCard({
           onSave({
             name: name.trim(),
             category,
+            aisleId: aisleId || undefined,
             unit,
             costDa: Number(costDa) || 0,
             priceDa: Number(priceDa) || 0,
@@ -3509,6 +4129,11 @@ function ProductEditCard({
             superGrosPriceDa: ppp > 0 && superG > 0 ? superG : undefined,
             packPriceDa: ppp > 0 && gros > 0 ? gros : undefined,
             barcode: barcode.trim() || undefined,
+            imei: imei.trim() || undefined,
+            size: size.trim() || undefined,
+            color: color.trim() || undefined,
+            oemRef: oemRef.trim() || undefined,
+            favorite: favorite || undefined,
           })
         }}
       >
@@ -3524,9 +4149,11 @@ function ProductEditCard({
 function ClientsPage({
   state,
   lang,
+  clinicStation,
   initialClientId,
   seedNotes,
   onSeedConsumed,
+  onState,
   onAdd,
   onUpdate,
   onPayDebt,
@@ -3534,12 +4161,15 @@ function ClientsPage({
   onImport,
   onDelete,
   onFlash,
+  onToast,
 }: {
   state: AppState
   lang: Language
+  clinicStation: ClinicStation | null
   initialClientId?: string | null
   seedNotes?: string | null
   onSeedConsumed?: () => void
+  onState: (next: AppState) => void
   onAdd: (c: Omit<Client, 'id' | 'createdAt'>) => void
   onUpdate: (id: string, patch: Partial<Omit<Client, 'id' | 'createdAt'>>) => void
   onPayDebt: (id: string, amount: number) => void
@@ -3547,6 +4177,7 @@ function ClientsPage({
   onImport: (list: Array<Pick<Client, 'name' | 'phone'>>) => void
   onDelete: (id: string) => void
   onFlash: (key: string) => void
+  onToast: (msg: string) => void
 }) {
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
@@ -3855,6 +4486,48 @@ function ClientsPage({
 
           <ClientQrCard client={selected} lang={lang} />
         </div>
+        {(() => {
+          const mode = state.settings.commerceMode
+          const domainId = state.settings.domainId
+          const pack = metierPackFor(domainId, mode)
+          const family = pack.family
+          const useMedicalPanel =
+            (showMedicalDossier(mode, domainId) || mode === 'sante') &&
+            family !== 'vet'
+          const specialty = specialtyProfileFor(family)
+          return (
+            <>
+              {useMedicalPanel ? (
+                <DossierPatientPanel
+                  state={state}
+                  client={selected}
+                  lang={lang}
+                  onState={onState}
+                  onFlash={onToast}
+                />
+              ) : specialty ? (
+                <SpecialtyDossierPanel
+                  state={state}
+                  client={selected}
+                  lang={lang}
+                  family={family}
+                  profile={specialty}
+                  onState={onState}
+                  onFlash={onToast}
+                />
+              ) : null}
+              {clinicStation === 'doctor' ? (
+                <SendToCashForm
+                  state={state}
+                  client={selected}
+                  lang={lang}
+                  onState={onState}
+                  onFlash={onToast}
+                />
+              ) : null}
+            </>
+          )
+        })()}
       </>
     )
   }
@@ -4240,17 +4913,25 @@ function OrderPage({
   lang,
   seedProductId,
   onSeedConsumed,
+  seedHeldId,
+  onSeedHeldConsumed,
   onCreate,
   onWhatsapp,
   onPrint,
   onBoth,
   onInvoice,
   onGo,
+  onFlash,
+  onUpdateProduct,
+  onHoldSale,
+  onRemoveHeld,
 }: {
   state: AppState
   lang: Language
   seedProductId?: string | null
   onSeedConsumed?: () => void
+  seedHeldId?: string | null
+  onSeedHeldConsumed?: () => void
   onCreate: (
     order: Omit<Order, 'id' | 'createdAt' | 'whatsappSent' | 'invoiceNumber'>,
   ) => Order
@@ -4259,12 +4940,20 @@ function OrderPage({
   onBoth: (order: Order, customText?: string) => Promise<void>
   onInvoice: (order: Order, customText?: string) => void
   onGo: (s: Screen, spokenLabel?: string) => void
+  onFlash: (key: string) => void
+  onUpdateProduct: (id: string, patch: Partial<Product>) => void
+  onHoldSale: (
+    input: Omit<import('./types').HeldSale, 'id' | 'createdAt'>,
+  ) => void
+  onRemoveHeld: (id: string) => void
 }) {
   const QUICK = '__quick__'
   const mode = state.settings.commerceMode
+  const domainId = state.settings.domainId
   const wholesale = isWholesale(mode)
-  const vocab = shopVocab(mode, lang)
-  const clientFirst = preferClientOnSale(mode)
+  const retail = isShopRetail(mode)
+  const vocab = shopVocab(mode, lang, domainId)
+  const clientFirst = preferClientOnSale(mode, domainId)
   const [clientId, setClientId] = useState(
     clientFirst && state.clients[0] ? state.clients[0].id : QUICK,
   )
@@ -4278,6 +4967,10 @@ function OrderPage({
   const [clientDateTo, setClientDateTo] = useState('')
   const [productDateFrom, setProductDateFrom] = useState('')
   const [productDateTo, setProductDateTo] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState<'all' | string>('all')
+  const [imeiMap, setImeiMap] = useState<Record<string, string>>({})
+  const [discountPercent, setDiscountPercent] = useState('')
+  const [showHeld, setShowHeld] = useState(false)
   /** Après le panier : choisir Payé / Versé */
   const [payStep, setPayStep] = useState(false)
   const [verseInput, setVerseInput] = useState('')
@@ -4286,6 +4979,10 @@ function OrderPage({
   const [showClientBook, setShowClientBook] = useState(clientFirst)
 
   const isQuick = clientId === QUICK
+  const favorites = useMemo(
+    () => state.products.filter((p) => p.favorite),
+    [state.products],
+  )
   const productSuggestions = useMemo(() => {
     const names = [
       ...state.products.map((p) => p.name),
@@ -4315,14 +5012,31 @@ function OrderPage({
     const q = productQuery.trim().toLowerCase()
     return state.products.filter((p) => {
       if (!inDateRange(p.createdAt, productDateFrom, productDateTo)) return false
+      if (categoryFilter !== 'all') {
+        const aisle = p.aisleId || p.category
+        if (aisle !== categoryFilter) return false
+      }
       if (!q) return true
       return (
         p.name.toLowerCase().includes(q) ||
         (p.barcode || '').toLowerCase().includes(q) ||
+        (p.imei || '').toLowerCase().includes(q) ||
         t(lang, `cat_${p.category}`).toLowerCase().includes(q)
       )
     })
-  }, [state.products, productQuery, productDateFrom, productDateTo, lang])
+  }, [
+    state.products,
+    productQuery,
+    productDateFrom,
+    productDateTo,
+    categoryFilter,
+    lang,
+  ])
+
+  const retailRayonChips = useMemo(() => {
+    if (!isShopRetail(mode)) return []
+    return retailChipRayons(domainId, state.settings, lang)
+  }, [mode, domainId, state.settings, lang])
 
   function lineKey(productId: string, tier: PriceTier) {
     return `${productId}::${tier}`
@@ -4341,6 +5055,7 @@ function OrderPage({
       if (!p) return []
       const unitPrice = priceForTier(p, tier)
       if (unitPrice == null) return []
+      const lineImei = imeiMap[key] || p.imei
       return [
         {
           productId: p.id,
@@ -4351,11 +5066,18 @@ function OrderPage({
           unitCostDa: costForTier(p, tier),
           lineTotalDa: +(qty * unitPrice).toFixed(2),
           priceTier: tier,
+          imei: lineImei,
         },
       ]
     })
 
-  const total = lines.reduce((s, l) => s + l.lineTotalDa, 0)
+  const subtotal = lines.reduce((s, l) => s + l.lineTotalDa, 0)
+  const discPct = Math.min(
+    100,
+    Math.max(0, Number(String(discountPercent).replace(',', '.')) || 0),
+  )
+  const discountDa = discPct > 0 ? +((subtotal * discPct) / 100).toFixed(2) : 0
+  const total = Math.max(0, +(subtotal - discountDa).toFixed(2))
   const client = state.clients.find((c) => c.id === clientId)
   const clientDebt = client ? clientCreditDa(state, client.id) : 0
   const canValidate = lines.length > 0 && (isQuick || !!client)
@@ -4364,15 +5086,74 @@ function OrderPage({
     Number.isFinite(verseParsed) && verseParsed >= 0 && verseParsed <= total
   const verseRemaining = verseOk ? Math.max(0, +(total - verseParsed).toFixed(2)) : 0
 
+  function clearCart() {
+    setQtyMap({})
+    setTierMap({})
+    setImeiMap({})
+    setDiscountPercent('')
+    setPayStep(false)
+    setVerseInput('')
+    setDueDays(15)
+  }
+
+  function parkCurrentSale() {
+    if (lines.length === 0) return
+    const clientName = isQuick
+      ? t(lang, 'walkInClient')
+      : state.clients.find((c) => c.id === clientId)?.name || '—'
+    onHoldSale({
+      label: `${clientName} · ${formatDa(total)}`,
+      clientId: isQuick ? '' : clientId,
+      qtyMap: { ...qtyMap },
+      tierMap: { ...tierMap },
+      imeiMap: { ...imeiMap },
+      discountPercent: discPct > 0 ? discPct : undefined,
+    })
+    clearCart()
+    onFlash('holdSaleDone')
+  }
+
+  function resumeHeld(id: string) {
+    const h = (state.heldSales || []).find((x) => x.id === id)
+    if (!h) return
+    setQtyMap({ ...h.qtyMap })
+    setTierMap({ ...h.tierMap })
+    setImeiMap({ ...(h.imeiMap || {}) })
+    setDiscountPercent(h.discountPercent ? String(h.discountPercent) : '')
+    setClientId(h.clientId || QUICK)
+    setShowClientBook(!!h.clientId)
+    setPayStep(false)
+    onRemoveHeld(id)
+    setShowHeld(false)
+  }
+
   function bump(product: Product, tier: PriceTier, delta: number) {
     const key = lineKey(product.id, tier)
     const max = maxQtyForTier(product, tier, displayStock(state, product))
+    const needsImei =
+      showImeiTracking(domainId) &&
+      (product.aisleId === 'smartphones' ||
+        /smartphone|iphone|samsung|xiaomi|infinix|oppo|phone/i.test(product.name))
+    if (delta > 0 && needsImei && !(imeiMap[key] || product.imei)) {
+      const entered = window.prompt(t(lang, 'imeiPrompt'), '')
+      if (!entered || !entered.trim()) {
+        speak(t(lang, 'imeiRequired'), lang)
+        return
+      }
+      setImeiMap((m) => ({ ...m, [key]: entered.trim() }))
+    }
     setQtyMap((m) => {
       const current = m[key] ?? 0
       const next = Math.max(0, Math.min(max, +(current + delta).toFixed(3)))
       const copy = { ...m }
-      if (next <= 0) delete copy[key]
-      else copy[key] = next
+      if (next <= 0) {
+        delete copy[key]
+        setImeiMap((im) => {
+          const n = { ...im }
+          delete n[key]
+          return n
+        })
+      } else copy[key] = next
       return copy
     })
   }
@@ -4397,6 +5178,12 @@ function OrderPage({
     onSeedConsumed?.()
   }, [seedProductId])
 
+  useEffect(() => {
+    if (!seedHeldId) return
+    resumeHeld(seedHeldId)
+    onSeedHeldConsumed?.()
+  }, [seedHeldId])
+
   function finishSale(paidDa: number) {
     if (!canValidate) return
     if (paidDa < total - 0.001 && isQuick) {
@@ -4410,17 +5197,16 @@ function OrderPage({
       clientPhone: isQuick ? '' : client!.phone,
       lines,
       totalDa: total,
+      subtotalDa: subtotal,
+      discountPercent: discPct > 0 ? discPct : undefined,
+      discountDa: discountDa > 0 ? discountDa : undefined,
       ...pay,
       dueDate:
         pay.remainingDa > 0.001 ? dueDateFromDays(dueDays) : undefined,
     })
     setLastOrder(created)
     setInvoiceDraft(buildInvoiceText(created, state.settings))
-    setQtyMap({})
-    setTierMap({})
-    setPayStep(false)
-    setVerseInput('')
-    setDueDays(15)
+    clearCart()
     speak(
       lang === 'ar'
         ? `تم. ${Math.round(total)} دينار`
@@ -4447,8 +5233,8 @@ function OrderPage({
             }}
           >
             <span className="choice-emoji">⚡</span>
-            <strong>{t(lang, 'quickSale')}</strong>
-            <span className="muted">{t(lang, 'quickSaleHintShort')}</span>
+            <strong>{mt(state.settings.commerceMode, lang, 'quickSale')}</strong>
+            <span className="muted">{mt(state.settings.commerceMode, lang, 'quickSaleHintShort')}</span>
           </button>
           <button
             type="button"
@@ -4503,7 +5289,7 @@ function OrderPage({
             )}
           </div>
         ) : (
-          <div className="notice">{t(lang, 'quickSaleHint')}</div>
+          <div className="notice">{mt(state.settings.commerceMode, lang, 'quickSaleHint')}</div>
         )}
 
         {!isQuick && client && clientDebt > 0 ? (
@@ -4533,10 +5319,10 @@ function OrderPage({
         </h2>
         {!isQuick && client ? (
           <div className="muted" style={{ marginBottom: 10 }}>
-            {t(lang, 'catalogForClient')} : <strong>{client.name}</strong>
+            {mt(state.settings.commerceMode, lang, 'catalogForClient')} : <strong>{client.name}</strong>
           </div>
         ) : null}
-        {showHomeScan(mode) ? (
+        {showHomeScan(mode, domainId) ? (
         <BarcodeScanInput
           lang={lang}
           onScan={(code) => {
@@ -4565,9 +5351,48 @@ function OrderPage({
           onDateFrom={setProductDateFrom}
           onDateTo={setProductDateTo}
         />
+        {isShopRetail(mode) && favorites.length > 0 ? (
+          <div className="chip-row retail-fav-chips" aria-label={t(lang, 'retailFavorites')}>
+            <span className="muted" style={{ alignSelf: 'center', marginInlineEnd: 4 }}>
+              ⭐ {t(lang, 'retailFavorites')}
+            </span>
+            {favorites.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className="chip fav-chip"
+                onClick={() => bump(p, tierOf(p.id), qtyStep(p.unit))}
+              >
+                {p.name}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        {isShopRetail(mode) && retailRayonChips.length > 0 ? (
+          <div className="chip-row retail-cat-chips" role="tablist" aria-label={t(lang, 'retailCategories')}>
+            <button
+              type="button"
+              className={`chip ${categoryFilter === 'all' ? 'active' : ''}`}
+              onClick={() => setCategoryFilter('all')}
+            >
+              {t(lang, 'cat_all')}
+            </button>
+            {retailRayonChips.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                className={`chip ${categoryFilter === c.id ? 'active' : ''}`}
+                onClick={() => setCategoryFilter(c.id)}
+              >
+                {c.emoji ? `${c.emoji} ` : ''}
+                {c.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
         {filteredProducts.length === 0 ? (
           <div className="empty">
-            <div>{state.products.length === 0 ? t(lang, 'emptyCatalogHint') : t(lang, 'noProductFound')}</div>
+            <div>{state.products.length === 0 ? mt(state.settings.commerceMode, lang, 'emptyCatalogHint') : t(lang, 'noProductFound')}</div>
             {state.products.length === 0 ? (
               <button
                 type="button"
@@ -4596,11 +5421,29 @@ function OrderPage({
                     : tier === 'gros'
                       ? '📦📦'
                       : '🏭'
+              const stockNow = displayStock(state, p)
+              const low = stockNow <= (p.lowStockAt || 0)
               return (
                 <div
-                  className={`product-card ${qty > 0 ? 'selected' : ''}`}
+                  className={`product-card ${qty > 0 ? 'selected' : ''} ${low ? 'low-stock' : ''}`}
                   key={p.id}
                 >
+                  {retail ? (
+                    <button
+                      type="button"
+                      className={`fav-toggle ${p.favorite ? 'on' : ''}`}
+                      title={t(lang, 'productFavorite')}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onUpdateProduct(p.id, { favorite: !p.favorite })
+                      }}
+                    >
+                      {p.favorite ? '⭐' : '☆'}
+                    </button>
+                  ) : null}
+                  {low ? (
+                    <span className="stock-low-badge">{t(lang, 'lowStockBadge')}</span>
+                  ) : null}
                   <img
                     className="product-card-img"
                     src={productDisplaySrc(p.name, p.category, p.imageDataUrl)}
@@ -4611,6 +5454,17 @@ function OrderPage({
                     {p.barcode ? (
                       <div className="muted">⬛ {p.barcode}</div>
                     ) : null}
+                    {p.oemRef ? (
+                      <div className="muted">🔧 {p.oemRef}</div>
+                    ) : null}
+                    {p.imei ? (
+                      <div className="muted">📱 IMEI {p.imei}</div>
+                    ) : null}
+                    {(p.size || p.color) && (
+                      <div className="muted">
+                        {[p.size, p.color].filter(Boolean).join(' · ')}
+                      </div>
+                    )}
                     {tiers.length > 1 ? (
                       <div className="tier-row">
                         {tiers.map((tr) => (
@@ -4635,13 +5489,13 @@ function OrderPage({
                     <div className="price-big">
                       {tierIcon} {formatDa(unitPrice)}
                     </div>
-                    <div className="muted">
+                    <div className={`muted ${low ? 'warn-text' : ''}`}>
                       {unitLabel(lang, sellUnitForTier(tier))}
                       {isCartonTier(tier) && p.piecesPerPack
                         ? ` · ${p.piecesPerPack}×`
                         : ''}
                       {' · '}
-                      {t(lang, 'stockQty')} {formatQty(displayStock(state, p))}
+                      {t(lang, 'stockQty')} {formatQty(stockNow)}
                       {state.settings.multiLocationEnabled
                         ? ` (${t(lang, 'stockTotal')} ${formatQty(p.stock)})`
                         : ''}
@@ -4667,6 +5521,12 @@ function OrderPage({
       <aside className="pos-cart">
       <div className="card sticky-validate">
         <h2 className="total-big">💰 {formatDa(total)}</h2>
+        {discountDa > 0 ? (
+          <div className="muted" style={{ marginBottom: 8 }}>
+            {t(lang, 'subtotal')} {formatDa(subtotal)} − {t(lang, 'discountAmount')}{' '}
+            {formatDa(discountDa)} ({discPct}%)
+          </div>
+        ) : null}
         {lines.length > 0 ? (
           <ul className="line-preview">
             {lines.map((l) => (
@@ -4676,9 +5536,84 @@ function OrderPage({
                   ? ` (${t(lang, `tier_${l.priceTier}`)})`
                   : ''}{' '}
                 × {formatQty(l.qty)} = {formatDa(l.lineTotalDa)}
+                {l.imei ? (
+                  <div className="muted" style={{ fontSize: '0.85em' }}>
+                    IMEI {l.imei}
+                  </div>
+                ) : null}
               </li>
             ))}
           </ul>
+        ) : null}
+
+        {retail ? (
+          <div className="field" style={{ marginTop: 8 }}>
+            <label>{t(lang, 'discountPercent')}</label>
+            <input
+              inputMode="decimal"
+              value={discountPercent}
+              onChange={(e) => setDiscountPercent(e.target.value)}
+              placeholder="0"
+            />
+          </div>
+        ) : null}
+
+        {retail ? (
+          <div className="btn-row" style={{ marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
+            <button
+              type="button"
+              className="btn secondary"
+              disabled={lines.length === 0}
+              onClick={parkCurrentSale}
+            >
+              ⏸️ {t(lang, 'holdSale')}
+            </button>
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={() => setShowHeld((v) => !v)}
+            >
+              📋 {t(lang, 'heldSalesTitle')}
+              {(state.heldSales || []).length
+                ? ` (${(state.heldSales || []).length})`
+                : ''}
+            </button>
+          </div>
+        ) : null}
+
+        {retail && showHeld ? (
+          <div className="held-sales-panel" style={{ marginBottom: 10 }}>
+            {(state.heldSales || []).length === 0 ? (
+              <div className="muted">{t(lang, 'heldSalesEmpty')}</div>
+            ) : (
+              (state.heldSales || []).map((h) => (
+                <div className="list-item" key={h.id} style={{ gap: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    <strong>{h.label}</strong>
+                    <div className="muted">
+                      {new Date(h.createdAt).toLocaleString(
+                        lang === 'ar' ? 'ar-DZ' : 'fr-DZ',
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => resumeHeld(h.id)}
+                  >
+                    {t(lang, 'resumeHeldSale')}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    onClick={() => onRemoveHeld(h.id)}
+                  >
+                    {t(lang, 'deleteHeldSale')}
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
         ) : null}
 
         {!payStep ? (
@@ -4808,7 +5743,7 @@ function OrderPage({
 
       {lastOrder ? (
         <div className="card">
-          <h2>{t(lang, 'orderReady')}</h2>
+          <h2>{mt(state.settings.commerceMode, lang, 'orderReady')}</h2>
           <div className="notice">{t(lang, 'editInvoiceBeforePrint')}</div>
           <textarea
             className="ticket-edit"
@@ -4828,6 +5763,7 @@ function OrderPage({
             </button>
           </div>
           <OrderShareButtons
+                mode={state.settings.commerceMode}
             lang={lang}
             stacked
             hasPhone={!!lastOrder.clientPhone}
@@ -4875,6 +5811,9 @@ function ProfitsPage({ state, lang }: { state: AppState; lang: Language }) {
       <div className="card">
         <h2>💰 {t(lang, 'profitsTitle')}</h2>
         <p className="muted">{t(lang, 'profitsHint')}</p>
+        {state.settings.multiLocationEnabled ? (
+          <p className="muted">{t(lang, 'profitsLocationFilter')}</p>
+        ) : null}
         <div className="btn-row" style={{ flexWrap: 'wrap', marginBottom: 12 }}>
           {(
             [
@@ -4923,7 +5862,7 @@ function ProfitsPage({ state, lang }: { state: AppState; lang: Language }) {
 
       <div className="card">
         <div className="list-item">
-          <span>{t(lang, 'profitOrders')}</span>
+          <span>{mt(state.settings.commerceMode, lang, 'profitOrders')}</span>
           <strong>{stats.orderCount}</strong>
         </div>
         <div className="list-item">
@@ -5184,7 +6123,7 @@ function StockPage({
         </div>
       </div>
       <div className="muted" style={{ margin: '8px 4px 0' }}>
-        {t(lang, 'profitHint')}
+        {mt(state.settings.commerceMode, lang, 'profitHint')}
       </div>
 
       <div className="card" style={{ marginTop: 12 }}>
