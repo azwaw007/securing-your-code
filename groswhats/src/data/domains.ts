@@ -259,11 +259,11 @@ const MODE_HINT: Record<CommerceMode, Partial<Record<Language, string>>> = {
     de: 'Praxis, Labor, Leistungen',
   },
   auto: {
-    en: 'Rent, sell or repair',
-    es: 'Alquiler, venta o taller',
-    tr: 'Kiralama, satış, tamir',
-    it: 'Noleggio, vendita o officina',
-    de: 'Miete, Verkauf oder Werkstatt',
+    en: 'Rent or repair',
+    es: 'Alquiler o taller',
+    tr: 'Kiralama veya tamir',
+    it: 'Noleggio o officina',
+    de: 'Miete oder Werkstatt',
   },
   services: {
     en: 'Jobs and appointments',

@@ -192,9 +192,9 @@ export function GlobalSmartSearch({
   const [calOpen, setCalOpen] = useState(false)
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+  const mode = state.settings.commerceMode
   const hits = useMemo(() => searchApp(state, q, lang, 10), [state, q, lang])
   const writeHelp = useMemo(() => {
-    const mode = state.settings.commerceMode
     const saleWord =
       mode === 'sante'
         ? lang === 'ar'
@@ -223,7 +223,7 @@ export function GlobalSmartSearch({
       lang === 'ar' ? 'سجل' : 'historique',
     ]
     return suggestNames(names, q, 10)
-  }, [state, q, lang])
+  }, [state, q, lang, mode])
 
   function applyHistoryDates() {
     const from = dateFrom || todayIso()
@@ -262,7 +262,7 @@ export function GlobalSmartSearch({
       {calOpen ? (
         <div className="smart-dates">
           <div className="muted" style={{ marginBottom: 6 }}>
-            {t(lang, 'searchByDate')} — {mt(state.settings.commerceMode, lang, 'salesHistoryBtn')}
+            {t(lang, 'searchByDate')} — {mt(mode, lang, 'salesHistoryBtn')}
           </div>
           <div className="smart-date-presets">
             <button
@@ -325,7 +325,7 @@ export function GlobalSmartSearch({
             />
           </label>
           <button type="button" className="btn block" onClick={applyHistoryDates}>
-            📅 {mt(state.settings.commerceMode, lang, 'salesHistoryBtn')}
+            📅 {mt(mode, lang, 'salesHistoryBtn')}
           </button>
         </div>
       ) : null}

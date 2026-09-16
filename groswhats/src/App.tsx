@@ -1220,7 +1220,18 @@ export default function App() {
           <button
             key={item.id}
             className={`nav-btn ${screen === item.id ? 'active' : ''}`}
-            onClick={() => goTo(item.id, t(lang, item.id))}
+            onClick={() =>
+              goTo(
+                item.id,
+                item.id === 'order'
+                  ? vocab.sell
+                  : item.id === 'clients'
+                    ? vocab.client
+                    : item.id === 'products'
+                      ? vocab.product
+                      : t(lang, item.id),
+              )
+            }
           >
             <span className="nav-emoji">{item.icon}</span>
             <span className="nav-text">
@@ -5301,7 +5312,17 @@ function OrderPage({
       <div className="pos-shell">
         <div className="pos-main">
       <div className="card">
-        <h2>{wholesale ? `📦 ${t(lang, 'newOrderGros')}` : `🛒 ${vocab.sell}`}</h2>
+        <h2>
+          {wholesale
+            ? `📦 ${t(lang, 'newOrderGros')}`
+            : mode === 'sante'
+              ? `🩺 ${vocab.sell}`
+              : mode === 'services'
+                ? `🧾 ${vocab.sell}`
+                : mode === 'auto'
+                  ? `🚗 ${vocab.sell}`
+                  : `🛒 ${vocab.sell}`}
+        </h2>
         {wholesale || showClientBook ? (
         <>
         <div className="choice-grid">
@@ -5847,7 +5868,7 @@ function OrderPage({
             </button>
           </div>
           <OrderShareButtons
-                mode={state.settings.commerceMode}
+            mode={state.settings.commerceMode}
             lang={lang}
             stacked
             hasPhone={!!lastOrder.clientPhone}
@@ -6229,7 +6250,7 @@ function StockPage({
                     ? `${t(lang, 'stockHere')} ${formatQty(here)} · ${t(lang, 'stockTotal')} ${formatQty(p.stock)}`
                     : `${formatQty(p.stock)} ${unitLabel(lang, p.unit)}`}{' '}
                   · {t(lang, 'buyPriceShort')} {formatDa(p.costDa || 0)} →{' '}
-                  {t(lang, 'sellPriceShort')} {formatDa(p.priceDa)}
+                  {mt(state.settings.commerceMode, lang, 'sellPriceShort')} {formatDa(p.priceDa)}
                 </div>
               </div>
               <div style={{ textAlign: 'end' }}>
@@ -6350,7 +6371,7 @@ function ZakatPage({
       </div>
 
       <div className="card">
-        <h2>{t(lang, 'history')}</h2>
+        <h2>{mt(state.settings.commerceMode, lang, 'history')}</h2>
         {!last ? (
           <div className="empty">{t(lang, 'noCalcYet')}</div>
         ) : (
