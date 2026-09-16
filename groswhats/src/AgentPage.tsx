@@ -32,28 +32,28 @@ interface ChatMessage {
 
 const SUGGESTIONS_FR = [
   'aide',
-  'lance campagne',
-  'story du jour',
-  'ajoute prospect Epicerie Amel,0555123456,Alger',
-  'prospects statut',
-  'relance prospects 3',
-  'stratégie',
   'stock bas',
   'crédits',
+  'résumé du jour',
+  'ouvre vente',
+  'ouvre clients',
+  'organise l’app',
+  'thème nuit',
   'conseil vente',
+  'conseil compta',
 ]
 
 const SUGGESTIONS_AR = [
   'مساعدة',
-  'ابدأ حملة',
-  'ستوري اليوم',
-  'زيد prospect محل أمال,0555123456,الجزائر',
-  'prospects statut',
-  'relance prospects 3',
-  'خطة تسويق',
   'مخزون ناقص',
   'الديون',
+  'ملخص اليوم',
+  'افتح البيع',
+  'افتح الزبائن',
+  'نظّم التطبيق',
+  'ثيم الليل',
   'خبير مبيعات',
+  'خبير محاسبة',
 ]
 
 export function AgentPage({
@@ -91,8 +91,8 @@ export function AgentPage({
         role: 'agent',
         text:
           (lang === 'ar'
-            ? 'مرحباً، أنا وكيل AZ POS + حملة AZ Soft.\nجرّب: ابدأ حملة · ستوري اليوم · زيد prospect اسم,0555…,ولاية · relance prospects 3\n\n'
-            : 'Salam, je suis l’agent AZ POS + campagne AZ Soft.\nEssaie : lance campagne · story du jour · ajoute prospect Nom,0555…,Ville · relance prospects 3\n\n') +
+            ? 'مرحباً، أنا وكيل AZ POS (صندوق ومخزون وزبائن).\nجرّب: مخزون ناقص · الديون · ملخص اليوم · افتح البيع · نظّم التطبيق\n\n'
+            : 'Salam, je suis l’agent AZ POS (caisse, stock, clients).\nEssaie : stock bas · crédits · résumé du jour · ouvre vente · organise l’app\n\n') +
           tip,
       },
     ]

@@ -28,7 +28,6 @@ import { executeTool } from './tools'
 
 import { runAgentic } from './orchestrator'
 import { answerAnything } from './chat'
-import { runCampaignCommand, runMetaPublishCommand } from './campaignManager'
 
 export type AgentAction =
   | { type: 'none' }
@@ -36,10 +35,6 @@ export type AgentAction =
   | { type: 'open_whatsapp'; phone: string; message: string }
   | { type: 'send_invoice_last' }
   | { type: 'broadcast_arrivages'; message: string }
-  | {
-      type: 'broadcast_prospects'
-      items: Array<{ phone: string; message: string; id: string }>
-    }
 
 export interface AgentResult {
   reply: string
@@ -94,14 +89,10 @@ function help(lang: Language): string {
   const stats = memoryStats()
   if (lang === 'ar') {
     return [
-      'أنا وكيل AZ POS (agentic + خبير + تعلّم) — نص فقط.',
+      'أنا وكيل AZ POS (صندوق، مخزون، زبائن) — نص فقط.',
       '• مخزون ناقص / قيمة المخزون / الديون / ملخص اليوم',
       '• نظّم التطبيق / ثيم الليل / خط كبير / وضع سهل',
-      '• خبير مبيعات · خبير محاسبة · خبير تسويق · خبير تسيير',
-      '• حملة: ابدأ حملة · ستوري اليوم · منشور اليوم · حالة الحملة',
-      '• prospects: زيد prospect اسم,0555…,ولاية · الصق prospects · relance prospects 5',
-      '• رد آلي: «رد → رسالة الزبون» · devis 3 magasin',
-      '• meta setup (لاحقاً إذا كان عندك Facebook Business)',
+      '• خبير مبيعات · خبير محاسبة · خبير تسيير',
       '• افتح زبائن / بيع / أرباح / صندوق / إعدادات',
       '• أضف زبون / احسب الزكاة / مصاريف',
       '• تعلّم: «apprend X = stock bas» أو اختر بعد سوء الفهم',
@@ -109,14 +100,10 @@ function help(lang: Language): string {
     ].join('\n')
   }
   return [
-    'Je suis l’agent AZ POS (agentic + expert + apprentissage) — texte seul.',
+    'Je suis l’agent AZ POS (caisse, stock, clients) — texte seul.',
     '• stock bas / valeur stock / crédits / résumé du jour',
     '• organise l’app / thème nuit / gros texte / mode facile',
-    '• conseil vente · conseil compta · marketing · gestion',
-    '• campagne : lance campagne · story du jour · ajoute prospect Nom,0555…,Ville',
-    '• prospects : colle prospects · relance prospects 5 · prospects statut',
-    '• meta setup (plus tard, si tu as un compte Facebook Business)',
-    '• réponses : « réponds → message client » · devis 3 magasin',
+    '• conseil vente · conseil compta · conseil gestion',
     '• ouvre clients / ventes / gains / caisse / paramètres',
     '• ajoute client / calcule zakat / dépenses',
     '• enseigne : « apprend khlass = stock bas »',
@@ -544,30 +531,18 @@ export async function runAgent(state: AppState, userText: string): Promise<Agent
   const taught = tryTeachCommand(state, raw, lang)
   if (taught) return taught
 
-  // Campagne vente / stories / réponses auto (AZ Soft)
-  const campaign = runCampaignCommand(state, raw, lang)
-  if (campaign) {
-    const action =
-      campaign.action && campaign.action.type === 'open_whatsapp'
-        ? {
-            type: 'open_whatsapp' as const,
-            phone: campaign.action.phone,
-            message: campaign.action.message,
-          }
-        : campaign.action && campaign.action.type === 'broadcast_prospects'
-          ? {
-              type: 'broadcast_prospects' as const,
-              items: campaign.action.items,
-            }
-        : campaign.action && campaign.action.type === 'navigate'
-          ? { type: 'navigate' as const, screen: campaign.action.screen as Screen }
-          : { type: 'none' as const }
-    return { reply: campaign.reply, action }
-  }
-
-  const metaPub = await runMetaPublishCommand(raw, lang)
-  if (metaPub) {
-    return { reply: metaPub.reply, action: { type: 'none' } }
+  // Ancienne campagne / stories / Meta : retirée (pas de vraie publication).
+  if (
+    /(lance campagne|démarrer campagne|ابدأ حملة|story du jour|ستوري اليوم|post du jour|منشور اليوم|statut campagne|حالة الحملة|relance prospects|ajoute prospect|زيد prospect|colle prospects|prospects statut|meta (on|off|token|page|ig|setup)|publie (facebook|instagram))/i.test(
+      raw,
+    )
+  ) {
+    return {
+      reply:
+        lang === 'ar'
+          ? 'تم سحب وكيل الحملة / الستوري (ما كانش ينشر فعلياً).\nأنا وكيل الصندوق فقط: مخزون، بيع، زبائن، تنظيم التطبيق.'
+          : 'L’agent campagne / stories a été retiré (il ne publiait pas vraiment).\nJe reste l’agent caisse : stock, vente, clients, organise l’app.',
+    }
   }
 
   // Système agentic d’abord (organiser / configurer / multi-outils)
@@ -846,34 +821,6 @@ export function applyAgentSideEffect(
   if (action.type === 'broadcast_arrivages') {
     state.clients.forEach((c, i) => {
       window.setTimeout(() => openWhatsappText(c.phone, action.message), i * 600)
-    })
-  }
-  if (action.type === 'broadcast_prospects') {
-    action.items.forEach((item, i) => {
-      window.setTimeout(() => {
-        openWhatsappText(item.phone, item.message)
-        try {
-          const raw = localStorage.getItem('az-pos-prospects-v1')
-          if (!raw) return
-          const list = JSON.parse(raw) as Array<{
-            id: string
-            status: string
-            lastContactAt?: string
-          }>
-          const next = list.map((p) =>
-            p.id === item.id
-              ? {
-                  ...p,
-                  status: 'contacted',
-                  lastContactAt: new Date().toISOString(),
-                }
-              : p,
-          )
-          localStorage.setItem('az-pos-prospects-v1', JSON.stringify(next))
-        } catch {
-          /* ignore */
-        }
-      }, i * 900)
     })
   }
 }

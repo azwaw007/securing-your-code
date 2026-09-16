@@ -1395,9 +1395,6 @@ function SettingsPage({
             <a href="/seller/pro.html" target="_blank" rel="noreferrer">
               {t(lang, 'proUpsellLink')}
             </a>
-            <a href="/seller/campagne.html" target="_blank" rel="noreferrer">
-              Campagne AZ Soft
-            </a>
             <a href="/az-soft/" target="_blank" rel="noreferrer">
               Site AZ Soft
             </a>
