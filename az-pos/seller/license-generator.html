@@ -1,0 +1,170 @@
+﻿<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AZ POS — Générateur de licences (VENDEUR)</title>
+    <style>
+      :root {
+        font-family: Segoe UI, Trebuchet MS, sans-serif;
+        color: #1c1914;
+        background: #f3efe6;
+      }
+      body {
+        max-width: 640px;
+        margin: 24px auto;
+        padding: 0 16px 40px;
+      }
+      .card {
+        background: #fffdf8;
+        border: 1px solid #d9d0c0;
+        border-radius: 16px;
+        padding: 16px;
+        margin-bottom: 14px;
+        box-shadow: 0 10px 30px rgba(28, 25, 20, 0.08);
+      }
+      h1 {
+        margin: 0 0 8px;
+        color: #0f6b4c;
+      }
+      label {
+        display: block;
+        font-size: 0.85rem;
+        color: #6b6458;
+        font-weight: 600;
+        margin: 10px 0 6px;
+      }
+      input,
+      select,
+      textarea {
+        width: 100%;
+        box-sizing: border-box;
+        border: 1px solid #d9d0c0;
+        border-radius: 12px;
+        padding: 12px;
+        font: inherit;
+      }
+      button {
+        margin-top: 12px;
+        border: none;
+        border-radius: 12px;
+        padding: 12px 14px;
+        background: #0f6b4c;
+        color: white;
+        font-weight: 700;
+        cursor: pointer;
+        width: 100%;
+      }
+      .warn {
+        background: #fff1de;
+        border: 1px solid #f0c58a;
+        color: #b45309;
+        border-radius: 12px;
+        padding: 10px 12px;
+        font-size: 0.9rem;
+      }
+      .out {
+        background: #eef8f3;
+        border-radius: 12px;
+        padding: 12px;
+        word-break: break-all;
+        font-family: ui-monospace, Consolas, monospace;
+        font-size: 0.85rem;
+      }
+      .muted {
+        color: #6b6458;
+        font-size: 0.9rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Générateur de licences</h1>
+      <p class="muted">Réservé au vendeur AZ POS — ne pas donner aux clients.</p>
+      <p class="muted">
+        <a href="./pro.html" style="color:#0f6b4c;font-weight:700">Page AZ POS Pro (multi-magasin)</a>
+      </p>
+      <div class="warn">
+        Le secret doit être <strong>identique</strong> à celui dans
+        <code>src/license/license.ts</code> (LICENSE_SECRET).
+      </div>
+    </div>
+
+    <div class="card">
+      <label>Nom du client / commerce</label>
+      <input id="customer" placeholder="Ex: Dépôt El Amel" />
+
+      <label>Durée</label>
+      <select id="days">
+        <option value="365" selected>1 an (365 jours)</option>
+        <option value="30">1 mois (test)</option>
+        <option value="90">3 mois</option>
+        <option value="730">2 ans</option>
+      </select>
+
+      <label>Secret vendeur</label>
+      <input id="secret" value="GROSSISTE-DZ-SECRET-CHANGE-MOI-2026" />
+
+      <button id="gen">Générer la licence</button>
+    </div>
+
+    <div class="card">
+      <label>Clé à envoyer au client (WhatsApp)</label>
+      <div class="out" id="out">—</div>
+      <button id="copy" style="background: #148f66">Copier la clé</button>
+      <p class="muted" id="meta"></p>
+    </div>
+
+    <script type="module">
+      const SECRET_DEFAULT = 'GROSSISTE-DZ-SECRET-CHANGE-MOI-2026'
+
+      function toBase64Url(bytes) {
+        let bin = ''
+        bytes.forEach((b) => (bin += String.fromCharCode(b)))
+        return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+      }
+
+      async function sha256Hex(message) {
+        const data = new TextEncoder().encode(message)
+        const hash = await crypto.subtle.digest('SHA-256', data)
+        return Array.from(new Uint8Array(hash))
+          .map((b) => b.toString(16).padStart(2, '0'))
+          .join('')
+      }
+
+      async function createLicense(customer, days, secret) {
+        const exp = new Date()
+        exp.setDate(exp.getDate() + days)
+        const payload = {
+          c: customer.trim() || 'Client',
+          e: exp.toISOString().slice(0, 10),
+          p: 'annual',
+        }
+        const json = JSON.stringify(payload)
+        const body = toBase64Url(new TextEncoder().encode(json))
+        const sig = (await sha256Hex(`${json}::${secret}`)).slice(0, 20)
+        return { key: `GDZ1.${body}.${sig}`, payload }
+      }
+
+      const out = document.getElementById('out')
+      const meta = document.getElementById('meta')
+
+      document.getElementById('gen').onclick = async () => {
+        const customer = document.getElementById('customer').value
+        const days = Number(document.getElementById('days').value)
+        const secret = document.getElementById('secret').value || SECRET_DEFAULT
+        const { key, payload } = await createLicense(customer, days, secret)
+        out.textContent = key
+        meta.textContent = `Client: ${payload.c} — Expire: ${payload.e} — ${days} jours`
+      }
+
+      document.getElementById('copy').onclick = async () => {
+        const text = out.textContent
+        if (!text || text === '—') return
+        await navigator.clipboard.writeText(text)
+        meta.textContent = (meta.textContent || '') + ' — Copié ✓'
+      }
+    </script>
+  </body>
+</html>
+

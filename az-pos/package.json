@@ -1,0 +1,80 @@
+{
+  "name": "az-pos",
+  "private": true,
+  "version": "1.0.0",
+  "description": "AZ POS — point de vente Algérie (web, Android, Windows)",
+  "author": "AZ POS",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "build:native": "tsc -b && cross-env NATIVE=1 vite build",
+    "lint": "oxlint",
+    "preview": "vite preview",
+    "license": "node tools/generate-license.mjs",
+    "icons": "node scripts/make-icons.mjs",
+    "native:deps": "npm install --no-save @capacitor/core@^7.4.3 @capacitor/cli@^7.4.3 @capacitor/android@^7.4.3 electron@^37.2.6 electron-builder@^26.0.12",
+    "android:sync": "npm run build:native && npx cap sync android",
+    "android:open": "npx cap open android",
+    "desktop:dev": "npm run build:native && electron .",
+    "desktop:build": "npm run build:native && electron-builder --win",
+    "desktop:dir": "npm run build:native && electron-builder --win --dir"
+  },
+  "dependencies": {
+    "@vercel/blob": "^2.8.0",
+    "html5-qrcode": "^2.3.8",
+    "leaflet": "^1.9.4",
+    "qrcode.react": "^4.2.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/leaflet": "^1.9.22",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.1.0",
+    "cross-env": "^10.0.0",
+    "oxlint": "^1.79.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.2.2",
+    "vite-plugin-pwa": "^1.3.0"
+  },
+  "build": {
+    "appId": "com.azpos.app",
+    "productName": "AZ POS",
+    "copyright": "Copyright © AZ POS",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "signAndEditExecutable": false,
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "AZ POS"
+    }
+  }
+}

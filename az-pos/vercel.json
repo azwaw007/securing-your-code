@@ -1,0 +1,21 @@
+{
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "grossiste-dz.vercel.app" }],
+      "destination": "https://az-pos-dz.vercel.app/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "grossiste-dz-azwawphone-9250.vercel.app" }],
+      "destination": "https://az-pos-dz.vercel.app/:path*",
+      "permanent": true
+    }
+  ],
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/seller/(.*)", "destination": "/seller/$1" },
+    { "source": "/((?!api/|seller/).*)", "destination": "/index.html" }
+  ]
+}
