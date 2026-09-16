@@ -613,6 +613,14 @@ const CATALOGS: Record<string, SeedSpec[]> = {
     s('Pack 10 séances', 7000, 0, '🎟️', 'autre'),
     s('Coaching perso 1 h', 2500, 0, '👤', 'autre'),
     s('Carte NFC / badge', 500, 150, '💳', 'autre'),
+    // Boutique salle (stock + marge)
+    s('Eau 50 cl', 50, 25, '💧', 'alimentaire'),
+    s('Eau 1,5 L', 80, 40, '🧴', 'alimentaire'),
+    s('Jus / boisson 33 cl', 120, 70, '🧃', 'alimentaire'),
+    s('Boisson énergétique', 200, 120, '⚡', 'alimentaire'),
+    s('Dosette protéine', 250, 140, '🧪', 'consommable'),
+    s('Barre protéinée', 180, 95, '🍫', 'alimentaire'),
+    s('Shaker', 800, 350, '🥤', 'consommable'),
   ],
   'sport-boxe': [
     s('Abonnement mensuel', 5000, 0, '🥊', 'autre'),
