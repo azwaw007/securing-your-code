@@ -1,4 +1,7 @@
 import type { FontScale, Language, ThemePreset } from '../types'
+import type { MetierTheme } from '../locale/metierPacks'
+import { metierPackFor } from '../locale/metierPacks'
+import type { CommerceMode } from '../types'
 
 export const THEME_PRESETS: Record<
   ThemePreset,
@@ -60,12 +63,12 @@ export const THEME_PRESETS: Record<
       '--bg': '#12161c',
       '--bg-2': '#1a222c',
       '--ink': '#e8eef6',
-      '--muted': '#9aa7b8',
+      '--muted': '#c5d0de',
       '--card': '#1c2430',
-      '--line': '#2c3746',
+      '--line': '#3a4658',
       '--brand': '#3dba8c',
       '--brand-2': '#5ad4a6',
-      '--glow': 'rgba(61, 186, 140, 0.2)',
+      '--glow': 'rgba(61, 186, 140, 0.22)',
     },
   },
   coral: {
@@ -91,20 +94,65 @@ const FONT_SCALE: Record<FontScale, string> = {
   xlarge: '20px',
 }
 
-/** Applique thème + taille texte sur :root (sûr, réversible). */
-export function applyUiTheme(preset: ThemePreset, fontScale: FontScale): void {
+function paintRoot(
+  vars: Record<string, string>,
+  fontScale: FontScale,
+  opts: { themeId: string; metier?: string; mood?: MetierTheme['mood'] },
+): void {
   const root = document.documentElement
-  const theme = THEME_PRESETS[preset] ?? THEME_PRESETS.forest
-  for (const [k, v] of Object.entries(theme.vars)) {
+  for (const [k, v] of Object.entries(vars)) {
     root.style.setProperty(k, v)
   }
   root.style.setProperty('--app-font-size', FONT_SCALE[fontScale] ?? FONT_SCALE.normal)
-  root.dataset.theme = preset
+  root.dataset.theme = opts.themeId
   root.dataset.fontScale = fontScale
+  if (opts.metier) root.dataset.metier = opts.metier
+  else delete root.dataset.metier
+  const mood = opts.mood || 'light'
   document.body.style.background =
-    preset === 'night'
+    mood === 'dim' || opts.themeId === 'night'
       ? `radial-gradient(circle at top left, var(--glow), transparent 28%), linear-gradient(180deg, #0e1318 0%, var(--bg) 45%, #0a0e12 100%)`
-      : `radial-gradient(circle at top left, var(--glow), transparent 28%), linear-gradient(180deg, color-mix(in srgb, var(--bg) 70%, white) 0%, var(--bg) 40%, var(--bg-2) 100%)`
+      : mood === 'clinical'
+        ? `radial-gradient(circle at 12% 0%, var(--glow), transparent 32%), linear-gradient(180deg, color-mix(in srgb, var(--bg) 85%, white) 0%, var(--bg) 38%, var(--bg-2) 100%)`
+        : `radial-gradient(circle at top left, var(--glow), transparent 28%), linear-gradient(180deg, color-mix(in srgb, var(--bg) 70%, white) 0%, var(--bg) 40%, var(--bg-2) 100%)`
+}
+
+/** Applique thème + taille texte sur :root (sûr, réversible). */
+export function applyUiTheme(preset: ThemePreset, fontScale: FontScale): void {
+  const theme = THEME_PRESETS[preset] ?? THEME_PRESETS.forest
+  paintRoot(theme.vars, fontScale, {
+    themeId: preset,
+    mood: preset === 'night' ? 'dim' : 'light',
+  })
+}
+
+/** Thème dérivé du métier / domaine (prioritaire si themeSource !== user). */
+export function applyMetierTheme(
+  domainId: string | undefined,
+  mode: CommerceMode | undefined,
+  fontScale: FontScale,
+): void {
+  const pack = metierPackFor(domainId, mode)
+  paintRoot(pack.theme.vars, fontScale, {
+    themeId: `metier-${pack.family}`,
+    metier: pack.family,
+    mood: pack.theme.mood,
+  })
+}
+
+/** Applique le thème effectif selon la source. */
+export function applyEffectiveTheme(opts: {
+  themeSource?: 'metier' | 'user'
+  themePreset: ThemePreset
+  fontScale: FontScale
+  domainId?: string
+  commerceMode?: CommerceMode
+}): void {
+  if (opts.themeSource === 'user') {
+    applyUiTheme(opts.themePreset, opts.fontScale)
+    return
+  }
+  applyMetierTheme(opts.domainId, opts.commerceMode, opts.fontScale)
 }
 
 export function themeLabel(lang: Language, preset: ThemePreset): string {

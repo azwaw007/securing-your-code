@@ -3,17 +3,26 @@ import { unitLabel } from '../i18n'
 import { formatDa, formatQty, normalizePhone } from './format'
 import { paymentSummaryLines } from './paymentText'
 
+function discountLine(order: Order, lang: string): string | null {
+  if (!order.discountDa || order.discountDa <= 0) return null
+  const pct = order.discountPercent ? ` (${order.discountPercent}%)` : ''
+  return lang === 'ar'
+    ? `خصم: -${formatDa(order.discountDa)}${pct}`
+    : `Remise: -${formatDa(order.discountDa)}${pct}`
+}
+
 export function buildInvoiceText(order: Order, settings: ShopSettings): string {
   const lang = settings.language
   const invoiceNo = order.invoiceNumber ?? order.id.slice(-6).toUpperCase()
   const date = new Date(order.createdAt).toLocaleString(lang === 'ar' ? 'ar-DZ' : 'fr-DZ')
   const lines = order.lines
-    .map(
-      (l) =>
-        `${formatQty(l.qty)} ${unitLabel(lang, l.unit)} ${l.name} — ${formatDa(l.lineTotalDa)}`,
-    )
+    .map((l) => {
+      const base = `${formatQty(l.qty)} ${unitLabel(lang, l.unit)} ${l.name} — ${formatDa(l.lineTotalDa)}`
+      return l.imei ? `${base}\n  IMEI ${l.imei}` : base
+    })
     .join('\n')
   const pay = paymentSummaryLines(order, lang)
+  const disc = discountLine(order, lang)
 
   if (lang === 'ar') {
     return [
@@ -27,11 +36,14 @@ export function buildInvoiceText(order: Order, settings: ShopSettings): string {
       '------------------------',
       lines,
       '------------------------',
+      disc,
       `المجموع: ${formatDa(order.totalDa)}`,
       ...pay,
       '------------------------',
       'شكرا لثقتكم',
-    ].join('\n')
+    ]
+      .filter((x) => x != null && x !== '')
+      .join('\n')
   }
 
   return [
@@ -45,11 +57,14 @@ export function buildInvoiceText(order: Order, settings: ShopSettings): string {
     '------------------------',
     lines,
     '------------------------',
+    disc,
     `TOTAL: ${formatDa(order.totalDa)}`,
     ...pay,
     '------------------------',
     'Merci pour votre confiance',
-  ].join('\n')
+  ]
+    .filter((x) => x != null && x !== '')
+    .join('\n')
 }
 
 export function openInvoiceWhatsapp(
