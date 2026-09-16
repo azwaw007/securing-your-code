@@ -2373,8 +2373,11 @@ html[dir='rtl'] .style-card {
   color: #c2410c;
 }
 
-.total-big {
-  font-size: clamp(2.85rem, 11vw, 4.4rem);
+/* Spécificité > .card h2 (sinon le total reste petit) */
+.card h2.total-big,
+.total-pay .total-big,
+h2.total-big {
+  font-size: clamp(2.85rem, 11vw, 4.4rem) !important;
   font-weight: 800;
   margin: 0;
   font-variant-numeric: tabular-nums;
@@ -2389,7 +2392,9 @@ html[data-theme='night'] .total-pay {
 }
 
 html[data-theme='night'] .total-pay-label,
-html[data-theme='night'] .total-big {
+html[data-theme='night'] .card h2.total-big,
+html[data-theme='night'] .total-pay .total-big,
+html[data-theme='night'] h2.total-big {
   color: #fb923c;
 }
 
