@@ -251,6 +251,76 @@ button {
   color: rgba(255, 255, 255, 0.82);
 }
 
+.expert-comptable-card {
+  margin: 10px 0 14px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #f4faf7 0%, #e8f1ec 55%, #f7f3ea 100%);
+  border: 1px solid rgba(20, 80, 50, 0.12);
+}
+
+.expert-comptable-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+}
+
+.expert-comptable-head h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.expert-comptable-section {
+  font-size: 0.85rem;
+}
+
+.expert-comptable-hint {
+  margin: 6px 0 10px;
+  font-size: 0.88rem;
+}
+
+.expert-comptable-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+  margin-bottom: 10px;
+}
+
+.expert-comptable-stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.expert-comptable-stats strong {
+  font-size: 1rem;
+}
+
+.expert-comptable-tip {
+  margin: 0 0 10px;
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.expert-comptable-details {
+  margin-top: 8px;
+}
+
+.expert-comptable-details summary {
+  cursor: pointer;
+  font-size: 0.88rem;
+  color: #2a5a40;
+}
+
+.expert-comptable-body {
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+
 .home-apps {
   display: flex;
   flex-direction: column;

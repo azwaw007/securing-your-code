@@ -725,6 +725,13 @@ const fr: Dict = {
   medWhatsappSent: 'WhatsApp ouvert',
   medHistory: 'Historique médical',
   medHistoryEmpty: 'Aucun document encore.',
+  expertComptaTitle: 'Expert comptable',
+  expertComptaHint:
+    'Conseils pour CE métier (stock, crédits, bénéfice) — pas une appli cabinet à part.',
+  expertComptaStock: 'Valeur stock',
+  expertComptaCredits: 'Crédits clients',
+  expertComptaCta: 'Conseil compta détaillé',
+  expertComptaMore: 'Voir le détail',
   clinicShare: 'Partage médecin / réception',
   clinicShareHint:
     'Deux postes : le médecin soigne, la réception encaisse. Active puis choisis le rôle sur chaque téléphone.',
@@ -1612,6 +1619,13 @@ const ar: Dict = {
   medWhatsappSent: 'تم فتح واتساب',
   medHistory: 'السجل الطبي',
   medHistoryEmpty: 'لا وثائق بعد.',
+  expertComptaTitle: 'خبير محاسبة',
+  expertComptaHint:
+    'نصائح لهذا النشاط (مخزون، ديون، ربح) — ليست تطبيقاً لمكتب محاسبة منفصل.',
+  expertComptaStock: 'قيمة المخزون',
+  expertComptaCredits: 'ديون الزبائن',
+  expertComptaCta: 'نصيحة محاسبة مفصّلة',
+  expertComptaMore: 'عرض التفاصيل',
   clinicShare: 'مشاركة طبيب / استقبال',
   clinicShareHint:
     'منصبان: الطبيب يعالج، الاستقبال يحصّل. فعّل ثم اختر الدور على كل هاتف.',

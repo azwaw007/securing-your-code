@@ -212,6 +212,7 @@ import { ClinicAgendaPanel } from './ClinicAgendaPanel'
 import { TableFloorPanel } from './TableFloorPanel'
 import { RepairOrderPanel } from './RepairOrderPanel'
 import { StaffPanel } from './StaffPanel'
+import { ExpertComptableCard } from './ExpertComptableCard'
 import { classifyHomeScan } from './utils/clientQr'
 import { APP_BRAND } from './brand'
 import { APP_VERSION, activateLicense, getAccessStatus } from './license/license'
@@ -727,6 +728,10 @@ export default function App() {
             openInvoiceWhatsapp(order, state.settings)
             setState((s) => markInvoiceSent(s, order.id))
             flash('invoiceSent')
+          }}
+          onOpenExpertCompta={() => {
+            setAgentSeed(lang === 'ar' ? 'خبير محاسبة' : 'conseil compta')
+            goTo('agent', t(lang, 'expertComptaTitle'))
           }}
         />
         </div>
@@ -2051,6 +2056,7 @@ function HomePage({
   onPrint,
   onBoth,
   onInvoice,
+  onOpenExpertCompta,
 }: {
   state: AppState
   stats: {
@@ -2089,6 +2095,8 @@ function HomePage({
   onPrint: (order: Order) => Promise<void>
   onBoth: (order: Order) => Promise<void>
   onInvoice: (order: Order) => void
+  /** Expert comptable horizontal (tous métiers) */
+  onOpenExpertCompta: () => void
 }) {
   const domainId = state.settings.domainId
   const vocab = shopVocab(state.settings.commerceMode, lang, domainId)
@@ -2354,6 +2362,12 @@ function HomePage({
           }}
         />
       ) : null}
+
+      <ExpertComptableCard
+        state={state}
+        lang={lang}
+        onOpen={onOpenExpertCompta}
+      />
 
       {isReception ? (
         <ReceptionCashQueue
