@@ -921,6 +921,46 @@ button {
   border: 1px solid color-mix(in srgb, var(--brand) 28%, var(--line));
 }
 
+.location-pill.location-switch {
+  gap: 4px;
+  padding-inline-end: 4px;
+  cursor: pointer;
+}
+
+.location-pill.location-switch select {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  max-width: 28vw;
+  padding: 2px 18px 2px 2px;
+  cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position:
+    calc(100% - 8px) 55%,
+    calc(100% - 3px) 55%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+.install-help {
+  background: color-mix(in srgb, var(--card) 92%, var(--brand));
+}
+
+.install-steps {
+  margin: 0;
+  padding-inline-start: 1.2rem;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+.install-steps li {
+  margin-bottom: 4px;
+}
+
 .pro-upsell {
   display: flex;
   flex-wrap: wrap;
