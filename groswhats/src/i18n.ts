@@ -690,6 +690,10 @@ const fr: Dict = {
   clientQrTitle: 'QR du client',
   clientQrHint: 'Imprime ou montre ce QR — le scan depuis l’accueil ouvre sa fiche.',
   clientQrPrint: 'Imprimer le QR',
+  clientNfcUid: 'Puce NFC / carte membre',
+  clientNfcUidHint: 'UID lu par le lecteur (ou colle depuis une puce inconnue).',
+  memberQrTitle: 'QR membre (entrée salle)',
+  memberQrHint: 'Scan à l’accueil = entrée / sortie + comptage.',
   agendaTitle: 'Agenda',
   agendaSmart: 'RDV intelligents',
   agendaHint:
@@ -1619,6 +1623,10 @@ const ar: Dict = {
   clientQrTitle: 'QR الزبون',
   clientQrHint: 'اطبع أو اعرض هذا الـ QR — المسح من الرئيسية يفتح بطاقته.',
   clientQrPrint: 'طباعة الـ QR',
+  clientNfcUid: 'شريحة NFC / بطاقة العضو',
+  clientNfcUidHint: 'UID من القارئ (أو الصق من شريحة غير معروفة).',
+  memberQrTitle: 'QR العضو (دخول القاعة)',
+  memberQrHint: 'المسح = دخول / خروج + العد.',
   agendaTitle: 'المواعيد',
   agendaSmart: 'مواعيد ذكية',
   agendaHint:
