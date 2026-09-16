@@ -80,6 +80,7 @@ import {
   holdSale,
   removeHeldSale,
   setClinicStation,
+  setTableStatus,
 } from './store'
 import { isDecimalUnit, qtyStep, t, unitLabel } from './i18n'
 import { mt } from './locale/modeCopy'
@@ -309,6 +310,7 @@ export default function App() {
   const [seedProductBarcode, setSeedProductBarcode] = useState<string | null>(null)
   const [seedProductQuery, setSeedProductQuery] = useState<string | null>(null)
   const [seedSellProductId, setSeedSellProductId] = useState<string | null>(null)
+  const [seedHeldId, setSeedHeldId] = useState<string | null>(null)
   const [seedClientNotes, setSeedClientNotes] = useState<string | null>(null)
   const [historySeed, setHistorySeed] = useState<{
     from: string
@@ -671,6 +673,27 @@ export default function App() {
           onSeedSell={(productId) => {
             setSeedSellProductId(productId)
           }}
+          onOpenTableOrder={(tableId, heldSaleId) => {
+            const existing = heldSaleId
+              ? state.heldSales?.find((h) => h.id === heldSaleId)
+              : undefined
+            if (existing) {
+              setSeedHeldId(existing.id)
+              goTo('order', vocab.sell)
+              return
+            }
+            const table = state.tables?.find((tb) => tb.id === tableId)
+            const held = holdSale(state, {
+              label: table?.name || t(lang, 'tableFloorTitle'),
+              clientId: '',
+              qtyMap: {},
+              tierMap: {},
+            })
+            const newHeldId = held.heldSales[0]?.id
+            setState(setTableStatus(held, tableId, 'busy', newHeldId))
+            if (newHeldId) setSeedHeldId(newHeldId)
+            goTo('order', vocab.sell)
+          }}
           onOpenHistoryDates={(from, to) => {
             setHistorySeed({ from, to })
             goTo('history', t(lang, 'appHistory'))
@@ -800,6 +823,8 @@ export default function App() {
           lang={lang}
           seedProductId={seedSellProductId}
           onSeedConsumed={() => setSeedSellProductId(null)}
+          seedHeldId={seedHeldId}
+          onSeedHeldConsumed={() => setSeedHeldId(null)}
           onGo={goTo}
           onFlash={flash}
           onUpdateProduct={(id, patch) => setState((s) => updateProduct(s, id, patch))}
@@ -2019,6 +2044,7 @@ function HomePage({
   onSeedProductSearch,
   onSeedNewClient,
   onSeedSell,
+  onOpenTableOrder,
   onOpenHistoryDates,
   onEnableAlerts,
   onWhatsapp,
@@ -2055,6 +2081,8 @@ function HomePage({
   onSeedProductSearch: (query: string) => void
   onSeedNewClient: (note: string) => void
   onSeedSell: (productId: string) => void
+  /** Ouvre une table (resto) : crée/reprend le ticket en attente puis va à la caisse */
+  onOpenTableOrder: (tableId: string, heldSaleId?: string) => void
   onOpenHistoryDates: (from: string, to: string) => void
   onEnableAlerts: () => void
   onWhatsapp: (order: Order) => void
@@ -2301,7 +2329,7 @@ function HomePage({
           lang={lang}
           onState={onState}
           onFlash={onFlash}
-          onOpenTable={() => onGo('order', vocab.sell)}
+          onOpenTable={(tableId, heldSaleId) => onOpenTableOrder(tableId, heldSaleId)}
         />
       ) : null}
 
@@ -4885,6 +4913,8 @@ function OrderPage({
   lang,
   seedProductId,
   onSeedConsumed,
+  seedHeldId,
+  onSeedHeldConsumed,
   onCreate,
   onWhatsapp,
   onPrint,
@@ -4900,6 +4930,8 @@ function OrderPage({
   lang: Language
   seedProductId?: string | null
   onSeedConsumed?: () => void
+  seedHeldId?: string | null
+  onSeedHeldConsumed?: () => void
   onCreate: (
     order: Omit<Order, 'id' | 'createdAt' | 'whatsappSent' | 'invoiceNumber'>,
   ) => Order
@@ -5145,6 +5177,12 @@ function OrderPage({
     if (p) bump(p, 'piece', qtyStep(p.unit))
     onSeedConsumed?.()
   }, [seedProductId])
+
+  useEffect(() => {
+    if (!seedHeldId) return
+    resumeHeld(seedHeldId)
+    onSeedHeldConsumed?.()
+  }, [seedHeldId])
 
   function finishSale(paidDa: number) {
     if (!canValidate) return

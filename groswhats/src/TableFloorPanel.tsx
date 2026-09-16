@@ -3,7 +3,6 @@ import type { AppState, FloorTable, Language } from './types'
 import { t } from './i18n'
 import {
   deleteFloorTable,
-  holdSale,
   setTableStatus,
   upsertFloorTable,
 } from './store'
@@ -40,21 +39,7 @@ export function TableFloorPanel({
   }
 
   function openTable(tb: FloorTable) {
-    if (tb.heldSaleId) {
-      onOpenTable(tb.id, tb.heldSaleId)
-      return
-    }
-    let next = holdSale(state, {
-      label: tb.name,
-      clientId: '',
-      qtyMap: {},
-      tierMap: {},
-    })
-    const heldId = next.heldSales[0]?.id
-    if (!heldId) return
-    next = setTableStatus(next, tb.id, 'busy', heldId)
-    onState(next)
-    onOpenTable(tb.id, heldId)
+    onOpenTable(tb.id, tb.heldSaleId)
   }
 
   function markBill(tb: FloorTable) {
