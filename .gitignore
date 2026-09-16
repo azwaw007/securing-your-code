@@ -8,7 +8,6 @@ uploads/complaints/*.*
 !uploads/complaints/.gitkeep
 ftp/legal.md
 package-lock.json
-!groswhats/package-lock.json
 i18n/*.json
 i18n/*.invalid
 !frontend/src/assets/i18n/*.json
@@ -21,7 +20,6 @@ data/chatbot/*.*
 .nyc_output/
 .sass-cache/
 /build/
-!groswhats/build/
 cache/
 dist/
 logs/
