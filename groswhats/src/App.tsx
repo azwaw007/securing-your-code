@@ -82,6 +82,7 @@ import {
   setClinicStation,
 } from './store'
 import { isDecimalUnit, qtyStep, t, unitLabel } from './i18n'
+import { mt } from './locale/modeCopy'
 import { formatDa, formatQty, setActiveCurrency, setActiveLocale } from './utils/format'
 import { productDisplaySrc } from './utils/productArt'
 import { SetupWizard } from './SetupWizard'
@@ -109,7 +110,10 @@ import {
   showDepotTools,
   showGallery,
   showGymCheckin,
+  showClinicAgenda,
   showHomeScan,
+  showTableService,
+  showRepairOrder,
   showMedicalDossier,
   showReturns,
   showStaffHr,
@@ -203,6 +207,9 @@ import { DossierPatientPanel } from './DossierPatientPanel'
 import { SpecialtyDossierPanel } from './SpecialtyDossierPanel'
 import { ReceptionCashQueue, SendToCashForm } from './ClinicSharePanels'
 import { GymCheckinPanel } from './GymCheckinPanel'
+import { ClinicAgendaPanel } from './ClinicAgendaPanel'
+import { TableFloorPanel } from './TableFloorPanel'
+import { RepairOrderPanel } from './RepairOrderPanel'
 import { StaffPanel } from './StaffPanel'
 import { classifyHomeScan } from './utils/clientQr'
 import { APP_BRAND } from './brand'
@@ -1735,7 +1742,7 @@ function SettingsPage({
               <button
                 type="button"
                 className="btn secondary"
-                disabled={!newLocName.trim()}
+                disabled={!newLocName.trim() || state.locations.length >= 3}
                 onClick={() => {
                   onAddLocation(newLocName)
                   setNewLocName('')
@@ -1744,6 +1751,11 @@ function SettingsPage({
                 {t(lang, 'addLocation')}
               </button>
             </div>
+            {state.locations.length >= 3 ? (
+              <p className="muted" style={{ marginTop: 6 }}>
+                {t(lang, 'locationsMaxHint')}
+              </p>
+            ) : null}
 
             {state.locations.length > 1 && state.products.length > 0 ? (
               <div className="transfer-block">
@@ -2274,6 +2286,34 @@ function HomePage({
         }}
       />
 
+      {showClinicAgenda(mode, domainId) ? (
+        <ClinicAgendaPanel
+          state={state}
+          lang={lang}
+          onState={onState}
+          onFlash={onFlash}
+        />
+      ) : null}
+
+      {showTableService(mode, domainId) ? (
+        <TableFloorPanel
+          state={state}
+          lang={lang}
+          onState={onState}
+          onFlash={onFlash}
+          onOpenTable={() => onGo('order', vocab.sell)}
+        />
+      ) : null}
+
+      {showRepairOrder(mode, domainId) ? (
+        <RepairOrderPanel
+          state={state}
+          lang={lang}
+          onState={onState}
+          onFlash={onFlash}
+        />
+      ) : null}
+
       {showGymCheckin(mode, domainId) ? (
         <GymCheckinPanel
           state={state}
@@ -2377,11 +2417,11 @@ function HomePage({
           onClick={() => onGo('history', t(lang, 'appHistory'))}
         >
           <span className="cal">📅</span>
-          <span>📜 {t(lang, 'salesHistoryBtn')}</span>
+          <span>📜 {mt(state.settings.commerceMode, lang, 'salesHistoryBtn')}</span>
         </button>
         <div className="home-chips">
           <div className="home-chip">
-            <span>🧾 {t(lang, 'todayOrders')}</span>
+            <span>🧾 {mt(state.settings.commerceMode, lang, 'todayOrders')}</span>
             <strong>{stats.todayCount}</strong>
           </div>
           <div className="home-chip accent">
@@ -2494,13 +2534,13 @@ function HomePage({
 
       <div className="card home-recent">
         <div className="list-item" style={{ borderBottom: 'none', paddingTop: 0 }}>
-          <h2 style={{ margin: 0 }}>{t(lang, 'lastOrders')}</h2>
-          <button type="button" className="btn secondary" onClick={() => onGo('history', t(lang, 'history'))}>
-            📜 {t(lang, 'history')}
+          <h2 style={{ margin: 0 }}>{mt(state.settings.commerceMode, lang, 'lastOrders')}</h2>
+          <button type="button" className="btn secondary" onClick={() => onGo('history', mt(state.settings.commerceMode, lang, 'history'))}>
+            📜 {mt(state.settings.commerceMode, lang, 'history')}
           </button>
         </div>
         {recent.length === 0 ? (
-          <div className="empty">{t(lang, 'noOrdersToday')}</div>
+          <div className="empty">{mt(state.settings.commerceMode, lang, 'noOrdersToday')}</div>
         ) : (
           recent.map((o) => (
             <div className="order-block" key={o.id}>
@@ -2517,6 +2557,7 @@ function HomePage({
                 <strong>{formatDa(o.totalDa)}</strong>
               </div>
               <OrderShareButtons
+                mode={state.settings.commerceMode}
                 lang={lang}
                 hasPhone={!!o.clientPhone}
                 onWhatsapp={() => onWhatsapp(o)}
@@ -2651,7 +2692,7 @@ function HistoryPage({
         .map((o) => o.invoiceNumber)
         .filter(Boolean)
         .map((n) => `N°${n}`),
-      t(lang, 'act_order'),
+      mt(state.settings.commerceMode, lang, 'act_order'),
       t(lang, 'act_invoice'),
       t(lang, 'act_client'),
       t(lang, 'act_cash'),
@@ -2681,8 +2722,8 @@ function HistoryPage({
   return (
     <div className="page">
       <div className="card">
-        <h2>📜 {t(lang, 'history')}</h2>
-        <p className="muted">{t(lang, 'historyActivityHint')}</p>
+        <h2>📜 {mt(state.settings.commerceMode, lang, 'history')}</h2>
+        <p className="muted">{mt(state.settings.commerceMode, lang, 'historyActivityHint')}</p>
 
         <SmartSearchBar
           lang={lang}
@@ -2728,7 +2769,7 @@ function HistoryPage({
             onChange={(e) => setKind(e.target.value as ActivityKind)}
           >
             <option value="all">{t(lang, 'act_all')}</option>
-            <option value="order">{t(lang, 'act_order')}</option>
+            <option value="order">{mt(state.settings.commerceMode, lang, 'act_order')}</option>
             <option value="invoice">{t(lang, 'act_invoice')}</option>
             <option value="client">{t(lang, 'act_client')}</option>
             <option value="cash">{t(lang, 'act_cash')}</option>
@@ -2811,7 +2852,7 @@ function HistoryPage({
 
       {ordersInView.length > 0 && (kind === 'all' || kind === 'order' || kind === 'invoice') ? (
         <div className="card">
-          <h3>{t(lang, 'ordersInPeriod')}</h3>
+          <h3>{mt(state.settings.commerceMode, lang, 'ordersInPeriod')}</h3>
           {ordersInView.map((o) => (
             <div className="order-block" key={o.id}>
               <div className="list-item">
@@ -2825,6 +2866,7 @@ function HistoryPage({
                 <strong>{formatDa(o.totalDa)}</strong>
               </div>
               <OrderShareButtons
+                mode={state.settings.commerceMode}
                 lang={lang}
                 hasPhone={!!o.clientPhone}
                 onWhatsapp={() => onWhatsapp(o)}
@@ -2842,6 +2884,7 @@ function HistoryPage({
 
 function OrderShareButtons({
   lang,
+  mode,
   onWhatsapp,
   onPrint,
   onBoth,
@@ -2850,6 +2893,7 @@ function OrderShareButtons({
   hasPhone = true,
 }: {
   lang: Language
+  mode?: CommerceMode
   onWhatsapp: () => void
   onPrint: () => void | Promise<void>
   onBoth: () => void | Promise<void>
@@ -2881,7 +2925,7 @@ function OrderShareButtons({
           </button>
         </>
       ) : (
-        <div className="muted">{t(lang, 'noWhatsappQuick')}</div>
+        <div className="muted">{mt(mode, lang, 'noWhatsappQuick')}</div>
       )}
     </div>
   )
@@ -3141,7 +3185,7 @@ function ProductPricingFields({
       </div>
 
       <div className="pricing-board">
-        <h3 className="pricing-board-title">💰 {t(lang, 'pricingBoardTitle')}</h3>
+        <h3 className="pricing-board-title">💰 {mt(commerceMode, lang, 'pricingBoardTitle')}</h3>
         {showWholesaleTiers(commerceMode) ? (
           <p className="muted pricing-board-hint">{t(lang, 'pricingBoardHint')}</p>
         ) : null}
@@ -3433,7 +3477,7 @@ function ProductsPage({
       <div className="card">
         <h2>{t(lang, 'newProduct')}</h2>
         <div className="muted" style={{ marginBottom: 10 }}>
-          {t(lang, 'profitHint')}
+          {mt(state.settings.commerceMode, lang, 'profitHint')}
         </div>
         <div className="product-photo-field">
           {name.trim() || imageDataUrl ? (
@@ -5151,8 +5195,8 @@ function OrderPage({
             }}
           >
             <span className="choice-emoji">⚡</span>
-            <strong>{t(lang, 'quickSale')}</strong>
-            <span className="muted">{t(lang, 'quickSaleHintShort')}</span>
+            <strong>{mt(state.settings.commerceMode, lang, 'quickSale')}</strong>
+            <span className="muted">{mt(state.settings.commerceMode, lang, 'quickSaleHintShort')}</span>
           </button>
           <button
             type="button"
@@ -5207,7 +5251,7 @@ function OrderPage({
             )}
           </div>
         ) : (
-          <div className="notice">{t(lang, 'quickSaleHint')}</div>
+          <div className="notice">{mt(state.settings.commerceMode, lang, 'quickSaleHint')}</div>
         )}
 
         {!isQuick && client && clientDebt > 0 ? (
@@ -5237,7 +5281,7 @@ function OrderPage({
         </h2>
         {!isQuick && client ? (
           <div className="muted" style={{ marginBottom: 10 }}>
-            {t(lang, 'catalogForClient')} : <strong>{client.name}</strong>
+            {mt(state.settings.commerceMode, lang, 'catalogForClient')} : <strong>{client.name}</strong>
           </div>
         ) : null}
         {showHomeScan(mode, domainId) ? (
@@ -5310,7 +5354,7 @@ function OrderPage({
         ) : null}
         {filteredProducts.length === 0 ? (
           <div className="empty">
-            <div>{state.products.length === 0 ? t(lang, 'emptyCatalogHint') : t(lang, 'noProductFound')}</div>
+            <div>{state.products.length === 0 ? mt(state.settings.commerceMode, lang, 'emptyCatalogHint') : t(lang, 'noProductFound')}</div>
             {state.products.length === 0 ? (
               <button
                 type="button"
@@ -5661,7 +5705,7 @@ function OrderPage({
 
       {lastOrder ? (
         <div className="card">
-          <h2>{t(lang, 'orderReady')}</h2>
+          <h2>{mt(state.settings.commerceMode, lang, 'orderReady')}</h2>
           <div className="notice">{t(lang, 'editInvoiceBeforePrint')}</div>
           <textarea
             className="ticket-edit"
@@ -5681,6 +5725,7 @@ function OrderPage({
             </button>
           </div>
           <OrderShareButtons
+                mode={state.settings.commerceMode}
             lang={lang}
             stacked
             hasPhone={!!lastOrder.clientPhone}
@@ -5728,6 +5773,9 @@ function ProfitsPage({ state, lang }: { state: AppState; lang: Language }) {
       <div className="card">
         <h2>💰 {t(lang, 'profitsTitle')}</h2>
         <p className="muted">{t(lang, 'profitsHint')}</p>
+        {state.settings.multiLocationEnabled ? (
+          <p className="muted">{t(lang, 'profitsLocationFilter')}</p>
+        ) : null}
         <div className="btn-row" style={{ flexWrap: 'wrap', marginBottom: 12 }}>
           {(
             [
@@ -5776,7 +5824,7 @@ function ProfitsPage({ state, lang }: { state: AppState; lang: Language }) {
 
       <div className="card">
         <div className="list-item">
-          <span>{t(lang, 'profitOrders')}</span>
+          <span>{mt(state.settings.commerceMode, lang, 'profitOrders')}</span>
           <strong>{stats.orderCount}</strong>
         </div>
         <div className="list-item">
@@ -6037,7 +6085,7 @@ function StockPage({
         </div>
       </div>
       <div className="muted" style={{ margin: '8px 4px 0' }}>
-        {t(lang, 'profitHint')}
+        {mt(state.settings.commerceMode, lang, 'profitHint')}
       </div>
 
       <div className="card" style={{ marginTop: 12 }}>

@@ -33,8 +33,12 @@ import type {
   Supplier,
   TeamSettings,
   HeldSale,
+  Appointment,
+  AppointmentRemindStage,
   ZakatRecord,
   PriceTier,
+  FloorTable,
+  RepairOrder,
 } from './types'
 import {
   DEFAULT_AGENT_PERMISSIONS,
@@ -94,6 +98,7 @@ function defaultSettings(): ShopSettings {
     clinicShareEnabled: false,
     clinicStation: undefined,
     clinicStationChosen: false,
+    appointmentAutoRemind: true,
   }
 }
 
@@ -189,6 +194,8 @@ export function addLocation(
 ): AppState {
   const trimmed = name.trim()
   if (!trimmed) return state
+  /** Offre Pro : jusqu’à 3 magasins / dépôts */
+  if (state.locations.length >= 3) return state
   const loc: ShopLocation = {
     id: uid('loc'),
     name: trimmed,
@@ -353,6 +360,9 @@ function seedState(): AppState {
     employeeLeaves: [],
     staffLedger: [],
     heldSales: [],
+    appointments: [],
+    tables: [],
+    repairOrders: [],
   }
 }
 
@@ -380,6 +390,9 @@ function migrate(raw: unknown): AppState {
     employees?: Employee[]
     employeeLeaves?: EmployeeLeave[]
     staffLedger?: StaffLedgerEntry[]
+    appointments?: Appointment[]
+    tables?: FloorTable[]
+    repairOrders?: RepairOrder[]
   }
   const incoming = data.settings ?? {}
   const defaults = defaultSettings()
@@ -797,6 +810,56 @@ function migrate(raw: unknown): AppState {
             createdAt: h.createdAt || new Date().toISOString(),
           }))
       : [],
+    appointments: (data.appointments ?? [])
+      .filter((a) => a && typeof a.clientId === 'string' && a.at)
+      .map((a) => ({
+        id: a.id || uid('rdv'),
+        clientId: a.clientId,
+        clientName: a.clientName || '',
+        clientPhone: typeof a.clientPhone === 'string' ? a.clientPhone : '',
+        at: a.at,
+        note: typeof a.note === 'string' ? a.note : '',
+        status:
+          a.status === 'done' || a.status === 'cancelled' ? a.status : 'planned',
+        remindStages: Array.isArray(a.remindStages)
+          ? a.remindStages.filter(
+              (st): st is AppointmentRemindStage => st === '24h' || st === '2h',
+            )
+          : [],
+        remindedAt: typeof a.remindedAt === 'string' ? a.remindedAt : undefined,
+        createdAt: a.createdAt || new Date().toISOString(),
+      })),
+    tables: (data.tables ?? [])
+      .filter((tb) => tb && typeof tb.name === 'string')
+      .slice(0, 40)
+      .map((tb) => ({
+        id: tb.id || uid('tbl'),
+        name: tb.name,
+        seats: typeof tb.seats === 'number' && tb.seats > 0 ? tb.seats : 2,
+        status:
+          tb.status === 'busy' || tb.status === 'bill' ? tb.status : 'free',
+        heldSaleId: typeof tb.heldSaleId === 'string' ? tb.heldSaleId : undefined,
+        note: typeof tb.note === 'string' ? tb.note : undefined,
+      })),
+    repairOrders: (data.repairOrders ?? [])
+      .filter((r) => r && typeof r.title === 'string')
+      .map((r) => ({
+        id: r.id || uid('rep'),
+        clientId: typeof r.clientId === 'string' ? r.clientId : '',
+        clientName: typeof r.clientName === 'string' ? r.clientName : '',
+        clientPhone: typeof r.clientPhone === 'string' ? r.clientPhone : '',
+        title: r.title,
+        status:
+          (['devis', 'or', 'done', 'cancelled'] as const).includes(
+            r.status as never,
+          )
+            ? r.status
+            : 'devis',
+        estimateDa: typeof r.estimateDa === 'number' ? r.estimateDa : 0,
+        note: typeof r.note === 'string' ? r.note : '',
+        createdAt: r.createdAt || new Date().toISOString(),
+        updatedAt: r.updatedAt || r.createdAt || new Date().toISOString(),
+      })),
   }
   return ensureDefaultLocation(base)
 }
@@ -1020,6 +1083,218 @@ export function updateClient(
     ...state,
     clients: state.clients.map((c) => (c.id === id ? { ...c, ...clean } : c)),
   }
+}
+
+
+export function addAppointment(
+  state: AppState,
+  input: {
+    clientId: string
+    at: string
+    note?: string
+  },
+): AppState {
+  const client = state.clients.find((c) => c.id === input.clientId)
+  if (!client || !input.at) return state
+  const item: Appointment = {
+    id: uid('rdv'),
+    clientId: client.id,
+    clientName: client.name,
+    clientPhone: client.phone,
+    at: input.at,
+    note: (input.note || '').trim(),
+    status: 'planned',
+    remindStages: [],
+    createdAt: new Date().toISOString(),
+  }
+  return {
+    ...state,
+    appointments: [item, ...(state.appointments ?? [])].slice(0, 500),
+  }
+}
+
+export function updateAppointment(
+  state: AppState,
+  id: string,
+  patch: Partial<Omit<Appointment, 'id' | 'createdAt'>>,
+): AppState {
+  return {
+    ...state,
+    appointments: (state.appointments ?? []).map((a) =>
+      a.id === id ? { ...a, ...patch } : a,
+    ),
+  }
+}
+
+export function deleteAppointment(state: AppState, id: string): AppState {
+  return {
+    ...state,
+    appointments: (state.appointments ?? []).filter((a) => a.id !== id),
+  }
+}
+
+export function upcomingAppointments(
+  state: AppState,
+  limit = 20,
+  now = new Date(),
+): Appointment[] {
+  const t0 = now.getTime() - 30 * 60_000
+  return (state.appointments ?? [])
+    .filter((a) => a.status === 'planned' && new Date(a.at).getTime() >= t0)
+    .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime())
+    .slice(0, limit)
+}
+
+export type AppointmentRemindNeed = {
+  appointment: Appointment
+  stage: AppointmentRemindStage
+}
+
+/** RDV planifiés à rappeler : fenêtre 24h puis 2h avant. */
+export function appointmentsNeedingReminder(
+  state: AppState,
+  now = new Date(),
+): AppointmentRemindNeed[] {
+  const tNow = now.getTime()
+  const out: AppointmentRemindNeed[] = []
+  for (const a of state.appointments ?? []) {
+    if (a.status !== 'planned') continue
+    const tAt = new Date(a.at).getTime()
+    if (!Number.isFinite(tAt)) continue
+    const msLeft = tAt - tNow
+    if (msLeft < -15 * 60_000) continue
+    const stages = a.remindStages || []
+    if (msLeft <= 2 * 60 * 60_000 && !stages.includes('2h')) {
+      out.push({ appointment: a, stage: '2h' })
+    } else if (msLeft <= 24 * 60 * 60_000 && !stages.includes('24h')) {
+      out.push({ appointment: a, stage: '24h' })
+    }
+  }
+  out.sort(
+    (x, y) =>
+      new Date(x.appointment.at).getTime() - new Date(y.appointment.at).getTime(),
+  )
+  return out
+}
+
+export function markAppointmentReminded(
+  state: AppState,
+  id: string,
+  stage: AppointmentRemindStage,
+): AppState {
+  return {
+    ...state,
+    appointments: (state.appointments ?? []).map((a) => {
+      if (a.id !== id) return a
+      const stages = a.remindStages || []
+      if (stages.includes(stage)) return a
+      return {
+        ...a,
+        remindStages: [...stages, stage],
+        remindedAt: new Date().toISOString(),
+      }
+    }),
+  }
+}
+
+const MAX_TABLES = 40
+
+export function upsertFloorTable(
+  state: AppState,
+  input: { id?: string; name: string; seats: number },
+): AppState {
+  const tables = state.tables ?? []
+  if (input.id) {
+    return {
+      ...state,
+      tables: tables.map((tb) =>
+        tb.id === input.id ? { ...tb, name: input.name, seats: input.seats } : tb,
+      ),
+    }
+  }
+  if (tables.length >= MAX_TABLES) return state
+  const table: FloorTable = {
+    id: uid('tbl'),
+    name: input.name,
+    seats: input.seats,
+    status: 'free',
+  }
+  return { ...state, tables: [...tables, table] }
+}
+
+export function deleteFloorTable(state: AppState, id: string): AppState {
+  return {
+    ...state,
+    tables: (state.tables ?? []).filter((tb) => tb.id !== id),
+  }
+}
+
+export function setTableStatus(
+  state: AppState,
+  id: string,
+  status: FloorTable['status'],
+  heldSaleId?: string,
+): AppState {
+  return {
+    ...state,
+    tables: (state.tables ?? []).map((tb) =>
+      tb.id === id
+        ? {
+            ...tb,
+            status,
+            heldSaleId: status === 'free' ? undefined : heldSaleId ?? tb.heldSaleId,
+          }
+        : tb,
+    ),
+  }
+}
+
+export function addRepairOrder(
+  state: AppState,
+  input: Omit<RepairOrder, 'id' | 'createdAt' | 'updatedAt'>,
+): AppState {
+  const now = new Date().toISOString()
+  const order: RepairOrder = {
+    ...input,
+    id: uid('rep'),
+    createdAt: now,
+    updatedAt: now,
+  }
+  return { ...state, repairOrders: [order, ...(state.repairOrders ?? [])] }
+}
+
+export function updateRepairOrder(
+  state: AppState,
+  id: string,
+  patch: Partial<Omit<RepairOrder, 'id' | 'createdAt'>>,
+): AppState {
+  return {
+    ...state,
+    repairOrders: (state.repairOrders ?? []).map((r) =>
+      r.id === id
+        ? { ...r, ...patch, updatedAt: new Date().toISOString() }
+        : r,
+    ),
+  }
+}
+
+export function deleteRepairOrder(state: AppState, id: string): AppState {
+  return {
+    ...state,
+    repairOrders: (state.repairOrders ?? []).filter((r) => r.id !== id),
+  }
+}
+
+/** Filtre ventes du magasin actif (si multi-emplacement). */
+export function ordersForActiveLocation(state: AppState): Order[] {
+  if (!state.settings.multiLocationEnabled) return state.orders
+  const loc = activeLocationId(state)
+  return state.orders.filter((o) => !o.locationId || o.locationId === loc)
+}
+
+export function todayOrdersAtActiveLocation(state: AppState): Order[] {
+  const day = new Date().toISOString().slice(0, 10)
+  return ordersForActiveLocation(state).filter((o) => o.createdAt.slice(0, 10) === day)
 }
 
 export function deleteClient(state: AppState, id: string): AppState {
@@ -1285,6 +1560,7 @@ export function createOrder(
   orderInput: Omit<Order, 'id' | 'createdAt' | 'whatsappSent' | 'invoiceNumber'>,
 ): AppState {
   const invoiceNumber = String(state.settings.nextInvoiceNumber).padStart(4, '0')
+  const locIdForOrder = orderInput.locationId || activeLocationId(state)
   const order: Order = {
     ...orderInput,
     ...normalizeOrderAmounts(
@@ -1297,6 +1573,7 @@ export function createOrder(
       orderInput.totalDa,
     ),
     id: uid('o'),
+    locationId: locIdForOrder,
     createdAt: new Date().toISOString(),
     whatsappSent: false,
     invoiceNumber,
@@ -1413,11 +1690,25 @@ export function updateIncomingOrder(
 
 /** Valeur marchande du stock (prix de vente) — base classique zakat marchandises */
 export function stockValueDa(state: AppState): number {
+  if (state.settings.multiLocationEnabled) {
+    const loc = activeLocationId(state)
+    return state.products.reduce(
+      (sum, p) => sum + p.priceDa * stockAt(p, loc),
+      0,
+    )
+  }
   return state.products.reduce((sum, p) => sum + p.priceDa * p.stock, 0)
 }
 
 /** Coût d'achat du stock */
 export function stockCostDa(state: AppState): number {
+  if (state.settings.multiLocationEnabled) {
+    const loc = activeLocationId(state)
+    return state.products.reduce(
+      (sum, p) => sum + (p.costDa || 0) * stockAt(p, loc),
+      0,
+    )
+  }
   return state.products.reduce((sum, p) => sum + (p.costDa || 0) * p.stock, 0)
 }
 
@@ -1628,8 +1919,8 @@ export function setClientDisplayedBalance(
 }
 
 export function todayOrders(state: AppState): Order[] {
-  const today = new Date().toDateString()
-  return state.orders.filter((o) => new Date(o.createdAt).toDateString() === today)
+  const day = new Date().toISOString().slice(0, 10)
+  return ordersForActiveLocation(state).filter((o) => o.createdAt.slice(0, 10) === day)
 }
 
 export function lowStockProducts(state: AppState): Product[] {
@@ -1753,7 +2044,8 @@ export function profitInRange(
 } {
   const a = startOfDay(from).getTime()
   const b = endOfDay(to).getTime()
-  const orders = state.orders.filter((o) => {
+  const scoped = ordersForActiveLocation(state)
+  const orders = scoped.filter((o) => {
     const t = new Date(o.createdAt).getTime()
     return t >= a && t <= b
   })

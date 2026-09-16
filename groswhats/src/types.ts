@@ -166,6 +166,24 @@ export interface SaleReturn {
   createdAt: string
 }
 
+export type AppointmentRemindStage = '24h' | '2h'
+
+/** RDV médecin / clinique — rappels WhatsApp auto */
+export interface Appointment {
+  id: string
+  clientId: string
+  clientName: string
+  clientPhone: string
+  /** Date-heure ISO du rendez-vous */
+  at: string
+  note: string
+  status: 'planned' | 'done' | 'cancelled'
+  /** Stages de rappel déjà envoyés */
+  remindStages: AppointmentRemindStage[]
+  remindedAt?: string
+  createdAt: string
+}
+
 export interface Client {
   id: string
   name: string
@@ -368,6 +386,34 @@ export interface OrderLine {
   discountPercent?: number
 }
 
+/** Table de salle (resto) */
+export interface FloorTable {
+  id: string
+  name: string
+  seats: number
+  status: 'free' | 'busy' | 'bill'
+  /** HeldSale id when occupied */
+  heldSaleId?: string
+  note?: string
+}
+
+export type RepairStatus = 'devis' | 'or' | 'done' | 'cancelled'
+
+/** Ordre de réparation (garage, atelier, électro…) */
+export interface RepairOrder {
+  id: string
+  clientId: string
+  clientName: string
+  clientPhone: string
+  /** véhicule / appareil / objet */
+  title: string
+  status: RepairStatus
+  estimateDa: number
+  note: string
+  createdAt: string
+  updatedAt: string
+}
+
 /** Ticket mis en attente (park) — caisse détail */
 export interface HeldSale {
   id: string
@@ -385,6 +431,8 @@ export interface Order {
   clientId: string
   clientName: string
   clientPhone: string
+  /** Magasin / dépôt de la vente (multi-emplacement) */
+  locationId?: string
   lines: OrderLine[]
   totalDa: number
   /** Sous-total avant remise ticket */
@@ -481,6 +529,8 @@ export interface ShopSettings {
   clinicStation?: ClinicStation
   /** Choix médecin / réception déjà fait */
   clinicStationChosen?: boolean
+  /** Santé / RDV : rappels WhatsApp auto (défaut true) */
+  appointmentAutoRemind?: boolean
   /**
    * Paramétrage rayons caisse détail (activer / renommer).
    * Absent = tous les rayons du métier sont actifs avec libellés par défaut.
@@ -623,6 +673,12 @@ export interface AppState {
   staffLedger: StaffLedgerEntry[]
   /** Tickets caisse mis en attente */
   heldSales: HeldSale[]
+  /** Agenda RDV (santé / salon / clubs…) */
+  appointments: Appointment[]
+  /** Tables de salle (resto) */
+  tables: FloorTable[]
+  /** Ordres de réparation (garage, atelier…) */
+  repairOrders: RepairOrder[]
 }
 
 export const ALL_UNITS: Unit[] = [
