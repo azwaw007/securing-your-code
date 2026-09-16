@@ -2246,7 +2246,7 @@ html[dir='rtl'] .style-card {
 }
 
 /* Montants caisse / paiement : plus lisibles à distance */
-.pos-cart .pay-choice .muted {
+.pos-cart .pay-choice .pay-cash .muted {
   font-size: 1.25rem;
   font-weight: 800;
   color: var(--ink);
