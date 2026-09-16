@@ -2246,13 +2246,6 @@ html[dir='rtl'] .style-card {
 }
 
 /* Montants caisse / paiement : plus lisibles à distance */
-.pos-cart .pay-choice .pay-cash .muted {
-  font-size: 1.25rem;
-  font-weight: 800;
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
-}
-
 .pos-cart .field input[type='number'],
 .pos-cart .field input[inputmode='decimal'] {
   font-size: 1.45rem;
@@ -2361,14 +2354,55 @@ html[dir='rtl'] .style-card {
   min-height: 56px;
 }
 
+.total-pay {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: color-mix(in srgb, #ea580c 12%, var(--card));
+  border: 1.5px solid color-mix(in srgb, #ea580c 35%, var(--line));
+}
+
+.total-pay-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #c2410c;
+}
+
 .total-big {
-  font-size: clamp(2rem, 6vw, 2.65rem);
+  font-size: clamp(2.85rem, 11vw, 4.4rem);
   font-weight: 800;
-  margin: 0 0 12px;
+  margin: 0;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.03em;
-  line-height: 1.1;
-  color: var(--ink);
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  color: #c2410c;
+}
+
+html[data-theme='night'] .total-pay {
+  background: color-mix(in srgb, #fb923c 18%, var(--card));
+  border-color: color-mix(in srgb, #fb923c 40%, var(--line));
+}
+
+html[data-theme='night'] .total-pay-label,
+html[data-theme='night'] .total-big {
+  color: #fb923c;
+}
+
+/* Total cash sur le bouton paiement */
+.pos-cart .pay-choice .pay-cash .muted {
+  font-size: clamp(1.35rem, 4vw, 1.7rem);
+  font-weight: 800;
+  color: #c2410c;
+  font-variant-numeric: tabular-nums;
+}
+
+html[data-theme='night'] .pos-cart .pay-choice .pay-cash .muted {
+  color: #fb923c;
 }
 
 .sticky-validate {
