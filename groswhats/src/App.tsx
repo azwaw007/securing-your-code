@@ -5549,7 +5549,10 @@ function OrderPage({
 
       <aside className="pos-cart">
       <div className="card sticky-validate">
-        <h2 className="total-big">💰 {formatDa(total)}</h2>
+        <div className="total-pay">
+          <span className="total-pay-label">{t(lang, 'totalToPay')}</span>
+          <h2 className="total-big">{formatDa(total)}</h2>
+        </div>
         {discountDa > 0 ? (
           <div className="muted" style={{ marginBottom: 8 }}>
             {t(lang, 'subtotal')} {formatDa(subtotal)} − {t(lang, 'discountAmount')}{' '}
