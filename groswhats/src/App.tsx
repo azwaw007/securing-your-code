@@ -2002,7 +2002,12 @@ function SettingsPage({
         </button>
       </div>
 
-      <MigrationImportCard lang={lang} onState={onState} onFlash={onFlash} />
+      <MigrationImportCard
+        lang={lang}
+        state={state}
+        onState={onState}
+        onFlash={onFlash}
+      />
 
       {isShopRetail(state.settings.commerceMode) ? (
         <div className="card">

@@ -22,29 +22,22 @@ Rien à faire : `npm run build` / `android:sync` / desktop incluent
 
 ## Étendre le pack (local, avant build — sans committer un gros dump)
 
+API Open Food Facts parfois en **503** : réessaie plus tard.
+
 Depuis `groswhats/` :
 
 ```bash
-# Pack court (~100 produits + images ~200px) — même taille que le dépôt
+# Pack court (~100)
 npm run off:pack
 
-# Jusqu’à ~500 (5 pages) — utile en local / CI, à NE PAS committer en masse
-python3 scripts/fetch-off-algeria.py --max-pages 5 --download-images \
+# Jusqu’à ~400 (4 pages) — utile en local / CI, à NE PAS committer en masse si >500
+python3 scripts/fetch-off-algeria.py --max-pages 4 --download-images \
   --images-dir public/catalog/off \
   --az-pos-out /tmp/off-az-pos-import.json \
   --only-with-images
 ```
 
-Puis rebuild :
-
-```bash
-npm run build
-# ou
-npm run android:sync
-```
-
-**Règle :** garder dans git seulement le pack de base (≤ ~500 JPG).
-Un export « Algérie complet » (milliers de fichiers) reste hors dépôt.
+Puis rebuild (`npm run build` / `android:sync`).
 
 ## Licence
 

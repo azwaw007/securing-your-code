@@ -53,7 +53,11 @@ function headerIndex(headers: string[], aliases: string[]): number {
   const h = headers.map(normHeader)
   const aliasesN = aliases.map(normHeader)
   for (const a of aliasesN) {
-    const i = h.findIndex((x) => x === a || x.includes(a))
+    const exact = h.findIndex((x) => x === a)
+    if (exact >= 0) return exact
+  }
+  for (const a of aliasesN) {
+    const i = h.findIndex((x) => x.includes(a) || a.includes(x))
     if (i >= 0) return i
   }
   return -1

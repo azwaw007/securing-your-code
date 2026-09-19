@@ -367,7 +367,7 @@ function seedState(): AppState {
   }
 }
 
-function migrate(raw: unknown): AppState {
+export function migrate(raw: unknown): AppState {
   const data = raw as {
     settings?: Partial<ShopSettings>
     locations?: ShopLocation[]
@@ -808,6 +808,33 @@ function migrate(raw: unknown): AppState {
             imeiMap:
               h.imeiMap && typeof h.imeiMap === 'object'
                 ? (h.imeiMap as Record<string, string>)
+                : undefined,
+            priceOverrides:
+              h.priceOverrides && typeof h.priceOverrides === 'object'
+                ? (h.priceOverrides as Record<string, number>)
+                : undefined,
+            flashLines: Array.isArray(h.flashLines)
+              ? h.flashLines
+                  .filter(
+                    (f) =>
+                      f &&
+                      typeof f.id === 'string' &&
+                      typeof f.name === 'string',
+                  )
+                  .map((f) => ({
+                    id: f.id,
+                    name: String(f.name).slice(0, 120),
+                    unit: f.unit || 'piece',
+                    qty: typeof f.qty === 'number' && f.qty > 0 ? f.qty : 1,
+                    unitPriceDa:
+                      typeof f.unitPriceDa === 'number' && f.unitPriceDa >= 0
+                        ? f.unitPriceDa
+                        : 0,
+                  }))
+              : undefined,
+            totalOverrideDa:
+              typeof h.totalOverrideDa === 'number' && h.totalOverrideDa >= 0
+                ? h.totalOverrideDa
                 : undefined,
             discountPercent:
               typeof h.discountPercent === 'number' && h.discountPercent > 0

@@ -273,8 +273,21 @@ export function productImageSrc(src?: string): string | undefined {
   if (src.startsWith('data:') || src.startsWith('blob:') || /^https?:/i.test(src)) {
     return src
   }
+  // Refuse path traversal / absolute FS paths from backups or tampered state
+  const cleaned = src.replace(/\\/g, '/').replace(/^\/+/, '')
+  if (
+    cleaned.includes('..') ||
+    cleaned.startsWith('file:') ||
+    /^[a-zA-Z]:/.test(cleaned)
+  ) {
+    return undefined
+  }
+  if (!(cleaned.startsWith('catalog/') || cleaned.startsWith('icons/'))) {
+    // Only allow known static asset prefixes
+    if (!cleaned.match(/^[a-z0-9_./-]+$/i)) return undefined
+  }
   const base = import.meta.env.BASE_URL || './'
-  return `${base}${src.replace(/^\//, '')}`
+  return `${base}${cleaned}`
 }
 
 const PALETTES: Record<string, [string, string]> = {
