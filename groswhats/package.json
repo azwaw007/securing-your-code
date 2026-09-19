@@ -14,6 +14,7 @@
     "preview": "vite preview",
     "license": "node tools/generate-license.mjs",
     "icons": "node scripts/make-icons.mjs",
+    "tessdata": "node scripts/vendor-tessdata.mjs",
     "native:deps": "npm install --no-save @capacitor/core@^7.4.3 @capacitor/cli@^7.4.3 @capacitor/android@^7.4.3 electron@^37.2.6 electron-builder@^26.0.12",
     "android:sync": "npm run build:native && npx cap sync android",
     "android:open": "npx cap open android",
@@ -27,7 +28,8 @@
     "leaflet": "^1.9.4",
     "qrcode.react": "^4.2.0",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "tesseract.js": "^5.1.1"
   },
   "devDependencies": {
     "@types/leaflet": "^1.9.22",

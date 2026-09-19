@@ -13,7 +13,18 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'catalog/*.png'],
+      includeAssets: [
+        'favicon.svg',
+        'catalog/*.png',
+        'tessdata/*.traineddata',
+        'tessdata/README.md',
+      ],
+      workbox: {
+        globPatterns: [
+          '**/*.{js,css,html,ico,png,svg,woff2,json,traineddata,wasm}',
+        ],
+        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
+      },
       manifest: {
         name: 'AZ POS',
         short_name: 'AZ POS',
