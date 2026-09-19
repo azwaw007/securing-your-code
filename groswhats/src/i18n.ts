@@ -352,6 +352,11 @@ const fr: Dict = {
   todayProfit: 'Gains aujourd’hui',
   profitHint: 'Gain = prix de vente − prix d’achat',
   stockQty: 'Stock',
+  sellByAmount: 'Montant (DA) → quantité auto',
+  sellByAmountHint: 'Ex. 500',
+  sellByAmountExample:
+    'Tape le montant : la quantité (kg, L, m…) se calcule et partira du stock à l’encaissement.',
+  sellByAmountStockCap: 'plafond stock atteint',
   pricingBoardTitle: 'Tes prix de vente',
   pricingBoardHint:
     '1️⃣ une pièce → 📦 demi-gros → 📦📦 un carton → 🏭 super gros. Remplis au moins pièce + carton.',
@@ -1363,6 +1368,11 @@ const ar: Dict = {
   todayProfit: 'ربح اليوم',
   profitHint: 'الربح = سعر البيع − سعر الشراء',
   stockQty: 'المخزون',
+  sellByAmount: 'المبلغ (دج) → الكمية تلقائياً',
+  sellByAmountHint: 'مثال: 500',
+  sellByAmountExample:
+    'أدخل المبلغ: تُحسب الكمية (كغ، ل، م…) وتُخصم من المخزون عند التحصيل.',
+  sellByAmountStockCap: 'حد المخزون',
   pricingBoardTitle: 'أسعار البيع (4 مستويات)',
   pricingBoardHint:
     'مثل المستودع: 1️⃣ قطعة → 📦 نصف جملة → 📦📦 جملة (كرتون) → 🏭 سوبر. املأ على الأقل القطعة والكرتون.',

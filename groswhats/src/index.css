@@ -2430,6 +2430,21 @@ html[dir='rtl'] .style-card {
   font-variant-numeric: tabular-nums;
 }
 
+input.qty-display.qty-input {
+  width: 4.5rem;
+  min-width: 4.5rem;
+  border: 1px solid var(--border, #d4cfc4);
+  border-radius: 10px;
+  padding: 6px 4px;
+  background: #fff;
+}
+
+.amount-qty-field input {
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
 .big-qty button {
   width: 52px;
   height: 52px;

@@ -144,11 +144,13 @@ import {
 } from './marketing/merchantPromo'
 import { compressImageFile } from './utils/image'
 import {
+  amountFromQtyDa,
   availableTiers,
   costForTier,
   isCartonTier,
   maxQtyForTier,
   priceForTier,
+  qtyFromAmountDa,
   sellUnitForTier,
 } from './utils/pricing'
 import {
@@ -5096,6 +5098,8 @@ function OrderPage({
   )
   /** clé = `${productId}::${tier}` */
   const [qtyMap, setQtyMap] = useState<Record<string, number>>({})
+  /** Saisie montant DA en cours (évite de casser la frappe) */
+  const [amountDraft, setAmountDraft] = useState<Record<string, string>>({})
   const [tierMap, setTierMap] = useState<Record<string, PriceTier>>({})
   const [lastOrder, setLastOrder] = useState<Order | null>(null)
   const [productQuery, setProductQuery] = useState('')
@@ -5197,7 +5201,12 @@ function OrderPage({
         {
           productId: p.id,
           name: p.name,
-          unit: sellUnitForTier(tier),
+          unit:
+            isCartonTier(tier)
+              ? 'carton'
+              : isDecimalUnit(p.unit)
+                ? p.unit
+                : sellUnitForTier(tier),
           qty,
           unitPriceDa: unitPrice,
           unitCostDa: costForTier(p, tier),
@@ -5225,6 +5234,7 @@ function OrderPage({
 
   function clearCart() {
     setQtyMap({})
+    setAmountDraft({})
     setTierMap({})
     setImeiMap({})
     setDiscountPercent('')
@@ -5291,6 +5301,27 @@ function OrderPage({
           return n
         })
       } else copy[key] = next
+      return copy
+    })
+  }
+
+  /** Fixe la quantité (saisie directe ou calcul depuis un montant DA). */
+  function setQtyAbsolute(product: Product, tier: PriceTier, rawQty: number) {
+    const key = lineKey(product.id, tier)
+    const max = maxQtyForTier(product, tier, displayStock(state, product))
+    const next = Math.max(0, Math.min(max, +rawQty.toFixed(3)))
+    setQtyMap((m) => {
+      const copy = { ...m }
+      if (next <= 0) {
+        delete copy[key]
+        setImeiMap((im) => {
+          const n = { ...im }
+          delete n[key]
+          return n
+        })
+      } else {
+        copy[key] = next
+      }
       return copy
     })
   }
@@ -5637,7 +5668,12 @@ function OrderPage({
                       {tierIcon} {formatDa(unitPrice)}
                     </div>
                     <div className={`muted ${low ? 'warn-text' : ''}`}>
-                      {unitLabel(lang, sellUnitForTier(tier))}
+                      {unitLabel(
+                        lang,
+                        isDecimalUnit(p.unit) && !isCartonTier(tier)
+                          ? p.unit
+                          : sellUnitForTier(tier),
+                      )}
                       {isCartonTier(tier) && p.piecesPerPack
                         ? ` · ${p.piecesPerPack}×`
                         : ''}
@@ -5651,11 +5687,97 @@ function OrderPage({
                       <button type="button" onClick={() => bump(p, tier, -step)}>
                         −
                       </button>
-                      <strong className="qty-display">{formatQty(qty)}</strong>
+                      {isDecimalUnit(p.unit) && !isCartonTier(tier) ? (
+                        <input
+                          className="qty-display qty-input"
+                          inputMode="decimal"
+                          value={qty > 0 ? String(qty) : ''}
+                          placeholder="0"
+                          aria-label={t(lang, 'qty')}
+                          onChange={(e) => {
+                            const n = Number(
+                              String(e.target.value).replace(',', '.'),
+                            )
+                            if (!Number.isFinite(n)) {
+                              setQtyAbsolute(p, tier, 0)
+                              return
+                            }
+                            setQtyAbsolute(p, tier, n)
+                          }}
+                        />
+                      ) : (
+                        <strong className="qty-display">{formatQty(qty)}</strong>
+                      )}
                       <button type="button" onClick={() => bump(p, tier, step)}>
                         +
                       </button>
                     </div>
+                    {isDecimalUnit(p.unit) && !isCartonTier(tier) ? (
+                      <div className="field amount-qty-field" style={{ marginTop: 8 }}>
+                        <label>{t(lang, 'sellByAmount')}</label>
+                        <input
+                          inputMode="decimal"
+                          placeholder={t(lang, 'sellByAmountHint')}
+                          value={
+                            amountDraft[key] !== undefined
+                              ? amountDraft[key]
+                              : qty > 0
+                                ? String(amountFromQtyDa(qty, unitPrice))
+                                : ''
+                          }
+                          onFocus={() => {
+                            setAmountDraft((d) => ({
+                              ...d,
+                              [key]:
+                                qty > 0
+                                  ? String(amountFromQtyDa(qty, unitPrice))
+                                  : '',
+                            }))
+                          }}
+                          onBlur={() => {
+                            setAmountDraft((d) => {
+                              const n = { ...d }
+                              delete n[key]
+                              return n
+                            })
+                          }}
+                          onChange={(e) => {
+                            const raw = e.target.value
+                            setAmountDraft((d) => ({ ...d, [key]: raw }))
+                            const cleaned = String(raw).replace(',', '.').trim()
+                            if (!cleaned) {
+                              setQtyAbsolute(p, tier, 0)
+                              return
+                            }
+                            const amount = Number(cleaned)
+                            if (!Number.isFinite(amount) || amount < 0) return
+                            if (amount === 0) {
+                              setQtyAbsolute(p, tier, 0)
+                              return
+                            }
+                            setQtyAbsolute(
+                              p,
+                              tier,
+                              qtyFromAmountDa(amount, unitPrice),
+                            )
+                          }}
+                        />
+                        {qty > 0 ? (
+                          <div className="muted" style={{ marginTop: 4 }}>
+                            ≈ {formatQty(qty)} {unitLabel(lang, p.unit)} →{' '}
+                            {formatDa(amountFromQtyDa(qty, unitPrice))}
+                            {qty >=
+                            maxQtyForTier(p, tier, stockNow) - 0.0001 ? (
+                              <> · {t(lang, 'sellByAmountStockCap')}</>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <div className="muted" style={{ marginTop: 4 }}>
+                            {t(lang, 'sellByAmountExample')}
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               )

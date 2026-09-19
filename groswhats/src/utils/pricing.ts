@@ -80,6 +80,18 @@ export function maxQtyForTier(
   return stock
 }
 
+/** Quantité (kg, L, m…) à partir d’un montant payé / à encaisser. */
+export function qtyFromAmountDa(amountDa: number, unitPriceDa: number): number {
+  if (!(amountDa > 0) || !(unitPriceDa > 0)) return 0
+  return Math.round((amountDa / unitPriceDa) * 1000) / 1000
+}
+
+/** Montant ligne = qté × prix unitaire. */
+export function amountFromQtyDa(qty: number, unitPriceDa: number): number {
+  if (!(qty > 0) || !(unitPriceDa > 0)) return 0
+  return Math.round(qty * unitPriceDa * 100) / 100
+}
+
 /** Coût d’achat pour 1 unité vendue (pièce ou carton) */
 export function costForTier(p: Product, tier: PriceTier): number {
   const base = p.costDa || 0
