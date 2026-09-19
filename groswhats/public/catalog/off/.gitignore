@@ -1,0 +1,4 @@
+# Images Open Food Facts téléchargées localement (ne pas versionner le bulk).
+*
+!.gitignore
+!README.md
