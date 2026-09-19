@@ -49,6 +49,7 @@ import { countryByCode, convertPriceDa } from './data/countries'
 import { bestForeignCatalogHit, catalogFor, catalogNameHits } from './data/catalogs'
 import { domainById } from './data/domains'
 import { catalogImagePath } from './utils/productArt'
+import { resolvePackSize } from './utils/packSize'
 import { parseLanguage } from './locale/langs'
 import { defaultZakatOn } from './locale/adapt'
 
@@ -498,6 +499,9 @@ function migrate(raw: unknown): AppState {
         typeof p.piecesPerPack === 'number' && p.piecesPerPack > 0
           ? Math.round(p.piecesPerPack)
           : undefined
+      const resolvedPack =
+        piecesPerPack ??
+        (typeof p.name === 'string' ? resolvePackSize(p.name) : undefined)
       const gros =
         typeof p.grosPriceDa === 'number' && p.grosPriceDa > 0
           ? p.grosPriceDa
@@ -517,7 +521,7 @@ function migrate(raw: unknown): AppState {
         costDa: typeof p.costDa === 'number' ? p.costDa : 0,
         stock: typeof p.stock === 'number' ? p.stock : 0,
         stockByLocation,
-        piecesPerPack,
+        piecesPerPack: resolvedPack,
         barcode:
           typeof (p as Product).barcode === 'string'
             ? (p as Product).barcode!.trim()
@@ -911,7 +915,9 @@ export function applyShopSetup(state: AppState, input: ShopSetupInput): AppState
     const price = Math.max(0, convertPriceDa(seed.priceDa, factor))
     const cost = Math.max(0, convertPriceDa(seed.costDa, factor))
     const wholesale = input.commerceMode === 'gros'
-    const pack = wholesale ? seed.pack : undefined
+    const pack = wholesale
+      ? seed.pack ?? resolvePackSize(seed.name)
+      : resolvePackSize(seed.name, seed.pack)
     const gros =
       wholesale && pack && pack > 1
         ? convertPriceDa(seed.priceDa * pack * 0.88, factor)
@@ -927,7 +933,7 @@ export function applyShopSetup(state: AppState, input: ShopSetupInput): AppState
       costDa: cost,
       stock,
       lowStockAt: low,
-      piecesPerPack: pack,
+      piecesPerPack: pack && pack > 1 ? pack : undefined,
       demiGrosPriceDa:
         wholesale && pack ? convertPriceDa(seed.priceDa * 0.94, factor) : undefined,
       grosPriceDa: gros,

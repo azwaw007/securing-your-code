@@ -145,16 +145,8 @@ import {
   buildProductWhatsappPromo,
 } from './marketing/merchantPromo'
 import { compressImageFile } from './utils/image'
-import {
-  amountFromQtyDa,
-  availableTiers,
-  costForTier,
-  isCartonTier,
-  maxQtyForTier,
-  priceForTier,
-  qtyFromAmountDa,
-  sellUnitForTier,
-} from './utils/pricing'
+import { amountFromQtyDa, availableTiers, costForTier, isCartonTier, maxQtyForTier, priceForTier, qtyFromAmountDa, sellUnitForTier } from './utils/pricing'
+import { isRetailPack, packSizeLabel } from './utils/packSize'
 import {
   clientMapsUrl,
   getCurrentPosition,
@@ -3857,6 +3849,9 @@ function ProductsPage({
                     ? rayonLabel(p.aisleId, domainId, lang, state.settings)
                     : t(lang, `cat_${p.category}`)}{' '}
                   · {unitLabel(lang, p.unit)}
+                  {isRetailPack(p) || p.piecesPerPack
+                    ? ` · ${t(lang, 'packOf')}${p.piecesPerPack}`
+                    : ''}
                   {p.imei ? ` · IMEI ${p.imei}` : ''}
                   {p.size ? ` · ${p.size}` : ''}
                   {p.color ? ` · ${p.color}` : ''}
@@ -3866,9 +3861,6 @@ function ProductsPage({
                   {formatDa(p.priceDa)}
                   {showWholesaleTiers(state.settings.commerceMode) && p.demiGrosPriceDa
                     ? ` · ${t(lang, 'tier_demi_gros')} ${formatDa(p.demiGrosPriceDa)}`
-                    : ''}
-                  {showWholesaleTiers(state.settings.commerceMode) && p.piecesPerPack
-                    ? ` · ${t(lang, 'packOf')}${p.piecesPerPack}`
                     : ''}
                   {showWholesaleTiers(state.settings.commerceMode) &&
                   (p.grosPriceDa || p.packPriceDa)
@@ -3880,7 +3872,13 @@ function ProductsPage({
                 </div>
                 <div className="btn-row" style={{ marginTop: 8 }}>
                   <span className={`badge ${displayStock(state, p) <= p.lowStockAt ? 'warn' : ''}`}>
-                    {formatQty(displayStock(state, p))} {unitLabel(lang, 'piece')}
+                    {formatQty(displayStock(state, p))}{' '}
+                    {isRetailPack(p)
+                      ? t(lang, 'sellAsPack').toLowerCase()
+                      : unitLabel(lang, 'piece')}
+                    {isRetailPack(p) && packSizeLabel(p)
+                      ? ` ${packSizeLabel(p)}`
+                      : ''}
                     {state.settings.multiLocationEnabled
                       ? ` · ${t(lang, 'stockTotal')} ${formatQty(p.stock)}`
                       : ''}
@@ -5803,17 +5801,23 @@ function OrderPage({
                       {tierIcon} {formatDa(unitPrice)}
                     </div>
                     <div className={`muted ${low ? 'warn-text' : ''}`}>
-                      {unitLabel(
-                        lang,
-                        isDecimalUnit(p.unit) && !isCartonTier(tier)
-                          ? p.unit
-                          : sellUnitForTier(tier),
-                      )}
+                      {isRetailPack(p)
+                        ? `${t(lang, 'sellAsPack')} ${packSizeLabel(p)}`
+                        : unitLabel(
+                            lang,
+                            isDecimalUnit(p.unit) && !isCartonTier(tier)
+                              ? p.unit
+                              : sellUnitForTier(tier),
+                          )}
                       {isCartonTier(tier) && p.piecesPerPack
                         ? ` · ${p.piecesPerPack}×`
                         : ''}
+                      {isRetailPack(p) ? ` · ${t(lang, 'packUnitHint')}` : ''}
                       {' · '}
                       {t(lang, 'stockQty')} {formatQty(stockNow)}
+                      {isRetailPack(p)
+                        ? ` ${t(lang, 'sellAsPack').toLowerCase()}${packSizeLabel(p) ? ` ${packSizeLabel(p)}` : ''}`
+                        : ''}
                       {state.settings.multiLocationEnabled
                         ? ` (${t(lang, 'stockTotal')} ${formatQty(p.stock)})`
                         : ''}
