@@ -17,8 +17,10 @@ import {
   createSaleReturn,
   deleteSupplier,
   expectedCashForSession,
+  findProductByBarcode,
   openCashSession,
 } from './store'
+import { InvoiceScanPanel, PurchasesHistoryGrouped } from './InvoiceScanPanel'
 
 export function BarcodeScanInput({
   lang,
@@ -528,8 +530,30 @@ export function PurchasesPage({
         ) : null}
       </div>
 
+      <InvoiceScanPanel
+        state={state}
+        lang={lang}
+        onState={onState}
+        onFlash={onFlash}
+      />
+
       <div className="card">
         <h2>{t(lang, 'newPurchase')}</h2>
+        <p className="muted">{t(lang, 'purchaseManualHint')}</p>
+        <BarcodeScanInput
+          lang={lang}
+          placeholder={t(lang, 'purchaseScanHint')}
+          onScan={(code) => {
+            const p = findProductByBarcode(state, code)
+            if (!p) {
+              onFlash('barcodeMissing')
+              return
+            }
+            setProductId(p.id)
+            setUnitCost(String(p.costDa || ''))
+            onFlash('barcodeOk')
+          }}
+        />
         <div className="field">
           <label>{t(lang, 'product')}</label>
           <select
@@ -630,27 +654,7 @@ export function PurchasesPage({
         </button>
       </div>
 
-      <div className="card">
-        <h2>{t(lang, 'purchasesHistory')}</h2>
-        {state.purchases.length === 0 ? (
-          <div className="empty">{t(lang, 'purchasesEmpty')}</div>
-        ) : (
-          state.purchases.slice(0, 30).map((p) => (
-            <div className="list-item" key={p.id}>
-              <div>
-                <strong>{p.supplierName}</strong>
-                <div className="muted">
-                  {p.lines.length} {t(lang, 'products')} ·{' '}
-                  {new Date(p.createdAt).toLocaleString(
-                    lang === 'ar' ? 'ar-DZ' : 'fr-DZ',
-                  )}
-                </div>
-              </div>
-              <strong>{formatDa(p.totalDa)}</strong>
-            </div>
-          ))
-        )}
-      </div>
+      <PurchasesHistoryGrouped state={state} lang={lang} />
     </div>
   )
 }
