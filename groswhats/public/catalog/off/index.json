@@ -1,0 +1,605 @@
+{
+  "source": "openfoodfacts",
+  "country": "algeria",
+  "count": 100,
+  "products": {
+    "7622210449283": {
+      "name": "Prince",
+      "category": "alimentaire",
+      "brands": "LU, Mondelez Schweiz GmbH",
+      "file": "7622210449283.jpg"
+    },
+    "5449000054227": {
+      "name": "Coca-Cola Original Taste",
+      "category": "alimentaire",
+      "brands": "COCA-COLA SERVICES SA/NV, Coca-Cola",
+      "file": "5449000054227.jpg"
+    },
+    "3046920022651": {
+      "name": "Noir Intense",
+      "category": "alimentaire",
+      "brands": "Lindt, LINDT SPRUNGLI SAS",
+      "file": "3046920022651.jpg"
+    },
+    "3017620425035": {
+      "name": "Nutella",
+      "category": "alimentaire",
+      "brands": "Nutella, FERRERO FRANCE COMMERCIALE",
+      "file": "3017620425035.jpg"
+    },
+    "3155251205296": {
+      "name": "Tartine Doux",
+      "category": "alimentaire",
+      "brands": "Primevère",
+      "file": "3155251205296.jpg"
+    },
+    "6111018903161": {
+      "name": "Nescafé Classic",
+      "category": "alimentaire",
+      "brands": "Nescafé",
+      "file": "6111018903161.jpg"
+    },
+    "8000500310427": {
+      "name": "Biscuits NUTELLA Biscuits Noisettes et Cacao x22 - 304g",
+      "category": "alimentaire",
+      "brands": "Ferrero, Ferrero Technical Services Srl, Nutella biscuits",
+      "file": "8000500310427.jpg"
+    },
+    "5449000000439": {
+      "name": "Coca Cola Original taste",
+      "category": "alimentaire",
+      "brands": "Coca-Cola",
+      "file": "5449000000439.jpg"
+    },
+    "8425197712024": {
+      "name": "Maruja",
+      "category": "alimentaire",
+      "brands": "CHOCOLATES MARUJA S.L., Maruja",
+      "file": "8425197712024.jpg"
+    },
+    "16256866": {
+      "name": "1848 Chocolat en poudre",
+      "category": "alimentaire",
+      "brands": "Poulain",
+      "file": "16256866.jpg"
+    },
+    "16256163": {
+      "name": "Poulain",
+      "category": "alimentaire",
+      "brands": "Poulain",
+      "file": "16256163.jpg"
+    },
+    "3045140105502": {
+      "name": "Chocolat au lait",
+      "category": "alimentaire",
+      "brands": "Milka, MONDELEZ EUROPE SERVICES GMBH",
+      "file": "3045140105502.jpg"
+    },
+    "5449000133328": {
+      "name": "Cocacola zero sugar",
+      "category": "alimentaire",
+      "brands": "COCA-COLA SERVICES SA/NV, Coke ZERO",
+      "file": "5449000133328.jpg"
+    },
+    "7622210995087": {
+      "name": "chocolat noir noisettes entieres",
+      "category": "alimentaire",
+      "brands": "cote d\\'or",
+      "file": "7622210995087.jpg"
+    },
+    "6132500711040": {
+      "name": "El Mordjene Crème De Noisettes Grillées",
+      "category": "alimentaire",
+      "brands": "Cebon",
+      "file": "6132500711040.jpg"
+    },
+    "3017620421006": {
+      "name": "Pâte à tartiner Nutella noisettes et cacao - 750g",
+      "category": "alimentaire",
+      "brands": "Nutella, Ferrero",
+      "file": "3017620421006.jpg"
+    },
+    "7622210995063": {
+      "name": "180G LT NOISETTE COTE D OR",
+      "category": "alimentaire",
+      "brands": "Côte d'Or",
+      "file": "7622210995063.jpg"
+    },
+    "7622210421968": {
+      "name": "Véritable Petit Écolier Chocolat au Lait",
+      "category": "alimentaire",
+      "brands": "Mondelez International",
+      "file": "7622210421968.jpg"
+    },
+    "5449000000286": {
+      "name": "Coca-Cola",
+      "category": "alimentaire",
+      "brands": "Coca-Cola",
+      "file": "5449000000286.jpg"
+    },
+    "90338243": {
+      "name": "Coca-Cola original taste",
+      "category": "alimentaire",
+      "brands": "maroc",
+      "file": "90338243.jpg"
+    },
+    "5053990101597": {
+      "name": "Sour Cream & Onion",
+      "category": "alimentaire",
+      "brands": "Pringles",
+      "file": "5053990101597.jpg"
+    },
+    "3033710065967": {
+      "name": "NESQUIK Cacao",
+      "category": "alimentaire",
+      "brands": "Nestlé, Nesquik",
+      "file": "3033710065967.jpg"
+    },
+    "3017620420702": {
+      "name": "Nutella pâte à tartiner aux noisettes et au cacao",
+      "category": "alimentaire",
+      "brands": "Nutella, Ferrero",
+      "file": "3017620420702.jpg"
+    },
+    "8000500273296": {
+      "name": "Ferrero",
+      "category": "alimentaire",
+      "brands": "Ferrero",
+      "file": "8000500273296.jpg"
+    },
+    "6111018903185": {
+      "name": "Nescafe classic",
+      "category": "alimentaire",
+      "brands": "Nescafé",
+      "file": "6111018903185.jpg"
+    },
+    "7622210995100": {
+      "name": "noir amandes entières",
+      "category": "alimentaire",
+      "brands": "cote d\\'or",
+      "file": "7622210995100.jpg"
+    },
+    "3176582033563": {
+      "name": "Coulommiers Doux et Crémeux",
+      "category": "alimentaire",
+      "brands": "CF&R, Cœur de Lion, Savencia",
+      "file": "3176582033563.jpg"
+    },
+    "0089686120110": {
+      "name": "Indomie Goût Crevette",
+      "category": "alimentaire",
+      "brands": "indomie",
+      "file": "0089686120110.jpg"
+    },
+    "8410376033267": {
+      "name": "Digestive Avena",
+      "category": "alimentaire",
+      "brands": "GALLETAS GULLON S.A., gullón",
+      "file": "8410376033267.jpg"
+    },
+    "6130234001147": {
+      "name": "Lala kheddidja",
+      "category": "alimentaire",
+      "brands": "cevital",
+      "file": "6130234001147.jpg"
+    },
+    "8000500037560": {
+      "name": "Kinder Bueno",
+      "category": "alimentaire",
+      "brands": "Kinder",
+      "file": "8000500037560.jpg"
+    },
+    "8964000577066": {
+      "name": "Hemani Coconut Oil Pure & Natural (400ML)",
+      "category": "alimentaire",
+      "brands": "Hemani",
+      "file": "8964000577066.jpg"
+    },
+    "4058172309250": {
+      "name": "Magnesium",
+      "category": "alimentaire",
+      "brands": "Mivolis",
+      "file": "4058172309250.jpg"
+    },
+    "5410081201039": {
+      "name": "100G COTE D'OR NOIR ORIGINAL",
+      "category": "alimentaire",
+      "brands": "CÔTE D'OR",
+      "file": "5410081201039.jpg"
+    },
+    "8720608632633": {
+      "name": "lipton yellow label tea x25",
+      "category": "alimentaire",
+      "brands": "Lipton",
+      "file": "8720608632633.jpg"
+    },
+    "6130758000022": {
+      "name": "Guedila 1,5L",
+      "category": "alimentaire",
+      "brands": "Guedila",
+      "file": "6130758000022.jpg"
+    },
+    "80177609": {
+      "name": "Chocolate kinfer t4",
+      "category": "alimentaire",
+      "brands": "Kinder",
+      "file": "80177609.jpg"
+    },
+    "6130760003349": {
+      "name": "Fromage frais nature",
+      "category": "alimentaire",
+      "brands": "Soummam",
+      "file": "6130760003349.jpg"
+    },
+    "4058172309519": {
+      "name": "Multivitamin",
+      "category": "alimentaire",
+      "brands": "Mivolis, dm",
+      "file": "4058172309519.jpg"
+    },
+    "6130760000102": {
+      "name": "Nature",
+      "category": "alimentaire",
+      "brands": "Soummam",
+      "file": "6130760000102.jpg"
+    },
+    "3045140118502": {
+      "name": "Milka Tablette Noisette",
+      "category": "alimentaire",
+      "brands": "Milka, Mondelez",
+      "file": "3045140118502.jpg"
+    },
+    "6130760003769": {
+      "name": "L'ben",
+      "category": "alimentaire",
+      "brands": "Soummam",
+      "file": "6130760003769.jpg"
+    },
+    "6130433000019": {
+      "name": "حليب كونديا 1 لتر",
+      "category": "alimentaire",
+      "brands": "Candia",
+      "file": "6130433000019.jpg"
+    },
+    "6130093010045": {
+      "name": "L'Eau d'Ifri",
+      "category": "alimentaire",
+      "brands": "Ifri",
+      "file": "6130093010045.jpg"
+    },
+    "4058172310232": {
+      "name": "Vitamine C 240mg/tablette",
+      "category": "alimentaire",
+      "brands": "DM, mivolis (dm)",
+      "file": "4058172310232.jpg"
+    },
+    "6130576000020": {
+      "name": "Voda",
+      "category": "alimentaire",
+      "brands": "Essalsabil",
+      "file": "6130576000020.jpg"
+    },
+    "8445290204417": {
+      "name": "Nescafé Gold",
+      "category": "alimentaire",
+      "brands": "Nestlé, Nescafé",
+      "file": "8445290204417.jpg"
+    },
+    "6130093010069": {
+      "name": "Eau minérale naturelle",
+      "category": "alimentaire",
+      "brands": "Ifri",
+      "file": "6130093010069.jpg"
+    },
+    "6111180006059": {
+      "name": "Crème chantilly",
+      "category": "alimentaire",
+      "brands": "idéal",
+      "file": "6111180006059.jpg"
+    },
+    "5410126832372": {
+      "name": "Gaufre de Liège Chocolat",
+      "category": "alimentaire",
+      "brands": "Lotus",
+      "file": "5410126832372.jpg"
+    },
+    "7613037792935": {
+      "name": "Nan Optipro 1",
+      "category": "alimentaire",
+      "brands": "Nestlé",
+      "file": "7613037792935.jpg"
+    },
+    "8711000892091": {
+      "name": "Familial",
+      "category": "alimentaire",
+      "brands": "Grand’mère",
+      "file": "8711000892091.jpg"
+    },
+    "80177616": {
+      "name": "Chocolat",
+      "category": "alimentaire",
+      "brands": "Kinder",
+      "file": "80177616.jpg"
+    },
+    "7613031370641": {
+      "name": "Céréales Lion caramel et chocolat",
+      "category": "alimentaire",
+      "brands": "Nestlé",
+      "file": "7613031370641.jpg"
+    },
+    "5000159558280": {
+      "name": "Bounty",
+      "category": "alimentaire",
+      "brands": "Bounty",
+      "file": "5000159558280.jpg"
+    },
+    "6130760003189": {
+      "name": "Lait soummam",
+      "category": "alimentaire",
+      "brands": "Soummam, soummam",
+      "file": "6130760003189.jpg"
+    },
+    "87157239": {
+      "name": "Tomato Ketchup",
+      "category": "alimentaire",
+      "brands": "Heinz",
+      "file": "87157239.jpg"
+    },
+    "6132004000022": {
+      "name": "La Belle Margarine 500g",
+      "category": "alimentaire",
+      "brands": "LA BELLE 220da",
+      "file": "6132004000022.jpg"
+    },
+    "5999076227426": {
+      "name": "Créatine monohydrate",
+      "category": "alimentaire",
+      "brands": "BioTechUSA",
+      "file": "5999076227426.jpg"
+    },
+    "6111018903208": {
+      "name": "Nescafé classic",
+      "category": "alimentaire",
+      "brands": "Nescafe",
+      "file": "6111018903208.jpg"
+    },
+    "8007990406982": {
+      "name": "HuLaLa",
+      "category": "alimentaire",
+      "brands": "Hulalà",
+      "file": "8007990406982.jpg"
+    },
+    "6133275000018": {
+      "name": "Saida eau minérale",
+      "category": "alimentaire",
+      "brands": "Saida",
+      "file": "6133275000018.jpg"
+    },
+    "8410376013191": {
+      "name": "Mini mix",
+      "category": "alimentaire",
+      "brands": "Gullón",
+      "file": "8410376013191.jpg"
+    },
+    "6194001800111": {
+      "name": "Safia",
+      "category": "alimentaire",
+      "brands": "Safia, Sfbt, صافية",
+      "file": "6194001800111.jpg"
+    },
+    "6130014350120": {
+      "name": "Ambassadeur noir précieux 70% cacao",
+      "category": "alimentaire",
+      "brands": "Bimo",
+      "file": "6130014350120.jpg"
+    },
+    "8690632706672": {
+      "name": "Gold corn flakes miel",
+      "category": "alimentaire",
+      "file": "8690632706672.jpg"
+    },
+    "6130433000354": {
+      "name": "Candy Choco",
+      "category": "alimentaire",
+      "brands": "Candia",
+      "file": "6130433000354.jpg"
+    },
+    "6130003000029": {
+      "name": "كوكا كولا 1 لتر",
+      "category": "alimentaire",
+      "brands": "Coca-Cola",
+      "file": "6130003000029.jpg"
+    },
+    "0055828910017": {
+      "name": "Miel Biologique",
+      "category": "alimentaire",
+      "brands": "Naturoney",
+      "file": "0055828910017.jpg"
+    },
+    "6130758000015": {
+      "name": "Guedila",
+      "category": "alimentaire",
+      "brands": "giba",
+      "file": "6130758000015.jpg"
+    },
+    "8711000522967": {
+      "name": "Qualité filtre",
+      "category": "alimentaire",
+      "brands": "Maxwell House",
+      "file": "8711000522967.jpg"
+    },
+    "3337871323622": {
+      "name": "تجميل",
+      "category": "alimentaire",
+      "file": "3337871323622.jpg"
+    },
+    "8445290196842": {
+      "name": "Nescafe Gold",
+      "category": "alimentaire",
+      "brands": "Nescafe",
+      "file": "8445290196842.jpg"
+    },
+    "6130760007224": {
+      "name": "GREEK Nature",
+      "category": "alimentaire",
+      "brands": "Soummam",
+      "file": "6130760007224.jpg"
+    },
+    "6130234001161": {
+      "name": "Lalla Khedidja",
+      "category": "alimentaire",
+      "brands": "Cevital",
+      "file": "6130234001161.jpg"
+    },
+    "8718836397110": {
+      "name": "Premium Omega-3",
+      "category": "alimentaire",
+      "brands": "Ocean's Essentials",
+      "file": "8718836397110.jpg"
+    },
+    "3161716031003": {
+      "name": "Caprice des Dieux",
+      "category": "alimentaire",
+      "brands": "Caprice des Dieux, Savencia",
+      "file": "3161716031003.jpg"
+    },
+    "7613036451253": {
+      "name": "NESCAFE SPECIAL FILTRE L'Original, Café Soluble, Flacon de 200g",
+      "category": "alimentaire",
+      "brands": "Nestlé, Nescafe, Nescafé, Special filtre",
+      "file": "7613036451253.jpg"
+    },
+    "6134082000017": {
+      "name": "Besbassa",
+      "category": "alimentaire",
+      "brands": "Sarl diar ezarga",
+      "file": "6134082000017.jpg"
+    },
+    "3560070330515": {
+      "name": "Chicorée-café soluble",
+      "category": "alimentaire",
+      "brands": "Carrefour, Simpl",
+      "file": "3560070330515.jpg"
+    },
+    "6130760001482": {
+      "name": "Soumame bnina",
+      "category": "alimentaire",
+      "brands": "Soummam",
+      "file": "6130760001482.jpg"
+    },
+    "6130534000031": {
+      "name": "ayris",
+      "category": "alimentaire",
+      "brands": "eau",
+      "file": "6130534000031.jpg"
+    },
+    "90338052": {
+      "name": "Coca-Cola Plastic",
+      "category": "alimentaire",
+      "brands": "Coca cola",
+      "file": "90338052.jpg"
+    },
+    "6130015060035": {
+      "name": "Galette senior",
+      "category": "alimentaire",
+      "brands": "Bimo",
+      "file": "6130015060035.jpg"
+    },
+    "8410376037821": {
+      "name": "Chocolate et Soja",
+      "category": "alimentaire",
+      "brands": "Gullón",
+      "file": "8410376037821.jpg"
+    },
+    "6130093068206": {
+      "name": "Ifri pétillante aromatisée aux arômes naturels de citron & citron vert",
+      "category": "alimentaire",
+      "brands": "Ifri",
+      "file": "6130093068206.jpg"
+    },
+    "6132175403165": {
+      "name": "STORY Chocolat noir 70% Cacao - 100g",
+      "category": "alimentaire",
+      "brands": "Bifa",
+      "file": "6132175403165.jpg"
+    },
+    "6130760002809": {
+      "name": "Fromage frais nature",
+      "category": "alimentaire",
+      "brands": "Soummam",
+      "file": "6130760002809.jpg"
+    },
+    "6132004000015": {
+      "name": "Margarine supérieure végétale 100%",
+      "category": "alimentaire",
+      "brands": "la belle 120da",
+      "file": "6132004000015.jpg"
+    },
+    "6135345000010": {
+      "name": "مايونيز لزيور",
+      "category": "alimentaire",
+      "brands": "lesieur",
+      "file": "6135345000010.jpg"
+    },
+    "6130794000314": {
+      "name": "Eux de source nestlè pure life",
+      "category": "alimentaire",
+      "brands": "Nestlè pure life",
+      "file": "6130794000314.jpg"
+    },
+    "3046920020206": {
+      "name": "Lindt Chocolat au lait praliné noisettes",
+      "category": "alimentaire",
+      "brands": "Lindt, Lindt & Sprüngli",
+      "file": "3046920020206.jpg"
+    },
+    "6130234002366": {
+      "name": "skor",
+      "category": "alimentaire",
+      "brands": "cevital. da100",
+      "file": "6130234002366.jpg"
+    },
+    "4600680000640": {
+      "name": "Nescafe Gold",
+      "category": "alimentaire",
+      "brands": "Nescafe",
+      "file": "4600680000640.jpg"
+    },
+    "6132500710371": {
+      "name": "El Mordjene pâte à tartiner",
+      "category": "alimentaire",
+      "brands": "CEBON, El Mordjene",
+      "file": "6132500710371.jpg"
+    },
+    "6130413002286": {
+      "name": "Tartino Excellence",
+      "category": "alimentaire",
+      "brands": "Tartino",
+      "file": "6130413002286.jpg"
+    },
+    "6130142000201": {
+      "name": "Eau de source non gazeux",
+      "category": "alimentaire",
+      "brands": "Ovitale",
+      "file": "6130142000201.jpg"
+    },
+    "7613036723671": {
+      "name": "Chocolate negro dolca",
+      "category": "alimentaire",
+      "brands": "Nestlé DOLCA",
+      "file": "7613036723671.jpg"
+    },
+    "6130788000023": {
+      "name": "Margarine SOL",
+      "category": "alimentaire",
+      "brands": "Mateg",
+      "file": "6130788000023.jpg"
+    },
+    "6132501549512": {
+      "name": "daily 30cl",
+      "category": "alimentaire",
+      "brands": "Bifa..",
+      "file": "6132501549512.jpg"
+    }
+  }
+}

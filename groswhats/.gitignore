@@ -42,3 +42,7 @@ android/captures
 android/.idea
 android/*.iml
 
+# Open Food Facts exports (générés localement)
+off-algeria-products.json
+off-az-pos-import.json
+

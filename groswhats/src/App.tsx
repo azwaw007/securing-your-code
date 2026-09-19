@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type {
   AppState,
   CommerceMode,
@@ -203,6 +203,8 @@ import {
   bumpProductFromBarcode,
 } from './PosOps'
 import { ProductBarcodeField, BarcodeCameraModal, isBarcodeCameraSupported } from './BarcodeCamera'
+import { useOffBarcodeAutofill } from './utils/useOffBarcodeAutofill'
+import type { OffLookupHit } from './utils/offLookup'
 import { ClientQrCard } from './ClientQrCard'
 import { DossierPatientPanel } from './DossierPatientPanel'
 import { AthleteDossierPanel } from './AthleteDossierPanel'
@@ -3485,6 +3487,20 @@ function ProductsPage({
   const [dateTo, setDateTo] = useState('')
   const [barcode, setBarcode] = useState('')
   const [promoProductId, setPromoProductId] = useState<string | null>(null)
+  const nameRef = useRef(name)
+  const imageRef = useRef(imageDataUrl)
+  nameRef.current = name
+  imageRef.current = imageDataUrl
+
+  const offStatus = useOffBarcodeAutofill(
+    barcode,
+    (hit: OffLookupHit) => {
+      if (!nameRef.current.trim()) setName(hit.name)
+      if (!imageRef.current && hit.imageDataUrl) setImageDataUrl(hit.imageDataUrl)
+      if (hit.category) setCategory(hit.category)
+    },
+    !editId,
+  )
 
   useEffect(() => {
     if (initialProductId) {
@@ -3617,6 +3633,7 @@ function ProductsPage({
           lang={lang}
           value={barcode}
           onChange={setBarcode}
+          offStatus={offStatus}
         />
         <div className="grid-2">
           <div className="field">
@@ -4042,6 +4059,23 @@ function ProductEditCard({
   const [stock, setStock] = useState(String(stockValue))
   const [lowStockAt, setLowStockAt] = useState(String(product.lowStockAt))
   const [barcode, setBarcode] = useState(product.barcode || '')
+  const [draftImage, setDraftImage] = useState(product.imageDataUrl)
+  const nameRef = useRef(name)
+  const imageRef = useRef(draftImage)
+  nameRef.current = name
+  imageRef.current = draftImage
+
+  useEffect(() => {
+    setDraftImage(product.imageDataUrl)
+  }, [product.imageDataUrl])
+
+  const offStatus = useOffBarcodeAutofill(barcode, (hit: OffLookupHit) => {
+    if (!nameRef.current.trim()) setName(hit.name)
+    if (!imageRef.current && hit.imageDataUrl) {
+      setDraftImage(hit.imageDataUrl)
+    }
+    if (hit.category) setCategory(hit.category)
+  })
 
   const retailMode = isShopRetail(commerceMode)
   const aisleOptions = retailChipRayons(domainId, settings, lang)
@@ -4059,15 +4093,18 @@ function ProductEditCard({
       <div className="product-photo-field">
         <img
           className="product-thumb"
-          src={productDisplaySrc(product.name, product.category, product.imageDataUrl)}
+          src={productDisplaySrc(name, category, draftImage)}
           alt=""
         />
         <PhotoPickControls
           lang={lang}
           busy={photoBusy}
-          hasPhoto={!!product.imageDataUrl}
+          hasPhoto={!!draftImage}
           onPick={onPickPhoto}
-          onRemove={onRemovePhoto}
+          onRemove={() => {
+            setDraftImage(undefined)
+            onRemovePhoto()
+          }}
         />
       </div>
 
@@ -4079,6 +4116,7 @@ function ProductEditCard({
         lang={lang}
         value={barcode}
         onChange={setBarcode}
+        offStatus={offStatus}
       />
       <div className="grid-2">
         <div className="field">
@@ -4212,6 +4250,7 @@ function ProductEditCard({
             grosPriceDa: ppp > 0 && gros > 0 ? gros : undefined,
             superGrosPriceDa: ppp > 0 && superG > 0 ? superG : undefined,
             packPriceDa: ppp > 0 && gros > 0 ? gros : undefined,
+            imageDataUrl: draftImage,
             barcode: barcode.trim() || undefined,
             imei: imei.trim() || undefined,
             size: size.trim() || undefined,
