@@ -219,6 +219,7 @@ import { RepairOrderPanel } from './RepairOrderPanel'
 import { StaffPanel } from './StaffPanel'
 import { ExpertComptableCard } from './ExpertComptableCard'
 import { OrderRevisePanel } from './OrderRevisePanel'
+import { MigrationImportCard } from './MigrationImportCard'
 import { classifyHomeScan } from './utils/clientQr'
 import { APP_BRAND } from './brand'
 import { APP_VERSION, activateLicense, getAccessStatus } from './license/license'
@@ -1167,6 +1168,8 @@ export default function App() {
         <SettingsPage
           state={state}
           lang={lang}
+          onState={setState}
+          onFlash={flash}
           onRedoSetup={() => setRedoSetup(true)}
           onSave={(patch) => {
             setState((s) => updateSettings(s, patch))
@@ -1336,6 +1339,8 @@ function SettingsPage({
   state,
   lang,
   onSave,
+  onState,
+  onFlash,
   onToggleMultiPoste,
   onToggleMultiLocation,
   onAddLocation,
@@ -1349,6 +1354,8 @@ function SettingsPage({
   state: AppState
   lang: Language
   onSave: (patch: Partial<AppState['settings']>) => void
+  onState: (fn: (s: AppState) => AppState) => void
+  onFlash: (key: string) => void
   onToggleMultiPoste: (enabled: boolean) => void
   onToggleMultiLocation: (enabled: boolean) => void
   onAddLocation: (name: string) => void
@@ -1994,6 +2001,8 @@ function SettingsPage({
           {t(lang, 'setupChangeType')}
         </button>
       </div>
+
+      <MigrationImportCard lang={lang} onState={onState} onFlash={onFlash} />
 
       {isShopRetail(state.settings.commerceMode) ? (
         <div className="card">
