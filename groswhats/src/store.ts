@@ -413,7 +413,10 @@ function migrate(raw: unknown): AppState {
     )
       ? (incoming.commerceMode as CommerceMode)
       : defaults.commerceMode,
-    domainId: incoming.domainId || defaults.domainId,
+    domainId:
+      incoming.domainId === 'detail-alimentation'
+        ? 'detail-superette'
+        : incoming.domainId || defaults.domainId,
     currency: incoming.currency || defaults.currency,
     nextInvoiceNumber: incoming.nextInvoiceNumber ?? defaults.nextInvoiceNumber,
     stockAlertsEnabled: incoming.stockAlertsEnabled ?? true,
