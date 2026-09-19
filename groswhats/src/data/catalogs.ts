@@ -6,6 +6,8 @@ export type SeedSpec = {
   costDa: number
   unit: Unit
   pack?: number
+  /** Packs détail (ex. œufs ×10 / ×15 / ×30) — stock en pièces */
+  packs?: { size: number; priceDa: number }[]
   category: ProductCategory
   emoji: string
   /** Rayon caisse détail (spécialité) */
@@ -43,6 +45,13 @@ function s(
   return { name, priceDa, costDa, emoji, category, unit, pack, aisleId: aisle }
 }
 
+function withPacks(
+  seed: SeedSpec,
+  packs: { size: number; priceDa: number }[],
+): SeedSpec {
+  return { ...seed, packs }
+}
+
 const CATALOGS: Record<string, SeedSpec[]> = {
   'alim-gros': [
     s('Huile de table 5 L', 1450, 1180, '🫒', 'alimentaire', 'piece', 4),
@@ -60,7 +69,7 @@ const CATALOGS: Record<string, SeedSpec[]> = {
     s('Beurre 200 g', 290, 230, '🧈', 'alimentaire', 'piece', 20),
     s('Fromage triangles 24p', 240, 185, '🧀', 'alimentaire', 'piece', 12),
     s('Yaourt nature x8', 250, 200, '🍶', 'alimentaire', 'piece', 8),
-    s('Œufs plateau 30', 720, 580, '🥚', 'alimentaire', 'piece', 4),
+    s('Œufs', 24, 18, '🥚', 'alimentaire', 'piece', 30),
     s('Tomate concentrée 70 g', 48, 32, '🍅', 'alimentaire', 'piece', 50),
     s('Harissa 70 g', 42, 28, '🌶️', 'alimentaire', 'piece', 50),
     s('Thon 160 g', 185, 145, '🐟', 'alimentaire', 'piece', 48),
@@ -84,19 +93,41 @@ const CATALOGS: Record<string, SeedSpec[]> = {
     s('Riz 1 kg', 320, 270, '🍚', 'alimentaire', 'kg', undefined, 'epicerie'),
     s('Pâtes 500 g', 95, 75, '🍝', 'alimentaire', 'piece', undefined, 'epicerie'),
     s('Couscous 1 kg', 185, 155, '🍲', 'alimentaire', 'kg', undefined, 'epicerie'),
+    s('Lentilles 1 kg', 280, 230, '🫘', 'alimentaire', 'kg', undefined, 'epicerie'),
+    s('Pois chiches 1 kg', 320, 260, '🟡', 'alimentaire', 'kg', undefined, 'epicerie'),
     s('Lait 1 L', 185, 160, '🥛', 'alimentaire', 'piece', undefined, 'laitiers'),
     s('Beurre 200 g', 310, 260, '🧈', 'alimentaire', 'piece', undefined, 'laitiers'),
-    s('Œufs x6', 180, 145, '🥚', 'alimentaire', 'piece', undefined, 'laitiers'),
+    withPacks(s('Œufs', 22, 16, '🥚', 'alimentaire', 'piece', undefined, 'laitiers'), [
+      { size: 10, priceDa: 200 },
+      { size: 15, priceDa: 290 },
+      { size: 30, priceDa: 560 },
+    ]),
+    s('Yaourt nature x8', 250, 200, '🍶', 'alimentaire', 'piece', 8, 'laitiers'),
+    s('Fromage 200 g', 280, 230, '🧀', 'alimentaire', 'piece', undefined, 'laitiers'),
+    s('Lait caillé', 80, 60, '🥛', 'alimentaire', 'piece', undefined, 'laitiers'),
     s('Tomate concentrée', 55, 40, '🍅', 'alimentaire', 'piece', undefined, 'epicerie'),
+    s('Harissa 70 g', 45, 30, '🌶️', 'alimentaire', 'piece', undefined, 'epicerie'),
     s('Thon boîte', 200, 165, '🐟', 'alimentaire', 'piece', undefined, 'epicerie'),
+    s('Sardines boîte', 95, 70, '🐟', 'alimentaire', 'piece', undefined, 'epicerie'),
     s('Café 250 g', 490, 420, '☕', 'alimentaire', 'piece', undefined, 'epicerie'),
     s('Thé 200 g', 310, 260, '🍵', 'alimentaire', 'piece', undefined, 'boissons'),
     s('Eau 1,5 L', 45, 35, '💧', 'alimentaire', 'piece', undefined, 'boissons'),
-    s('Pain baguette', 20, 12, '🥖', 'alimentaire', 'piece', undefined, 'pain'),
-    s('Lait caillé', 80, 60, '🥛', 'alimentaire', 'piece', undefined, 'laitiers'),
-    s('Fromage 200 g', 280, 230, '🧀', 'alimentaire', 'piece', undefined, 'laitiers'),
-    s('Chips 50 g', 60, 40, '🥔', 'alimentaire', 'piece', undefined, 'snacks'),
+    s('Eau 0,5 L', 25, 18, '💧', 'alimentaire', 'piece', undefined, 'boissons'),
+    s('Soda 1 L', 95, 70, '🥤', 'alimentaire', 'piece', undefined, 'boissons'),
     s('Jus 1 L', 170, 140, '🧃', 'alimentaire', 'piece', undefined, 'boissons'),
+    s('Pain baguette', 20, 12, '🥖', 'alimentaire', 'piece', undefined, 'pain'),
+    s('Biscuits 150 g', 80, 55, '🍪', 'alimentaire', 'piece', undefined, 'snacks'),
+    s('Chips 50 g', 60, 40, '🥔', 'alimentaire', 'piece', undefined, 'snacks'),
+    s('Chocolat 100 g', 160, 120, '🍫', 'alimentaire', 'piece', undefined, 'snacks'),
+    s('Sel fin 1 kg', 45, 28, '🧂', 'alimentaire', 'kg', undefined, 'epicerie'),
+    s('Vinaigre 1 L', 70, 48, '🫗', 'alimentaire', 'L', undefined, 'epicerie'),
+    s('Lessive 1 kg', 380, 280, '🧺', 'consommable', 'piece', undefined, 'menage'),
+    s('Eau de javel 1 L', 90, 60, '🧴', 'consommable', 'piece', undefined, 'menage'),
+    s('Savon de ménage', 50, 30, '🧼', 'consommable', 'piece', undefined, 'menage'),
+    s('Éponge x3', 90, 50, '🧽', 'consommable', 'piece', 3, 'menage'),
+    s('Sacs poubelle x20', 120, 75, '🗑️', 'consommable', 'piece', undefined, 'menage'),
+    s('Couches bébé M x10', 890, 650, '👶', 'consommable', 'piece', undefined, 'autre'),
+    s('Allumettes / briquet', 40, 20, '🔥', 'consommable', 'piece', undefined, 'autre'),
   ],
   boissons: [
     s('Eau 1,5 L carton x12', 420, 300, '💧', 'alimentaire', 'carton', 12),
@@ -112,21 +143,29 @@ const CATALOGS: Record<string, SeedSpec[]> = {
   ],
   cosmetique: [
     s('Shampoing 400 ml', 280, 190, '🧴', 'cosmetique', 'cheveux'),
+    s('Après-shampoing 200 ml', 320, 210, '🧴', 'cosmetique', 'cheveux'),
     s('Gel douche 250 ml', 220, 150, '🚿', 'cosmetique', 'corps'),
     s('Savon de beauté 100 g', 80, 50, '🧼', 'cosmetique', 'corps'),
     s('Crème hydratante 50 ml', 450, 300, '🫙', 'cosmetique', 'visage'),
+    s('Crème Nivea-type 75 ml', 290, 190, '🫙', 'cosmetique', 'visage'),
     s('Lait corporel 200 ml', 380, 260, '🥛', 'cosmetique', 'corps'),
+    s('Vaseline 100 ml', 180, 110, '🫙', 'cosmetique', 'corps'),
     s('Déodorant 150 ml', 260, 180, '💨', 'cosmetique', 'corps'),
     s('Dentifrice 75 ml', 160, 110, '😁', 'cosmetique', 'autre'),
     s('Brosse à dents', 90, 55, '🪥', 'cosmetique', 'autre'),
     s('Rouge à lèvres', 350, 220, '💄', 'cosmetique', 'maquillage'),
     s('Mascara', 420, 280, '👁️', 'cosmetique', 'maquillage'),
     s('Fond de teint 30 ml', 650, 430, '🎨', 'cosmetique', 'maquillage'),
+    s('Khôl / eyeliner', 250, 150, '👁️', 'cosmetique', 'maquillage'),
     s('Vernis à ongles', 180, 110, '💅', 'cosmetique', 'maquillage'),
+    s('Dissolvant 100 ml', 140, 85, '💅', 'cosmetique', 'maquillage'),
+    s('Henné cheveux', 120, 70, '🌿', 'cosmetique', 'cheveux'),
     s('Parfum 50 ml', 1800, 1200, '🌸', 'cosmetique', 'corps'),
     s('Eau de Cologne 100 ml', 450, 300, '💧', 'cosmetique', 'corps'),
     s('Coton 100 pcs', 140, 90, '☁️', 'cosmetique', 'visage'),
     s('Lingettes démaquillantes', 220, 150, '🧻', 'cosmetique', 'visage'),
+    s('Crème solaire 50', 890, 580, '☀️', 'cosmetique', 'visage'),
+    s('Gel hydroalcoolique 100 ml', 120, 70, '🧴', 'cosmetique', 'autre'),
   ],
   para: [
     s('Complément vitamine C', 650, 420, '🍊', 'consommable'),
@@ -300,11 +339,11 @@ const CATALOGS: Record<string, SeedSpec[]> = {
     s('Savon de ménage', 70, 42, '🧼', 'consommable', 'piece', undefined, 'menage'),
     s('Désodorisant', 220, 140, '🌸', 'consommable', 'piece', undefined, 'menage'),
     s('Sacs poubelle x30', 160, 95, '🗑️', 'consommable', 'piece', undefined, 'menage'),
-    s('Éponge pack x3', 90, 45, '🧽', 'consommable', 'piece', undefined, 'menage'),
+    s('Éponge pack x3', 90, 45, '🧽', 'consommable', 'piece', 3, 'menage'),
     s('Balai', 350, 190, '🧹', 'consommable', 'piece', undefined, 'menage'),
     s('Serpillère', 280, 150, '🧼', 'consommable', 'piece', undefined, 'menage'),
-    s('Papier toilette x12', 420, 280, '🧻', 'consommable', 'piece', undefined, 'hygiene'),
-    s('Essuie-tout x6', 320, 210, '🧻', 'consommable', 'piece', undefined, 'hygiene'),
+    s('Papier toilette x12', 420, 280, '🧻', 'consommable', 'piece', 12, 'hygiene'),
+    s('Essuie-tout x6', 320, 210, '🧻', 'consommable', 'piece', 6, 'hygiene'),
   ],
   fruits: [
     s('Tomate 1 kg', 180, 120, '🍅', 'alimentaire', 'kg', undefined, 'legumes'),

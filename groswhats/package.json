@@ -15,6 +15,7 @@
     "license": "node tools/generate-license.mjs",
     "icons": "node scripts/make-icons.mjs",
     "tessdata": "node scripts/vendor-tessdata.mjs",
+    "off:pack": "python3 scripts/fetch-off-algeria.py --max-pages 1 --download-images --images-dir public/catalog/off --az-pos-out /tmp/off-az-pos-import.json --only-with-images",
     "native:deps": "npm install --no-save @capacitor/core@^7.4.3 @capacitor/cli@^7.4.3 @capacitor/android@^7.4.3 electron@^37.2.6 electron-builder@^26.0.12",
     "android:sync": "npm run build:native && npx cap sync android",
     "android:open": "npx cap open android",

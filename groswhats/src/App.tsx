@@ -15,6 +15,7 @@ import type {
   FontScale,
   Unit,
   ClinicStation,
+  FlashSaleLine,
 } from './types'
 import { ALL_UNITS, EXPENSE_CATEGORIES } from './types'
 import {
@@ -81,6 +82,7 @@ import {
   removeHeldSale,
   setClinicStation,
   setTableStatus,
+  uid,
 } from './store'
 import { isDecimalUnit, qtyStep, t, unitLabel } from './i18n'
 import { mt } from './locale/modeCopy'
@@ -143,14 +145,14 @@ import {
   buildProductWhatsappPromo,
 } from './marketing/merchantPromo'
 import { compressImageFile } from './utils/image'
+import { amountFromQtyDa, availableTiers, costForTier, isCartonTier, maxQtyForTier, priceForTier, qtyFromAmountDa, sellUnitForTier } from './utils/pricing'
 import {
-  availableTiers,
-  costForTier,
-  isCartonTier,
-  maxQtyForTier,
-  priceForTier,
-  sellUnitForTier,
-} from './utils/pricing'
+  normalizePackOptions,
+  packSizeLabel,
+  priceForPackSize,
+  sellablePackOptions,
+} from './utils/packSize'
+import { parseQtyInput } from './utils/qtyInput'
 import {
   clientMapsUrl,
   getCurrentPosition,
@@ -216,6 +218,8 @@ import { TableFloorPanel } from './TableFloorPanel'
 import { RepairOrderPanel } from './RepairOrderPanel'
 import { StaffPanel } from './StaffPanel'
 import { ExpertComptableCard } from './ExpertComptableCard'
+import { OrderRevisePanel } from './OrderRevisePanel'
+import { MigrationImportCard } from './MigrationImportCard'
 import { classifyHomeScan } from './utils/clientQr'
 import { APP_BRAND } from './brand'
 import { APP_VERSION, activateLicense, getAccessStatus } from './license/license'
@@ -1018,6 +1022,8 @@ export default function App() {
           seedFrom={historySeed?.from}
           seedTo={historySeed?.to}
           onSeedConsumed={() => setHistorySeed(null)}
+          onState={setState}
+          onFlash={flash}
           onOpenClient={(id) => {
             setFocusClientId(id)
             goTo('clients')
@@ -1162,6 +1168,8 @@ export default function App() {
         <SettingsPage
           state={state}
           lang={lang}
+          onState={setState}
+          onFlash={flash}
           onRedoSetup={() => setRedoSetup(true)}
           onSave={(patch) => {
             setState((s) => updateSettings(s, patch))
@@ -1331,6 +1339,8 @@ function SettingsPage({
   state,
   lang,
   onSave,
+  onState,
+  onFlash,
   onToggleMultiPoste,
   onToggleMultiLocation,
   onAddLocation,
@@ -1344,6 +1354,8 @@ function SettingsPage({
   state: AppState
   lang: Language
   onSave: (patch: Partial<AppState['settings']>) => void
+  onState: (fn: (s: AppState) => AppState) => void
+  onFlash: (key: string) => void
   onToggleMultiPoste: (enabled: boolean) => void
   onToggleMultiLocation: (enabled: boolean) => void
   onAddLocation: (name: string) => void
@@ -1989,6 +2001,13 @@ function SettingsPage({
           {t(lang, 'setupChangeType')}
         </button>
       </div>
+
+      <MigrationImportCard
+        lang={lang}
+        state={state}
+        onState={onState}
+        onFlash={onFlash}
+      />
 
       {isShopRetail(state.settings.commerceMode) ? (
         <div className="card">
@@ -2767,6 +2786,8 @@ function HistoryPage({
   onBoth,
   onInvoice,
   onOpenClient,
+  onState,
+  onFlash,
 }: {
   state: AppState
   lang: Language
@@ -2778,6 +2799,8 @@ function HistoryPage({
   onBoth: (order: Order) => Promise<void>
   onInvoice: (order: Order) => void
   onOpenClient?: (id: string) => void
+  onState: (fn: (s: AppState) => AppState) => void
+  onFlash: (key: string) => void
 }) {
   const [query, setQuery] = useState('')
   const [kind, setKind] = useState<ActivityKind>('all')
@@ -2786,6 +2809,7 @@ function HistoryPage({
   >('today')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+  const [editOrderId, setEditOrderId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!seedFrom && !seedTo) return
@@ -2832,6 +2856,24 @@ function HistoryPage({
     )
     return state.orders.filter((o) => ids.has(o.id))
   }, [filtered, state.orders])
+
+  const editing = editOrderId
+    ? state.orders.find((o) => o.id === editOrderId) ?? null
+    : null
+
+  if (editing) {
+    return (
+      <div className="page">
+        <OrderRevisePanel
+          lang={lang}
+          order={editing}
+          onState={onState}
+          onFlash={onFlash}
+          onClose={() => setEditOrderId(null)}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="page">
@@ -2988,6 +3030,15 @@ function HistoryPage({
                 onBoth={() => onBoth(o)}
                 onInvoice={() => onInvoice(o)}
               />
+              <button
+                type="button"
+                className="btn secondary block"
+                style={{ marginTop: 8 }}
+                onClick={() => setEditOrderId(o.id)}
+              >
+                ✏️ {t(lang, 'orderReviseBtn')}
+                {o.revisedAt ? ` · ${t(lang, 'orderRevisedBadge')}` : ''}
+              </button>
             </div>
           ))}
         </div>
@@ -3254,6 +3305,8 @@ function ProductPricingFields({
   setGrosPriceDa,
   superGrosPriceDa,
   setSuperGrosPriceDa,
+  packOptionRows,
+  setPackOptionRows,
   stock,
   setStock,
   showLowStock,
@@ -3275,6 +3328,8 @@ function ProductPricingFields({
   setGrosPriceDa: (v: string) => void
   superGrosPriceDa: string
   setSuperGrosPriceDa: (v: string) => void
+  packOptionRows: { size: string; priceDa: string }[]
+  setPackOptionRows: (rows: { size: string; priceDa: string }[]) => void
   stock: string
   setStock: (v: string) => void
   showLowStock?: boolean
@@ -3284,6 +3339,7 @@ function ProductPricingFields({
   const ppp = Number(piecesPerPack) || 0
   const gros = Number(grosPriceDa) || 0
   const superG = Number(superGrosPriceDa) || 0
+  const wholesale = showWholesaleTiers(commerceMode)
 
   return (
     <>
@@ -3300,7 +3356,7 @@ function ProductPricingFields({
 
       <div className="pricing-board">
         <h3 className="pricing-board-title">💰 {mt(commerceMode, lang, 'pricingBoardTitle')}</h3>
-        {showWholesaleTiers(commerceMode) ? (
+        {wholesale ? (
           <p className="muted pricing-board-hint">{t(lang, 'pricingBoardHint')}</p>
         ) : null}
 
@@ -3333,7 +3389,7 @@ function ProductPricingFields({
         </div>
         ) : null}
 
-        {showWholesaleTiers(commerceMode) ? (
+        {wholesale ? (
         <>
         <div className="pricing-row tone-carton">
           <div className="pricing-emoji">📦📦</div>
@@ -3387,7 +3443,82 @@ function ProductPricingFields({
           </div>
         </div>
         </>
-        ) : null}
+        ) : (
+        <div className="pricing-row tone-carton">
+          <div className="pricing-emoji">📦</div>
+          <div style={{ flex: 1 }}>
+            <div className="field" style={{ marginBottom: 8 }}>
+              <label>{t(lang, 'packOptionsTitle')}</label>
+              <div className="muted">{t(lang, 'packOptionsHint')}</div>
+            </div>
+            <button
+              type="button"
+              className="btn ghost"
+              style={{ marginBottom: 8 }}
+              onClick={() => {
+                const presets = [
+                  { size: '10', priceDa: '' },
+                  { size: '15', priceDa: '' },
+                  { size: '30', priceDa: '' },
+                ]
+                const have = new Set(packOptionRows.map((r) => r.size))
+                const merged = [...packOptionRows]
+                for (const p of presets) {
+                  if (!have.has(p.size)) merged.push(p)
+                }
+                setPackOptionRows(merged)
+              }}
+            >
+              + {t(lang, 'packPreset101530')}
+            </button>
+            {packOptionRows.map((row, i) => (
+              <div className="grid-2" key={i} style={{ gap: 6, marginBottom: 6 }}>
+                <label className="muted" style={{ fontSize: '0.8rem' }}>
+                  {t(lang, 'packOptionSize')}
+                  <input
+                    inputMode="numeric"
+                    value={row.size}
+                    placeholder="10"
+                    onChange={(e) => {
+                      const next = [...packOptionRows]
+                      next[i] = {
+                        ...row,
+                        size: e.target.value.replace(/\D/g, ''),
+                      }
+                      setPackOptionRows(next)
+                    }}
+                  />
+                </label>
+                <label className="muted" style={{ fontSize: '0.8rem' }}>
+                  {t(lang, 'packOptionPrice')}
+                  <input
+                    inputMode="decimal"
+                    value={row.priceDa}
+                    placeholder="200"
+                    onChange={(e) => {
+                      const next = [...packOptionRows]
+                      next[i] = { ...row, priceDa: e.target.value }
+                      setPackOptionRows(next)
+                    }}
+                  />
+                </label>
+              </div>
+            ))}
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={() =>
+                setPackOptionRows([
+                  ...packOptionRows,
+                  { size: '', priceDa: '' },
+                ])
+              }
+            >
+              + {t(lang, 'packOptionAdd')}
+            </button>
+          </div>
+        </div>
+        )}
       </div>
 
       <div className={showLowStock ? 'grid-2' : undefined}>
@@ -3397,9 +3528,10 @@ function ProductPricingFields({
             inputMode="decimal"
             value={stock}
             onChange={(e) => setStock(e.target.value)}
+            placeholder="100"
           />
           <div className="muted">{t(lang, 'packStockHint')}</div>
-          {ppp > 0 && Number(stock) > 0 ? (
+          {wholesale && ppp > 0 && Number(stock) > 0 ? (
             <div className="muted">
               ≈ {Math.floor(Number(stock) / ppp)} {t(lang, 'cartonsLeft')}
             </div>
@@ -3479,6 +3611,9 @@ function ProductsPage({
   const [superGrosPriceDa, setSuperGrosPriceDa] = useState('')
   const [stock, setStock] = useState('')
   const [piecesPerPack, setPiecesPerPack] = useState('')
+  const [packOptionRows, setPackOptionRows] = useState<
+    { size: string; priceDa: string }[]
+  >([])
   const [imageDataUrl, setImageDataUrl] = useState<string | undefined>()
   const [photoBusy, setPhotoBusy] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
@@ -3743,6 +3878,8 @@ function ProductsPage({
           setGrosPriceDa={setGrosPriceDa}
           superGrosPriceDa={superGrosPriceDa}
           setSuperGrosPriceDa={setSuperGrosPriceDa}
+          packOptionRows={packOptionRows}
+          setPackOptionRows={setPackOptionRows}
           stock={stock}
           setStock={setStock}
         />
@@ -3760,6 +3897,12 @@ function ProductsPage({
             const gros = Number(grosPriceDa) || 0
             const superG = Number(superGrosPriceDa) || 0
             const demi = Number(demiGrosPriceDa) || 0
+            const packs = normalizePackOptions(
+              packOptionRows.map((r) => ({
+                size: Number(r.size) || 0,
+                priceDa: Number(String(r.priceDa).replace(',', '.')) || 0,
+              })),
+            )
             onAdd({
               name: name.trim(),
               category,
@@ -3770,6 +3913,7 @@ function ProductsPage({
               stock: Number(stock) || 0,
               lowStockAt: isDecimalUnit(unit) ? qtyStep(unit) * 2 : 5,
               piecesPerPack: ppp > 0 ? ppp : undefined,
+              packOptions: packs,
               demiGrosPriceDa: demi > 0 ? demi : undefined,
               grosPriceDa: ppp > 0 && gros > 0 ? gros : undefined,
               superGrosPriceDa: ppp > 0 && superG > 0 ? superG : undefined,
@@ -3805,6 +3949,7 @@ function ProductsPage({
             setSuperGrosPriceDa('')
             setStock('')
             setPiecesPerPack('')
+            setPackOptionRows([])
             setImageDataUrl(undefined)
           }}
         >
@@ -3853,6 +3998,11 @@ function ProductsPage({
                     ? rayonLabel(p.aisleId, domainId, lang, state.settings)
                     : t(lang, `cat_${p.category}`)}{' '}
                   · {unitLabel(lang, p.unit)}
+                  {p.packOptions?.length
+                    ? ` · ${p.packOptions.map((o) => packSizeLabel(o.size)).join(' ')}`
+                    : p.piecesPerPack
+                      ? ` · ${t(lang, 'packOf')}${p.piecesPerPack}`
+                      : ''}
                   {p.imei ? ` · IMEI ${p.imei}` : ''}
                   {p.size ? ` · ${p.size}` : ''}
                   {p.color ? ` · ${p.color}` : ''}
@@ -3863,9 +4013,6 @@ function ProductsPage({
                   {showWholesaleTiers(state.settings.commerceMode) && p.demiGrosPriceDa
                     ? ` · ${t(lang, 'tier_demi_gros')} ${formatDa(p.demiGrosPriceDa)}`
                     : ''}
-                  {showWholesaleTiers(state.settings.commerceMode) && p.piecesPerPack
-                    ? ` · ${t(lang, 'packOf')}${p.piecesPerPack}`
-                    : ''}
                   {showWholesaleTiers(state.settings.commerceMode) &&
                   (p.grosPriceDa || p.packPriceDa)
                     ? ` · ${t(lang, 'tier_gros')} ${formatDa(p.grosPriceDa || p.packPriceDa || 0)}`
@@ -3873,10 +4020,20 @@ function ProductsPage({
                   {showWholesaleTiers(state.settings.commerceMode) && p.superGrosPriceDa
                     ? ` · ${t(lang, 'tier_super_gros')} ${formatDa(p.superGrosPriceDa)}`
                     : ''}
+                  {!showWholesaleTiers(state.settings.commerceMode) &&
+                  p.packOptions?.length
+                    ? p.packOptions
+                        .map(
+                          (o) =>
+                            ` · ${t(lang, 'packOf')}${o.size} ${formatDa(o.priceDa)}`,
+                        )
+                        .join('')
+                    : ''}
                 </div>
                 <div className="btn-row" style={{ marginTop: 8 }}>
                   <span className={`badge ${displayStock(state, p) <= p.lowStockAt ? 'warn' : ''}`}>
-                    {formatQty(displayStock(state, p))} {unitLabel(lang, 'piece')}
+                    {formatQty(displayStock(state, p))}{' '}
+                    {unitLabel(lang, 'piece')}
                     {state.settings.multiLocationEnabled
                       ? ` · ${t(lang, 'stockTotal')} ${formatQty(p.stock)}`
                       : ''}
@@ -4056,6 +4213,14 @@ function ProductEditCard({
   const [piecesPerPack, setPiecesPerPack] = useState(
     product.piecesPerPack ? String(product.piecesPerPack) : '',
   )
+  const [packOptionRows, setPackOptionRows] = useState<
+    { size: string; priceDa: string }[]
+  >(() =>
+    (product.packOptions ?? []).map((o) => ({
+      size: String(o.size),
+      priceDa: String(o.priceDa),
+    })),
+  )
   const [stock, setStock] = useState(String(stockValue))
   const [lowStockAt, setLowStockAt] = useState(String(product.lowStockAt))
   const [barcode, setBarcode] = useState(product.barcode || '')
@@ -4218,6 +4383,8 @@ function ProductEditCard({
         setGrosPriceDa={setGrosPriceDa}
         superGrosPriceDa={superGrosPriceDa}
         setSuperGrosPriceDa={setSuperGrosPriceDa}
+        packOptionRows={packOptionRows}
+        setPackOptionRows={setPackOptionRows}
         stock={stock}
         setStock={setStock}
         showLowStock
@@ -4236,6 +4403,12 @@ function ProductEditCard({
           const gros = Number(grosPriceDa) || 0
           const superG = Number(superGrosPriceDa) || 0
           const demi = Number(demiGrosPriceDa) || 0
+          const packs = normalizePackOptions(
+            packOptionRows.map((r) => ({
+              size: Number(r.size) || 0,
+              priceDa: Number(String(r.priceDa).replace(',', '.')) || 0,
+            })),
+          )
           onSave({
             name: name.trim(),
             category,
@@ -4246,6 +4419,7 @@ function ProductEditCard({
             stock: Number(stock) || 0,
             lowStockAt: Number(lowStockAt) || 0,
             piecesPerPack: ppp > 0 ? ppp : undefined,
+            packOptions: packs,
             demiGrosPriceDa: demi > 0 ? demi : undefined,
             grosPriceDa: ppp > 0 && gros > 0 ? gros : undefined,
             superGrosPriceDa: ppp > 0 && superG > 0 ? superG : undefined,
@@ -5094,9 +5268,27 @@ function OrderPage({
   const [clientId, setClientId] = useState(
     clientFirst && state.clients[0] ? state.clients[0].id : QUICK,
   )
-  /** clé = `${productId}::${tier}` */
+  /** clé = `${productId}::${tier}` ou `${productId}::pack:10` */
   const [qtyMap, setQtyMap] = useState<Record<string, number>>({})
+  /** Saisie qté libre (x100) — brouillon clavier */
+  const [qtyDraft, setQtyDraft] = useState<Record<string, string>>({})
+  /** Saisie montant DA en cours (évite de casser la frappe) */
+  const [amountDraft, setAmountDraft] = useState<Record<string, string>>({})
+  /** Prix unitaires modifiés en caisse */
+  const [priceOverrides, setPriceOverrides] = useState<Record<string, number>>(
+    {},
+  )
+  /** Ventes flash (hors stock) */
+  const [flashLines, setFlashLines] = useState<FlashSaleLine[]>([])
+  const [showFlash, setShowFlash] = useState(false)
+  const [flashName, setFlashName] = useState('')
+  const [flashPrice, setFlashPrice] = useState('')
+  const [flashQty, setFlashQty] = useState('1')
+  /** Total forcé avant encaissement */
+  const [totalOverride, setTotalOverride] = useState('')
   const [tierMap, setTierMap] = useState<Record<string, PriceTier>>({})
+  /** Pack sélectionné à la caisse (œufs ×10 / ×15 / ×30) — 0 = pièce */
+  const [packSizeMap, setPackSizeMap] = useState<Record<string, number>>({})
   const [lastOrder, setLastOrder] = useState<Order | null>(null)
   const [productQuery, setProductQuery] = useState('')
   const [clientQuery, setClientQuery] = useState('')
@@ -5175,7 +5367,8 @@ function OrderPage({
     return retailChipRayons(domainId, state.settings, lang)
   }, [mode, domainId, state.settings, lang])
 
-  function lineKey(productId: string, tier: PriceTier) {
+  function lineKey(productId: string, tier: PriceTier, packSize?: number) {
+    if (packSize && packSize > 1) return `${productId}::pack:${packSize}`
     return `${productId}::${tier}`
   }
 
@@ -5183,30 +5376,79 @@ function OrderPage({
     return tierMap[productId] ?? 'piece'
   }
 
-  const lines: OrderLine[] = Object.entries(qtyMap)
+  function packOf(productId: string): number {
+    return packSizeMap[productId] ?? 0
+  }
+
+  function parseLineKey(key: string): {
+    productId: string
+    tier: PriceTier
+    packSize?: number
+  } {
+    const [productId, mode] = key.split('::')
+    if (mode?.startsWith('pack:')) {
+      const packSize = Number(mode.slice(5))
+      return {
+        productId,
+        tier: 'piece',
+        packSize: Number.isFinite(packSize) ? packSize : undefined,
+      }
+    }
+    return { productId, tier: (mode as PriceTier) || 'piece' }
+  }
+
+  const catalogLines: OrderLine[] = Object.entries(qtyMap)
     .filter(([, qty]) => qty > 0)
     .flatMap(([key, qty]) => {
-      const [productId, tierRaw] = key.split('::')
-      const tier = (tierRaw as PriceTier) || 'piece'
+      const { productId, tier, packSize } = parseLineKey(key)
       const p = state.products.find((x) => x.id === productId)
       if (!p) return []
-      const unitPrice = priceForTier(p, tier)
-      if (unitPrice == null) return []
+      const catalogPrice =
+        packSize && packSize > 1
+          ? priceForPackSize(p, packSize)
+          : priceForTier(p, tier)
+      if (catalogPrice == null) return []
+      const unitPrice =
+        priceOverrides[key] !== undefined ? priceOverrides[key] : catalogPrice
       const lineImei = imeiMap[key] || p.imei
       return [
         {
           productId: p.id,
           name: p.name,
-          unit: sellUnitForTier(tier),
+          unit:
+            packSize && packSize > 1
+              ? 'carton'
+              : isCartonTier(tier)
+                ? 'carton'
+                : isDecimalUnit(p.unit)
+                  ? p.unit
+                  : sellUnitForTier(tier),
           qty,
           unitPriceDa: unitPrice,
-          unitCostDa: costForTier(p, tier),
+          unitCostDa: costForTier(p, tier, packSize),
           lineTotalDa: +(qty * unitPrice).toFixed(2),
-          priceTier: tier,
+          priceTier: packSize && packSize > 1 ? 'gros' : tier,
+          packSize: packSize && packSize > 1 ? packSize : undefined,
           imei: lineImei,
         },
       ]
     })
+
+  const flashOrderLines: OrderLine[] = flashLines
+    .filter((f) => f.qty > 0 && f.unitPriceDa >= 0 && f.name.trim())
+    .map((f) => ({
+      productId: f.id,
+      name: f.name.trim(),
+      unit: f.unit,
+      qty: f.qty,
+      unitPriceDa: f.unitPriceDa,
+      unitCostDa: 0,
+      lineTotalDa: +(f.qty * f.unitPriceDa).toFixed(2),
+      priceTier: 'piece' as PriceTier,
+      flash: true,
+    }))
+
+  const lines: OrderLine[] = [...catalogLines, ...flashOrderLines]
 
   const subtotal = lines.reduce((s, l) => s + l.lineTotalDa, 0)
   const discPct = Math.min(
@@ -5214,7 +5456,13 @@ function OrderPage({
     Math.max(0, Number(String(discountPercent).replace(',', '.')) || 0),
   )
   const discountDa = discPct > 0 ? +((subtotal * discPct) / 100).toFixed(2) : 0
-  const total = Math.max(0, +(subtotal - discountDa).toFixed(2))
+  const computedTotal = Math.max(0, +(subtotal - discountDa).toFixed(2))
+  const overrideParsed = Number(String(totalOverride).replace(',', '.'))
+  const hasTotalOverride =
+    totalOverride.trim() !== '' &&
+    Number.isFinite(overrideParsed) &&
+    overrideParsed >= 0
+  const total = hasTotalOverride ? +overrideParsed.toFixed(2) : computedTotal
   const client = state.clients.find((c) => c.id === clientId)
   const clientDebt = client ? clientCreditDa(state, client.id) : 0
   const canValidate = lines.length > 0 && (isQuick || !!client)
@@ -5225,12 +5473,48 @@ function OrderPage({
 
   function clearCart() {
     setQtyMap({})
+    setQtyDraft({})
+    setAmountDraft({})
+    setPriceOverrides({})
+    setFlashLines([])
+    setShowFlash(false)
+    setFlashName('')
+    setFlashPrice('')
+    setFlashQty('1')
+    setTotalOverride('')
     setTierMap({})
+    setPackSizeMap({})
     setImeiMap({})
     setDiscountPercent('')
     setPayStep(false)
     setVerseInput('')
     setDueDays(15)
+  }
+
+  function addFlashLine() {
+    const name = flashName.trim() || t(lang, 'flashDefaultName')
+    const price = Number(String(flashPrice).replace(',', '.'))
+    const qty = Number(String(flashQty).replace(',', '.')) || 1
+    if (!Number.isFinite(price) || price < 0) {
+      onFlash('flashNeedPrice')
+      return
+    }
+    if (!Number.isFinite(qty) || qty <= 0) return
+    setFlashLines((prev) => [
+      ...prev,
+      {
+        id: uid('flash'),
+        name,
+        qty,
+        unitPriceDa: price,
+        unit: 'piece',
+      },
+    ])
+    setFlashName('')
+    setFlashPrice('')
+    setFlashQty('1')
+    setShowFlash(false)
+    onFlash('flashAdded')
   }
 
   function parkCurrentSale() {
@@ -5245,6 +5529,9 @@ function OrderPage({
       tierMap: { ...tierMap },
       imeiMap: { ...imeiMap },
       discountPercent: discPct > 0 ? discPct : undefined,
+      priceOverrides: { ...priceOverrides },
+      flashLines: flashLines.map((f) => ({ ...f })),
+      totalOverrideDa: hasTotalOverride ? total : undefined,
     })
     clearCart()
     onFlash('holdSaleDone')
@@ -5257,6 +5544,11 @@ function OrderPage({
     setTierMap({ ...h.tierMap })
     setImeiMap({ ...(h.imeiMap || {}) })
     setDiscountPercent(h.discountPercent ? String(h.discountPercent) : '')
+    setPriceOverrides({ ...(h.priceOverrides || {}) })
+    setFlashLines([...(h.flashLines || [])])
+    setTotalOverride(
+      typeof h.totalOverrideDa === 'number' ? String(h.totalOverrideDa) : '',
+    )
     setClientId(h.clientId || QUICK)
     setShowClientBook(!!h.clientId)
     setPayStep(false)
@@ -5264,9 +5556,14 @@ function OrderPage({
     setShowHeld(false)
   }
 
-  function bump(product: Product, tier: PriceTier, delta: number) {
-    const key = lineKey(product.id, tier)
-    const max = maxQtyForTier(product, tier, displayStock(state, product))
+  function bump(product: Product, tier: PriceTier, delta: number, packSize?: number) {
+    const key = lineKey(product.id, tier, packSize)
+    const max = maxQtyForTier(
+      product,
+      tier,
+      displayStock(state, product),
+      packSize,
+    )
     const needsImei =
       showImeiTracking(domainId) &&
       (product.aisleId === 'smartphones' ||
@@ -5290,22 +5587,83 @@ function OrderPage({
           delete n[key]
           return n
         })
+        setQtyDraft((d) => {
+          const n = { ...d }
+          delete n[key]
+          return n
+        })
       } else copy[key] = next
       return copy
     })
   }
 
-  function setProductTier(productId: string, tier: PriceTier) {
-    setTierMap((m) => ({ ...m, [productId]: tier }))
+  /** Fixe la quantité (saisie directe x100 ou calcul depuis un montant DA). */
+  function setQtyAbsolute(
+    product: Product,
+    tier: PriceTier,
+    rawQty: number,
+    packSize?: number,
+  ) {
+    const key = lineKey(product.id, tier, packSize)
+    const max = maxQtyForTier(
+      product,
+      tier,
+      displayStock(state, product),
+      packSize,
+    )
+    const next = Math.max(0, Math.min(max, +rawQty.toFixed(3)))
+    setQtyMap((m) => {
+      const copy = { ...m }
+      if (next <= 0) {
+        delete copy[key]
+        setImeiMap((im) => {
+          const n = { ...im }
+          delete n[key]
+          return n
+        })
+      } else {
+        copy[key] = next
+      }
+      return copy
+    })
+  }
+
+  function clearProductQtyKeys(productId: string) {
     setQtyMap((m) => {
       const next = { ...m }
       for (const k of Object.keys(next)) {
-        if (k.startsWith(`${productId}::`) && !k.endsWith(`::${tier}`)) {
-          delete next[k]
-        }
+        if (k.startsWith(`${productId}::`)) delete next[k]
       }
       return next
     })
+    setQtyDraft((d) => {
+      const next = { ...d }
+      for (const k of Object.keys(next)) {
+        if (k.startsWith(`${productId}::`)) delete next[k]
+      }
+      return next
+    })
+  }
+
+  function setProductTier(productId: string, tier: PriceTier) {
+    setTierMap((m) => ({ ...m, [productId]: tier }))
+    setPackSizeMap((m) => {
+      const next = { ...m }
+      delete next[productId]
+      return next
+    })
+    clearProductQtyKeys(productId)
+  }
+
+  function setProductPack(productId: string, size: number) {
+    setPackSizeMap((m) => {
+      const next = { ...m }
+      if (size > 1) next[productId] = size
+      else delete next[productId]
+      return next
+    })
+    setTierMap((m) => ({ ...m, [productId]: 'piece' }))
+    clearProductQtyKeys(productId)
   }
 
   useEffect(() => {
@@ -5328,6 +5686,9 @@ function OrderPage({
       return
     }
     const pay = buildPaymentFields(total, paidDa)
+    const forcedDiscount = hasTotalOverride
+      ? Math.max(0, +(subtotal - total).toFixed(2))
+      : discountDa
     const created = onCreate({
       clientId: isQuick ? '' : client!.id,
       clientName: isQuick ? t(lang, 'walkInClient') : client!.name,
@@ -5335,8 +5696,12 @@ function OrderPage({
       lines,
       totalDa: total,
       subtotalDa: subtotal,
-      discountPercent: discPct > 0 ? discPct : undefined,
-      discountDa: discountDa > 0 ? discountDa : undefined,
+      discountPercent:
+        hasTotalOverride || discPct <= 0 ? undefined : discPct,
+      discountDa: forcedDiscount > 0 ? forcedDiscount : undefined,
+      note: hasTotalOverride
+        ? `${t(lang, 'totalOverrideNote')}: ${Math.round(total)} DA`
+        : undefined,
       ...pay,
       dueDate:
         pay.remainingDa > 0.001 ? dueDateFromDays(dueDays) : undefined,
@@ -5498,6 +5863,55 @@ function OrderPage({
           onDateFrom={setProductDateFrom}
           onDateTo={setProductDateTo}
         />
+        <div className="btn-row" style={{ marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+          <button
+            type="button"
+            className="btn secondary"
+            onClick={() => setShowFlash((v) => !v)}
+          >
+            ✨ {t(lang, 'flashSaleBtn')}
+          </button>
+        </div>
+        {showFlash ? (
+          <div className="card" style={{ marginBottom: 12 }}>
+            <h3>{t(lang, 'flashSaleTitle')}</h3>
+            <p className="muted">{t(lang, 'flashSaleHint')}</p>
+            <div className="field">
+              <label>{t(lang, 'name')}</label>
+              <input
+                value={flashName}
+                onChange={(e) => setFlashName(e.target.value)}
+                placeholder={t(lang, 'flashDefaultName')}
+              />
+            </div>
+            <div className="grid-2">
+              <div className="field">
+                <label>{t(lang, 'flashPrice')}</label>
+                <input
+                  inputMode="decimal"
+                  value={flashPrice}
+                  onChange={(e) => setFlashPrice(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+              <div className="field">
+                <label>{t(lang, 'qty')}</label>
+                <input
+                  inputMode="decimal"
+                  value={flashQty}
+                  onChange={(e) => setFlashQty(e.target.value)}
+                />
+              </div>
+            </div>
+            <button
+              type="button"
+              className="btn block"
+              onClick={addFlashLine}
+            >
+              + {t(lang, 'flashAddLine')}
+            </button>
+          </div>
+        ) : null}
         {isShopRetail(mode) && favorites.length > 0 ? (
           <div className="chip-row retail-fav-chips" aria-label={t(lang, 'retailFavorites')}>
             <span className="muted" style={{ alignSelf: 'center', marginInlineEnd: 4 }}>
@@ -5554,22 +5968,31 @@ function OrderPage({
         ) : (
           <div className="product-catalog">
             {filteredProducts.map((p) => {
+              const packs = sellablePackOptions(p)
               const tiers = availableTiers(p, state.settings.commerceMode)
-              const tier = tierOf(p.id)
-              const key = lineKey(p.id, tier)
+              const selectedPack = packOf(p.id)
+              const tier = selectedPack > 1 ? 'piece' : tierOf(p.id)
+              const key = lineKey(p.id, tier, selectedPack || undefined)
               const qty = qtyMap[key] ?? 0
-              const unitPrice = priceForTier(p, tier) ?? p.priceDa
-              const step = isCartonTier(tier) ? 1 : qtyStep(p.unit)
+              const unitPrice =
+                selectedPack > 1
+                  ? (priceForPackSize(p, selectedPack) ?? p.priceDa)
+                  : (priceForTier(p, tier) ?? p.priceDa)
+              const step =
+                selectedPack > 1 || isCartonTier(tier) ? 1 : qtyStep(p.unit)
               const tierIcon =
-                tier === 'piece'
-                  ? '1️⃣'
-                  : tier === 'demi_gros'
-                    ? '📦'
-                    : tier === 'gros'
-                      ? '📦📦'
-                      : '🏭'
+                selectedPack > 1
+                  ? '📦'
+                  : tier === 'piece'
+                    ? '1️⃣'
+                    : tier === 'demi_gros'
+                      ? '📦'
+                      : tier === 'gros'
+                        ? '📦📦'
+                        : '🏭'
               const stockNow = displayStock(state, p)
               const low = stockNow <= (p.lowStockAt || 0)
+              const showPackChips = !wholesale && packs.length > 0
               return (
                 <div
                   className={`product-card ${qty > 0 ? 'selected' : ''} ${low ? 'low-stock' : ''}`}
@@ -5612,13 +6035,34 @@ function OrderPage({
                         {[p.size, p.color].filter(Boolean).join(' · ')}
                       </div>
                     )}
-                    {tiers.length > 1 ? (
+                    {showPackChips ? (
+                      <div className="tier-row">
+                        <button
+                          type="button"
+                          className={`tier-chip ${selectedPack <= 1 ? 'active' : ''}`}
+                          onClick={() => setProductPack(p.id, 0)}
+                        >
+                          1️⃣ {t(lang, 'sellAsPiece')}
+                        </button>
+                        {packs.map((opt) => (
+                          <button
+                            key={opt.size}
+                            type="button"
+                            className={`tier-chip ${selectedPack === opt.size ? 'active' : ''}`}
+                            onClick={() => setProductPack(p.id, opt.size)}
+                          >
+                            📦 {t(lang, 'packOf')}
+                            {opt.size}
+                          </button>
+                        ))}
+                      </div>
+                    ) : tiers.length > 1 ? (
                       <div className="tier-row">
                         {tiers.map((tr) => (
                           <button
                             key={tr}
                             type="button"
-                            className={`tier-chip ${tier === tr ? 'active' : ''}`}
+                            className={`tier-chip ${tier === tr && selectedPack <= 1 ? 'active' : ''}`}
                             onClick={() => setProductTier(p.id, tr)}
                           >
                             {tr === 'piece'
@@ -5637,25 +6081,155 @@ function OrderPage({
                       {tierIcon} {formatDa(unitPrice)}
                     </div>
                     <div className={`muted ${low ? 'warn-text' : ''}`}>
-                      {unitLabel(lang, sellUnitForTier(tier))}
+                      {selectedPack > 1
+                        ? `${t(lang, 'sellAsPack')} ${packSizeLabel(selectedPack)}`
+                        : unitLabel(
+                            lang,
+                            isDecimalUnit(p.unit) && !isCartonTier(tier)
+                              ? p.unit
+                              : sellUnitForTier(tier),
+                          )}
                       {isCartonTier(tier) && p.piecesPerPack
                         ? ` · ${p.piecesPerPack}×`
                         : ''}
+                      {selectedPack > 1 ? ` · ${t(lang, 'packUnitHint')}` : ''}
                       {' · '}
-                      {t(lang, 'stockQty')} {formatQty(stockNow)}
+                      {t(lang, 'stockQty')} {formatQty(stockNow)}{' '}
+                      {unitLabel(lang, 'piece')}
                       {state.settings.multiLocationEnabled
                         ? ` (${t(lang, 'stockTotal')} ${formatQty(p.stock)})`
                         : ''}
                     </div>
                     <div className="qty-row catalog-qty big-qty">
-                      <button type="button" onClick={() => bump(p, tier, -step)}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          bump(p, tier, -step, packOf(p.id) || undefined)
+                        }
+                      >
                         −
                       </button>
-                      <strong className="qty-display">{formatQty(qty)}</strong>
-                      <button type="button" onClick={() => bump(p, tier, step)}>
+                      <input
+                        className="qty-display qty-input"
+                        inputMode="text"
+                        enterKeyHint="done"
+                        value={
+                          qtyDraft[key] !== undefined
+                            ? qtyDraft[key]
+                            : qty > 0
+                              ? String(qty)
+                              : ''
+                        }
+                        placeholder="x…"
+                        aria-label={t(lang, 'qty')}
+                        title={t(lang, 'qtyTypeHint')}
+                        onFocus={() => {
+                          setQtyDraft((d) => ({
+                            ...d,
+                            [key]: qty > 0 ? String(qty) : '',
+                          }))
+                        }}
+                        onBlur={() => {
+                          setQtyDraft((d) => {
+                            const n = { ...d }
+                            delete n[key]
+                            return n
+                          })
+                        }}
+                        onChange={(e) => {
+                          const raw = e.target.value
+                          setQtyDraft((d) => ({ ...d, [key]: raw }))
+                          const n = parseQtyInput(raw)
+                          if (n == null) return
+                          setQtyAbsolute(
+                            p,
+                            tier,
+                            n,
+                            packOf(p.id) || undefined,
+                          )
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          bump(p, tier, step, packOf(p.id) || undefined)
+                        }
+                      >
                         +
                       </button>
                     </div>
+                    <div
+                      className="muted"
+                      style={{ fontSize: '0.75rem', marginTop: 4 }}
+                    >
+                      {t(lang, 'qtyTypeHint')}
+                    </div>
+                    {isDecimalUnit(p.unit) && !isCartonTier(tier) ? (
+                      <div className="field amount-qty-field" style={{ marginTop: 8 }}>
+                        <label>{t(lang, 'sellByAmount')}</label>
+                        <input
+                          inputMode="decimal"
+                          placeholder={t(lang, 'sellByAmountHint')}
+                          value={
+                            amountDraft[key] !== undefined
+                              ? amountDraft[key]
+                              : qty > 0
+                                ? String(amountFromQtyDa(qty, unitPrice))
+                                : ''
+                          }
+                          onFocus={() => {
+                            setAmountDraft((d) => ({
+                              ...d,
+                              [key]:
+                                qty > 0
+                                  ? String(amountFromQtyDa(qty, unitPrice))
+                                  : '',
+                            }))
+                          }}
+                          onBlur={() => {
+                            setAmountDraft((d) => {
+                              const n = { ...d }
+                              delete n[key]
+                              return n
+                            })
+                          }}
+                          onChange={(e) => {
+                            const raw = e.target.value
+                            setAmountDraft((d) => ({ ...d, [key]: raw }))
+                            const cleaned = String(raw).replace(',', '.').trim()
+                            if (!cleaned) {
+                              setQtyAbsolute(p, tier, 0)
+                              return
+                            }
+                            const amount = Number(cleaned)
+                            if (!Number.isFinite(amount) || amount < 0) return
+                            if (amount === 0) {
+                              setQtyAbsolute(p, tier, 0)
+                              return
+                            }
+                            setQtyAbsolute(
+                              p,
+                              tier,
+                              qtyFromAmountDa(amount, unitPrice),
+                            )
+                          }}
+                        />
+                        {qty > 0 ? (
+                          <div className="muted" style={{ marginTop: 4 }}>
+                            ≈ {formatQty(qty)} {unitLabel(lang, p.unit)} →{' '}
+                            {formatDa(amountFromQtyDa(qty, unitPrice))}
+                            {qty >=
+                            maxQtyForTier(p, tier, stockNow) - 0.0001 ? (
+                              <> · {t(lang, 'sellByAmountStockCap')}</>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <div className="muted" style={{ marginTop: 4 }}>
+                            {t(lang, 'sellByAmountExample')}
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               )
@@ -5671,30 +6245,161 @@ function OrderPage({
           <span className="total-pay-label">{t(lang, 'totalToPay')}</span>
           <h2 className="total-big">{formatDa(total)}</h2>
         </div>
-        {discountDa > 0 ? (
+        {hasTotalOverride ? (
+          <div className="muted" style={{ marginBottom: 8 }}>
+            {t(lang, 'totalOverrideActive')} ({t(lang, 'subtotal')}{' '}
+            {formatDa(computedTotal)})
+          </div>
+        ) : discountDa > 0 ? (
           <div className="muted" style={{ marginBottom: 8 }}>
             {t(lang, 'subtotal')} {formatDa(subtotal)} − {t(lang, 'discountAmount')}{' '}
             {formatDa(discountDa)} ({discPct}%)
           </div>
         ) : null}
         {lines.length > 0 ? (
-          <ul className="line-preview">
-            {lines.map((l) => (
-              <li key={`${l.productId}-${l.priceTier}`}>
-                {l.name}
-                {l.priceTier && l.priceTier !== 'piece'
-                  ? ` (${t(lang, `tier_${l.priceTier}`)})`
-                  : ''}{' '}
-                × {formatQty(l.qty)} = {formatDa(l.lineTotalDa)}
-                {l.imei ? (
-                  <div className="muted" style={{ fontSize: '0.85em' }}>
-                    IMEI {l.imei}
+          <ul className="line-preview cart-edit-lines">
+            {lines.map((l) => {
+              const key = l.flash
+                ? l.productId
+                : lineKey(
+                    l.productId,
+                    l.priceTier || 'piece',
+                    l.packSize,
+                  )
+              return (
+                <li key={`${l.productId}-${l.priceTier || 'flash'}-${l.packSize || 0}`}>
+                  <div>
+                    <strong>
+                      {l.flash ? '✨ ' : ''}
+                      {l.name}
+                    </strong>
+                    {l.packSize && l.packSize > 1
+                      ? ` (${t(lang, 'packOf')}${l.packSize})`
+                      : l.priceTier && l.priceTier !== 'piece' && !l.flash
+                        ? ` (${t(lang, `tier_${l.priceTier}`)})`
+                        : ''}
+                    {l.flash ? (
+                      <span className="muted"> · {t(lang, 'flashBadge')}</span>
+                    ) : null}
                   </div>
-                ) : null}
-              </li>
-            ))}
+                  <div className="grid-2" style={{ gap: 6, marginTop: 4 }}>
+                    <label className="muted" style={{ fontSize: '0.8rem' }}>
+                      {t(lang, 'qty')}
+                      <input
+                        inputMode="text"
+                        value={String(l.qty)}
+                        placeholder="x…"
+                        title={t(lang, 'qtyTypeHint')}
+                        onChange={(e) => {
+                          const n = parseQtyInput(e.target.value)
+                          if (n == null) return
+                          if (l.flash) {
+                            setFlashLines((prev) =>
+                              prev
+                                .map((f) =>
+                                  f.id === l.productId
+                                    ? { ...f, qty: Math.max(0, n) }
+                                    : f,
+                                )
+                                .filter((f) => f.qty > 0),
+                            )
+                          } else {
+                            const p = state.products.find(
+                              (x) => x.id === l.productId,
+                            )
+                            if (p) {
+                              setQtyAbsolute(
+                                p,
+                                l.priceTier || 'piece',
+                                n,
+                                l.packSize,
+                              )
+                            }
+                          }
+                        }}
+                      />
+                    </label>
+                    <label className="muted" style={{ fontSize: '0.8rem' }}>
+                      {t(lang, 'unitPriceEdit')}
+                      <input
+                        inputMode="decimal"
+                        value={String(l.unitPriceDa)}
+                        onChange={(e) => {
+                          const n = Number(
+                            String(e.target.value).replace(',', '.'),
+                          )
+                          if (!Number.isFinite(n) || n < 0) return
+                          if (l.flash) {
+                            setFlashLines((prev) =>
+                              prev.map((f) =>
+                                f.id === l.productId
+                                  ? { ...f, unitPriceDa: n }
+                                  : f,
+                              ),
+                            )
+                          } else {
+                            setPriceOverrides((m) => ({ ...m, [key]: n }))
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                  <div className="muted" style={{ marginTop: 2 }}>
+                    = {formatDa(l.lineTotalDa)}
+                    <button
+                      type="button"
+                      className="btn ghost"
+                      style={{ marginInlineStart: 8 }}
+                      onClick={() => {
+                        if (l.flash) {
+                          setFlashLines((prev) =>
+                            prev.filter((f) => f.id !== l.productId),
+                          )
+                        } else {
+                          const p = state.products.find(
+                            (x) => x.id === l.productId,
+                          )
+                          if (p)
+                            setQtyAbsolute(
+                              p,
+                              l.priceTier || 'piece',
+                              0,
+                              l.packSize,
+                            )
+                          setPriceOverrides((m) => {
+                            const n = { ...m }
+                            delete n[key]
+                            return n
+                          })
+                        }
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                  {l.imei ? (
+                    <div className="muted" style={{ fontSize: '0.85em' }}>
+                      IMEI {l.imei}
+                    </div>
+                  ) : null}
+                </li>
+              )
+            })}
           </ul>
         ) : null}
+
+        <div className="field" style={{ marginTop: 8 }}>
+          <label>{t(lang, 'totalOverrideLabel')}</label>
+          <input
+            inputMode="decimal"
+            value={totalOverride}
+            onChange={(e) => setTotalOverride(e.target.value)}
+            placeholder={String(computedTotal)}
+          />
+          <div className="muted" style={{ marginTop: 4 }}>
+            {t(lang, 'totalOverrideHint')}
+          </div>
+        </div>
 
         {retail ? (
           <div className="field" style={{ marginTop: 8 }}>
@@ -5704,6 +6409,7 @@ function OrderPage({
               value={discountPercent}
               onChange={(e) => setDiscountPercent(e.target.value)}
               placeholder="0"
+              disabled={hasTotalOverride}
             />
           </div>
         ) : null}

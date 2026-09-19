@@ -53,6 +53,12 @@ export type ProductCategory =
 
 export type PriceTier = 'piece' | 'demi_gros' | 'gros' | 'super_gros'
 
+/** Pack à la vente (taille en pièces + prix du pack) */
+export interface PackOption {
+  size: number
+  priceDa: number
+}
+
 /** Dépôt / magasin (multi-emplacement) */
 export interface ShopLocation {
   id: string
@@ -79,8 +85,13 @@ export interface Product {
   /** Stock par dépôt (locationId → qty). Absent = traité via migrate. */
   stockByLocation?: Record<string, number>
   lowStockAt: number
-  /** Nombre de pièces dans 1 carton — ex: 10, 20, 24, 48, 50 */
+  /** Nombre de pièces dans 1 carton (mode gros) — ex: 24, 48 */
   piecesPerPack?: number
+  /**
+   * Packs vendables en boutique (ex. œufs ×10 / ×15 / ×30).
+   * Le stock reste toujours en pièces ; 1 qté pack = `size` pièces.
+   */
+  packOptions?: PackOption[]
   /** @deprecated use grosPriceDa */
   packPriceDa?: number
   /** Tarif demi-gros (DA / pièce) */
@@ -380,10 +391,14 @@ export interface OrderLine {
   lineTotalDa: number
   /** Tarif appliqué (pièce / demi-gros / gros / super-gros) */
   priceTier?: PriceTier
+  /** Taille du pack vendu (ex. 10, 15, 30 œufs) — stock retiré = qty × packSize */
+  packSize?: number
   /** IMEI saisi à la caisse (téléphonie) */
   imei?: string
   /** Remise % sur la ligne (0–100) */
   discountPercent?: number
+  /** Vente flash : pas de fiche stock / pas de déstockage */
+  flash?: boolean
 }
 
 /** Table de salle (resto) */
@@ -415,6 +430,14 @@ export interface RepairOrder {
 }
 
 /** Ticket mis en attente (park) — caisse détail */
+export interface FlashSaleLine {
+  id: string
+  name: string
+  qty: number
+  unitPriceDa: number
+  unit: Unit
+}
+
 export interface HeldSale {
   id: string
   label: string
@@ -423,6 +446,12 @@ export interface HeldSale {
   tierMap: Record<string, PriceTier>
   imeiMap?: Record<string, string>
   discountPercent?: number
+  /** Prix unitaires forcés en caisse (`productId::tier` → DA) */
+  priceOverrides?: Record<string, number>
+  /** Lignes vente flash (hors catalogue / hors stock) */
+  flashLines?: FlashSaleLine[]
+  /** Total encaissé forcé (DA), si saisi */
+  totalOverrideDa?: number
   createdAt: string
 }
 
@@ -451,6 +480,8 @@ export interface Order {
   dueDate?: string
   /** Note libre (acte cabinet, etc.) */
   note?: string
+  /** Dernière correction (stock + caisse resynchronisés) */
+  revisedAt?: string
   createdAt: string
   whatsappSent: boolean
   invoiceNumber?: string

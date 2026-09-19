@@ -49,6 +49,7 @@ import { countryByCode, convertPriceDa } from './data/countries'
 import { bestForeignCatalogHit, catalogFor, catalogNameHits } from './data/catalogs'
 import { domainById } from './data/domains'
 import { catalogImagePath } from './utils/productArt'
+import { resolvePackSize, normalizePackOptions } from './utils/packSize'
 import { parseLanguage } from './locale/langs'
 import { defaultZakatOn } from './locale/adapt'
 
@@ -366,7 +367,7 @@ function seedState(): AppState {
   }
 }
 
-function migrate(raw: unknown): AppState {
+export function migrate(raw: unknown): AppState {
   const data = raw as {
     settings?: Partial<ShopSettings>
     locations?: ShopLocation[]
@@ -412,7 +413,10 @@ function migrate(raw: unknown): AppState {
     )
       ? (incoming.commerceMode as CommerceMode)
       : defaults.commerceMode,
-    domainId: incoming.domainId || defaults.domainId,
+    domainId:
+      incoming.domainId === 'detail-alimentation'
+        ? 'detail-superette'
+        : incoming.domainId || defaults.domainId,
     currency: incoming.currency || defaults.currency,
     nextInvoiceNumber: incoming.nextInvoiceNumber ?? defaults.nextInvoiceNumber,
     stockAlertsEnabled: incoming.stockAlertsEnabled ?? true,
@@ -498,6 +502,7 @@ function migrate(raw: unknown): AppState {
         typeof p.piecesPerPack === 'number' && p.piecesPerPack > 0
           ? Math.round(p.piecesPerPack)
           : undefined
+      const packOptions = normalizePackOptions((p as Product).packOptions)
       const gros =
         typeof p.grosPriceDa === 'number' && p.grosPriceDa > 0
           ? p.grosPriceDa
@@ -518,6 +523,7 @@ function migrate(raw: unknown): AppState {
         stock: typeof p.stock === 'number' ? p.stock : 0,
         stockByLocation,
         piecesPerPack,
+        packOptions,
         barcode:
           typeof (p as Product).barcode === 'string'
             ? (p as Product).barcode!.trim()
@@ -803,6 +809,33 @@ function migrate(raw: unknown): AppState {
               h.imeiMap && typeof h.imeiMap === 'object'
                 ? (h.imeiMap as Record<string, string>)
                 : undefined,
+            priceOverrides:
+              h.priceOverrides && typeof h.priceOverrides === 'object'
+                ? (h.priceOverrides as Record<string, number>)
+                : undefined,
+            flashLines: Array.isArray(h.flashLines)
+              ? h.flashLines
+                  .filter(
+                    (f) =>
+                      f &&
+                      typeof f.id === 'string' &&
+                      typeof f.name === 'string',
+                  )
+                  .map((f) => ({
+                    id: f.id,
+                    name: String(f.name).slice(0, 120),
+                    unit: f.unit || 'piece',
+                    qty: typeof f.qty === 'number' && f.qty > 0 ? f.qty : 1,
+                    unitPriceDa:
+                      typeof f.unitPriceDa === 'number' && f.unitPriceDa >= 0
+                        ? f.unitPriceDa
+                        : 0,
+                  }))
+              : undefined,
+            totalOverrideDa:
+              typeof h.totalOverrideDa === 'number' && h.totalOverrideDa >= 0
+                ? h.totalOverrideDa
+                : undefined,
             discountPercent:
               typeof h.discountPercent === 'number' && h.discountPercent > 0
                 ? h.discountPercent
@@ -911,10 +944,21 @@ export function applyShopSetup(state: AppState, input: ShopSetupInput): AppState
     const price = Math.max(0, convertPriceDa(seed.priceDa, factor))
     const cost = Math.max(0, convertPriceDa(seed.costDa, factor))
     const wholesale = input.commerceMode === 'gros'
-    const pack = wholesale ? seed.pack : undefined
+    const pack = wholesale
+      ? seed.pack ?? resolvePackSize(seed.name)
+      : seed.pack
     const gros =
       wholesale && pack && pack > 1
         ? convertPriceDa(seed.priceDa * pack * 0.88, factor)
+        : undefined
+    const packOptions =
+      !wholesale && seed.packs?.length
+        ? seed.packs
+            .map((o) => ({
+              size: o.size,
+              priceDa: convertPriceDa(o.priceDa, factor),
+            }))
+            .filter((o) => o.size > 1 && o.priceDa > 0)
         : undefined
     const locId = activeLocationId(state)
     const base: Product = {
@@ -927,7 +971,8 @@ export function applyShopSetup(state: AppState, input: ShopSetupInput): AppState
       costDa: cost,
       stock,
       lowStockAt: low,
-      piecesPerPack: pack,
+      piecesPerPack: pack && pack > 1 ? pack : undefined,
+      packOptions: packOptions?.length ? packOptions : undefined,
       demiGrosPriceDa:
         wholesale && pack ? convertPriceDa(seed.priceDa * 0.94, factor) : undefined,
       grosPriceDa: gros,
@@ -1627,6 +1672,7 @@ export function createOrder(
 
   const deductByProduct = new Map<string, number>()
   for (const line of order.lines) {
+    if (line.flash || line.productId.startsWith('flash')) continue
     const p = state.products.find((x) => x.id === line.productId)
     const units = stockUnitsSold(p, line)
     deductByProduct.set(
@@ -1655,12 +1701,81 @@ export function createOrder(
   }
 }
 
+/**
+ * Corrige une facture déjà enregistrée :
+ * - stock : annule l’ancien déstockage puis applique les nouvelles lignes
+ * - caisse / crédit : met à jour paidDa / remainingDa (le total caisse du jour suit)
+ */
+export function reviseOrder(
+  state: AppState,
+  orderId: string,
+  input: {
+    lines: OrderLine[]
+    totalDa: number
+    paidDa: number
+    note?: string
+    discountPercent?: number
+    discountDa?: number
+  },
+): AppState {
+  const prev = state.orders.find((o) => o.id === orderId)
+  if (!prev) return state
+  if (!input.lines.length) return state
+
+  const locId = prev.locationId || activeLocationId(state)
+  const stockDelta = new Map<string, number>()
+
+  for (const line of prev.lines) {
+    if (line.flash || line.productId.startsWith('flash')) continue
+    const p = state.products.find((x) => x.id === line.productId)
+    const units = stockUnitsSold(p, line)
+    stockDelta.set(line.productId, (stockDelta.get(line.productId) ?? 0) + units)
+  }
+  for (const line of input.lines) {
+    if (line.flash || line.productId.startsWith('flash')) continue
+    const p = state.products.find((x) => x.id === line.productId)
+    const units = stockUnitsSold(p, line)
+    stockDelta.set(line.productId, (stockDelta.get(line.productId) ?? 0) - units)
+  }
+
+  const pay = buildPaymentFields(input.totalDa, input.paidDa)
+  const subtotalDa = +input.lines
+    .reduce((s, l) => s + l.lineTotalDa, 0)
+    .toFixed(2)
+
+  const products = state.products.map((p) => {
+    const d = stockDelta.get(p.id)
+    if (!d || Math.abs(d) < 0.0001) return p
+    return adjustStockAt(p, locId, d)
+  })
+
+  const orders = state.orders.map((o) => {
+    if (o.id !== orderId) return o
+    return {
+      ...o,
+      lines: input.lines.map((l) => ({ ...l })),
+      totalDa: +input.totalDa.toFixed(2),
+      subtotalDa,
+      discountPercent: input.discountPercent,
+      discountDa: input.discountDa,
+      note: input.note !== undefined ? input.note : o.note,
+      revisedAt: new Date().toISOString(),
+      ...pay,
+    }
+  })
+
+  return { ...state, products, orders }
+}
+
 /** Combien d’unités de stock (base) une ligne de commande retire. */
 export function stockUnitsSold(
   product: Product | undefined,
-  line: Pick<OrderLine, 'unit' | 'qty' | 'priceTier'>,
+  line: Pick<OrderLine, 'unit' | 'qty' | 'priceTier' | 'packSize'>,
 ): number {
   if (!product) return line.qty
+  if (line.packSize && line.packSize > 1) {
+    return +(line.qty * line.packSize).toFixed(3)
+  }
   const tier = line.priceTier
   if (
     (tier === 'gros' ||

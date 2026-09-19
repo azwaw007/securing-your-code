@@ -3,14 +3,25 @@
 Récupère les produits Open Food Facts (Algérie) + images face avant
 pour usage dans AZ POS (chemins catalog/off/{ean}.jpg).
 
-Exemples :
-  # test rapide : 1 page + images
-  python3 scripts/fetch-off-algeria.py --max-pages 1 --download-images \\
-    --images-dir public/catalog/off --az-pos-out off-az-pos-import.json
+Le dépôt AZ POS versionne déjà un petit pack (~100 JPG) dans
+public/catalog/off/ — inclus dans chaque build.
 
-  # export complet (long : milliers d'images)
+Exemples :
+  # régénérer / compléter le pack de base (~100)
+  npm run off:pack
+  # équivalent :
+  python3 scripts/fetch-off-algeria.py --max-pages 1 --download-images \\
+    --images-dir public/catalog/off --az-pos-out /tmp/off-az-pos-import.json \\
+    --only-with-images
+
+  # pack local étendu (~500) AVANT build — ne pas committer en masse
+  python3 scripts/fetch-off-algeria.py --max-pages 5 --download-images \\
+    --images-dir public/catalog/off --az-pos-out /tmp/off-az-pos-import.json \\
+    --only-with-images
+
+  # export complet (long : milliers d'images) — hors dépôt
   python3 scripts/fetch-off-algeria.py --download-images \\
-    --images-dir public/catalog/off --az-pos-out off-az-pos-import.json
+    --images-dir public/catalog/off --az-pos-out /tmp/off-az-pos-import.json
 """
 
 from __future__ import annotations

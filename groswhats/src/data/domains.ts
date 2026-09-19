@@ -98,22 +98,23 @@ export const DOMAINS: ShopDomain[] = [
   d('gros-emballage', 'gros', '📦', 'Gros emballage', 'جملة تغليف', 'bureautique'),
   d('gros-informatique', 'gros', '💻', 'Gros informatique', 'جملة إعلام آلي', 'telephone'),
 
-  d('detail-alimentation', 'detail', '🏪', 'Alimentation générale', 'مواد غذائية عامة', 'alim-detail'),
+  // Détail : Superette + Cosmétique en tête (UI réaliste DZ).
+  // « Alimentation générale » retiré (même métier que Superette) → LEGACY_DOMAINS.
   d('detail-superette', 'detail', '🛍️', 'Superette', 'سوبرات', 'alim-detail'),
-  d('detail-cosmetique', 'detail', '💅', 'Cosmétique détail', 'تجميل تجزئة', 'cosmetique'),
+  d('detail-cosmetique', 'detail', '💅', 'Cosmétique', 'تجميل', 'cosmetique'),
   d('detail-para', 'detail', '🧴', 'Parapharmacie', 'شبه صيدلة', 'para'),
+  d('detail-droguerie', 'detail', '🧽', 'Droguerie', 'منظفات', 'droguerie'),
   d('detail-boulangerie', 'detail', '🥖', 'Boulangerie', 'مخبزة', 'boulangerie'),
-  d('detail-patisserie', 'detail', '🍰', 'Pâtisserie', 'حلويات شرقية', 'confiserie'),
-  d('detail-boucherie', 'detail', '🥩', 'Boucherie', 'جزارة', 'boucherie'),
-  d('detail-poisson', 'detail', '🐟', 'Poissonnerie', 'سمك', 'boucherie'),
-  d('detail-fruits', 'detail', '🍊', 'Fruits & légumes', 'خضر وفواكه', 'fruits'),
-  d('detail-epicerie', 'detail', '🧂', 'Épicerie fine', 'عطارة', 'alim-detail'),
   d('detail-telephone', 'detail', '📱', 'Téléphonie', 'هواتف', 'telephone'),
   d('detail-pretaporter', 'detail', '👗', 'Prêt-à-porter', 'ملابس', 'vetements'),
   d('detail-chaussures', 'detail', '👠', 'Chaussures', 'أحذية', 'chaussures'),
-  d('detail-bijouterie', 'detail', '💎', 'Bijouterie', 'مجوهرات', 'bijoux'),
+  d('detail-boucherie', 'detail', '🥩', 'Boucherie', 'جزارة', 'boucherie'),
+  d('detail-fruits', 'detail', '🍊', 'Fruits & légumes', 'خضر وفواكه', 'fruits'),
+  d('detail-epicerie', 'detail', '🧂', 'Épicerie fine', 'عطارة', 'alim-detail'),
+  d('detail-patisserie', 'detail', '🍰', 'Pâtisserie', 'حلويات شرقية', 'confiserie'),
+  d('detail-poisson', 'detail', '🐟', 'Poissonnerie', 'سمك', 'boucherie'),
   d('detail-optique', 'detail', '👓', 'Optique', 'نظارات', 'para'),
-  d('detail-droguerie', 'detail', '🧽', 'Droguerie', 'منظفات', 'droguerie'),
+  d('detail-bijouterie', 'detail', '💎', 'Bijouterie', 'مجوهرات', 'bijoux'),
   d('detail-cadeaux', 'detail', '🎁', 'Cadeaux', 'هدايا', 'jouets'),
   d('detail-librairie', 'detail', '📚', 'Librairie', 'مكتبة', 'bureautique'),
   d('detail-animalerie', 'detail', '🐕', 'Animalerie', 'حيوانات أليفة', 'animalerie'),
@@ -206,6 +207,15 @@ const LEGACY_DOMAINS: ShopDomain[] = [
     'محاسبة (قديم)',
     'generic-service',
     SVC,
+  ),
+  /** Doublon de Superette — retiré du setup, encore résolu pour les shops existants. */
+  d(
+    'detail-alimentation',
+    'detail',
+    '🏪',
+    'Alimentation générale (ancien)',
+    'مواد غذائية عامة (قديم)',
+    'alim-detail',
   ),
 ]
 
