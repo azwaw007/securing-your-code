@@ -1627,6 +1627,7 @@ export function createOrder(
 
   const deductByProduct = new Map<string, number>()
   for (const line of order.lines) {
+    if (line.flash || line.productId.startsWith('flash')) continue
     const p = state.products.find((x) => x.id === line.productId)
     const units = stockUnitsSold(p, line)
     deductByProduct.set(

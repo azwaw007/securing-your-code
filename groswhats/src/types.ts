@@ -384,6 +384,8 @@ export interface OrderLine {
   imei?: string
   /** Remise % sur la ligne (0–100) */
   discountPercent?: number
+  /** Vente flash : pas de fiche stock / pas de déstockage */
+  flash?: boolean
 }
 
 /** Table de salle (resto) */
@@ -415,6 +417,14 @@ export interface RepairOrder {
 }
 
 /** Ticket mis en attente (park) — caisse détail */
+export interface FlashSaleLine {
+  id: string
+  name: string
+  qty: number
+  unitPriceDa: number
+  unit: Unit
+}
+
 export interface HeldSale {
   id: string
   label: string
@@ -423,6 +433,12 @@ export interface HeldSale {
   tierMap: Record<string, PriceTier>
   imeiMap?: Record<string, string>
   discountPercent?: number
+  /** Prix unitaires forcés en caisse (`productId::tier` → DA) */
+  priceOverrides?: Record<string, number>
+  /** Lignes vente flash (hors catalogue / hors stock) */
+  flashLines?: FlashSaleLine[]
+  /** Total encaissé forcé (DA), si saisi */
+  totalOverrideDa?: number
   createdAt: string
 }
 

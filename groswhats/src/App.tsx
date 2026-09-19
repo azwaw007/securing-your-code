@@ -15,6 +15,7 @@ import type {
   FontScale,
   Unit,
   ClinicStation,
+  FlashSaleLine,
 } from './types'
 import { ALL_UNITS, EXPENSE_CATEGORIES } from './types'
 import {
@@ -81,6 +82,7 @@ import {
   removeHeldSale,
   setClinicStation,
   setTableStatus,
+  uid,
 } from './store'
 import { isDecimalUnit, qtyStep, t, unitLabel } from './i18n'
 import { mt } from './locale/modeCopy'
@@ -5100,6 +5102,18 @@ function OrderPage({
   const [qtyMap, setQtyMap] = useState<Record<string, number>>({})
   /** Saisie montant DA en cours (évite de casser la frappe) */
   const [amountDraft, setAmountDraft] = useState<Record<string, string>>({})
+  /** Prix unitaires modifiés en caisse */
+  const [priceOverrides, setPriceOverrides] = useState<Record<string, number>>(
+    {},
+  )
+  /** Ventes flash (hors stock) */
+  const [flashLines, setFlashLines] = useState<FlashSaleLine[]>([])
+  const [showFlash, setShowFlash] = useState(false)
+  const [flashName, setFlashName] = useState('')
+  const [flashPrice, setFlashPrice] = useState('')
+  const [flashQty, setFlashQty] = useState('1')
+  /** Total forcé avant encaissement */
+  const [totalOverride, setTotalOverride] = useState('')
   const [tierMap, setTierMap] = useState<Record<string, PriceTier>>({})
   const [lastOrder, setLastOrder] = useState<Order | null>(null)
   const [productQuery, setProductQuery] = useState('')
@@ -5187,15 +5201,17 @@ function OrderPage({
     return tierMap[productId] ?? 'piece'
   }
 
-  const lines: OrderLine[] = Object.entries(qtyMap)
+  const catalogLines: OrderLine[] = Object.entries(qtyMap)
     .filter(([, qty]) => qty > 0)
     .flatMap(([key, qty]) => {
       const [productId, tierRaw] = key.split('::')
       const tier = (tierRaw as PriceTier) || 'piece'
       const p = state.products.find((x) => x.id === productId)
       if (!p) return []
-      const unitPrice = priceForTier(p, tier)
-      if (unitPrice == null) return []
+      const catalogPrice = priceForTier(p, tier)
+      if (catalogPrice == null) return []
+      const unitPrice =
+        priceOverrides[key] !== undefined ? priceOverrides[key] : catalogPrice
       const lineImei = imeiMap[key] || p.imei
       return [
         {
@@ -5217,13 +5233,35 @@ function OrderPage({
       ]
     })
 
+  const flashOrderLines: OrderLine[] = flashLines
+    .filter((f) => f.qty > 0 && f.unitPriceDa >= 0 && f.name.trim())
+    .map((f) => ({
+      productId: f.id,
+      name: f.name.trim(),
+      unit: f.unit,
+      qty: f.qty,
+      unitPriceDa: f.unitPriceDa,
+      unitCostDa: 0,
+      lineTotalDa: +(f.qty * f.unitPriceDa).toFixed(2),
+      priceTier: 'piece' as PriceTier,
+      flash: true,
+    }))
+
+  const lines: OrderLine[] = [...catalogLines, ...flashOrderLines]
+
   const subtotal = lines.reduce((s, l) => s + l.lineTotalDa, 0)
   const discPct = Math.min(
     100,
     Math.max(0, Number(String(discountPercent).replace(',', '.')) || 0),
   )
   const discountDa = discPct > 0 ? +((subtotal * discPct) / 100).toFixed(2) : 0
-  const total = Math.max(0, +(subtotal - discountDa).toFixed(2))
+  const computedTotal = Math.max(0, +(subtotal - discountDa).toFixed(2))
+  const overrideParsed = Number(String(totalOverride).replace(',', '.'))
+  const hasTotalOverride =
+    totalOverride.trim() !== '' &&
+    Number.isFinite(overrideParsed) &&
+    overrideParsed >= 0
+  const total = hasTotalOverride ? +overrideParsed.toFixed(2) : computedTotal
   const client = state.clients.find((c) => c.id === clientId)
   const clientDebt = client ? clientCreditDa(state, client.id) : 0
   const canValidate = lines.length > 0 && (isQuick || !!client)
@@ -5235,12 +5273,45 @@ function OrderPage({
   function clearCart() {
     setQtyMap({})
     setAmountDraft({})
+    setPriceOverrides({})
+    setFlashLines([])
+    setShowFlash(false)
+    setFlashName('')
+    setFlashPrice('')
+    setFlashQty('1')
+    setTotalOverride('')
     setTierMap({})
     setImeiMap({})
     setDiscountPercent('')
     setPayStep(false)
     setVerseInput('')
     setDueDays(15)
+  }
+
+  function addFlashLine() {
+    const name = flashName.trim() || t(lang, 'flashDefaultName')
+    const price = Number(String(flashPrice).replace(',', '.'))
+    const qty = Number(String(flashQty).replace(',', '.')) || 1
+    if (!Number.isFinite(price) || price < 0) {
+      onFlash('flashNeedPrice')
+      return
+    }
+    if (!Number.isFinite(qty) || qty <= 0) return
+    setFlashLines((prev) => [
+      ...prev,
+      {
+        id: uid('flash'),
+        name,
+        qty,
+        unitPriceDa: price,
+        unit: 'piece',
+      },
+    ])
+    setFlashName('')
+    setFlashPrice('')
+    setFlashQty('1')
+    setShowFlash(false)
+    onFlash('flashAdded')
   }
 
   function parkCurrentSale() {
@@ -5255,6 +5326,9 @@ function OrderPage({
       tierMap: { ...tierMap },
       imeiMap: { ...imeiMap },
       discountPercent: discPct > 0 ? discPct : undefined,
+      priceOverrides: { ...priceOverrides },
+      flashLines: flashLines.map((f) => ({ ...f })),
+      totalOverrideDa: hasTotalOverride ? total : undefined,
     })
     clearCart()
     onFlash('holdSaleDone')
@@ -5267,6 +5341,11 @@ function OrderPage({
     setTierMap({ ...h.tierMap })
     setImeiMap({ ...(h.imeiMap || {}) })
     setDiscountPercent(h.discountPercent ? String(h.discountPercent) : '')
+    setPriceOverrides({ ...(h.priceOverrides || {}) })
+    setFlashLines([...(h.flashLines || [])])
+    setTotalOverride(
+      typeof h.totalOverrideDa === 'number' ? String(h.totalOverrideDa) : '',
+    )
     setClientId(h.clientId || QUICK)
     setShowClientBook(!!h.clientId)
     setPayStep(false)
@@ -5359,6 +5438,9 @@ function OrderPage({
       return
     }
     const pay = buildPaymentFields(total, paidDa)
+    const forcedDiscount = hasTotalOverride
+      ? Math.max(0, +(subtotal - total).toFixed(2))
+      : discountDa
     const created = onCreate({
       clientId: isQuick ? '' : client!.id,
       clientName: isQuick ? t(lang, 'walkInClient') : client!.name,
@@ -5366,8 +5448,12 @@ function OrderPage({
       lines,
       totalDa: total,
       subtotalDa: subtotal,
-      discountPercent: discPct > 0 ? discPct : undefined,
-      discountDa: discountDa > 0 ? discountDa : undefined,
+      discountPercent:
+        hasTotalOverride || discPct <= 0 ? undefined : discPct,
+      discountDa: forcedDiscount > 0 ? forcedDiscount : undefined,
+      note: hasTotalOverride
+        ? `${t(lang, 'totalOverrideNote')}: ${Math.round(total)} DA`
+        : undefined,
       ...pay,
       dueDate:
         pay.remainingDa > 0.001 ? dueDateFromDays(dueDays) : undefined,
@@ -5529,6 +5615,55 @@ function OrderPage({
           onDateFrom={setProductDateFrom}
           onDateTo={setProductDateTo}
         />
+        <div className="btn-row" style={{ marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+          <button
+            type="button"
+            className="btn secondary"
+            onClick={() => setShowFlash((v) => !v)}
+          >
+            ✨ {t(lang, 'flashSaleBtn')}
+          </button>
+        </div>
+        {showFlash ? (
+          <div className="card" style={{ marginBottom: 12 }}>
+            <h3>{t(lang, 'flashSaleTitle')}</h3>
+            <p className="muted">{t(lang, 'flashSaleHint')}</p>
+            <div className="field">
+              <label>{t(lang, 'name')}</label>
+              <input
+                value={flashName}
+                onChange={(e) => setFlashName(e.target.value)}
+                placeholder={t(lang, 'flashDefaultName')}
+              />
+            </div>
+            <div className="grid-2">
+              <div className="field">
+                <label>{t(lang, 'flashPrice')}</label>
+                <input
+                  inputMode="decimal"
+                  value={flashPrice}
+                  onChange={(e) => setFlashPrice(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+              <div className="field">
+                <label>{t(lang, 'qty')}</label>
+                <input
+                  inputMode="decimal"
+                  value={flashQty}
+                  onChange={(e) => setFlashQty(e.target.value)}
+                />
+              </div>
+            </div>
+            <button
+              type="button"
+              className="btn block"
+              onClick={addFlashLine}
+            >
+              + {t(lang, 'flashAddLine')}
+            </button>
+          </div>
+        ) : null}
         {isShopRetail(mode) && favorites.length > 0 ? (
           <div className="chip-row retail-fav-chips" aria-label={t(lang, 'retailFavorites')}>
             <span className="muted" style={{ alignSelf: 'center', marginInlineEnd: 4 }}>
@@ -5793,30 +5928,144 @@ function OrderPage({
           <span className="total-pay-label">{t(lang, 'totalToPay')}</span>
           <h2 className="total-big">{formatDa(total)}</h2>
         </div>
-        {discountDa > 0 ? (
+        {hasTotalOverride ? (
+          <div className="muted" style={{ marginBottom: 8 }}>
+            {t(lang, 'totalOverrideActive')} ({t(lang, 'subtotal')}{' '}
+            {formatDa(computedTotal)})
+          </div>
+        ) : discountDa > 0 ? (
           <div className="muted" style={{ marginBottom: 8 }}>
             {t(lang, 'subtotal')} {formatDa(subtotal)} − {t(lang, 'discountAmount')}{' '}
             {formatDa(discountDa)} ({discPct}%)
           </div>
         ) : null}
         {lines.length > 0 ? (
-          <ul className="line-preview">
-            {lines.map((l) => (
-              <li key={`${l.productId}-${l.priceTier}`}>
-                {l.name}
-                {l.priceTier && l.priceTier !== 'piece'
-                  ? ` (${t(lang, `tier_${l.priceTier}`)})`
-                  : ''}{' '}
-                × {formatQty(l.qty)} = {formatDa(l.lineTotalDa)}
-                {l.imei ? (
-                  <div className="muted" style={{ fontSize: '0.85em' }}>
-                    IMEI {l.imei}
+          <ul className="line-preview cart-edit-lines">
+            {lines.map((l) => {
+              const key = l.flash
+                ? l.productId
+                : lineKey(l.productId, l.priceTier || 'piece')
+              return (
+                <li key={`${l.productId}-${l.priceTier || 'flash'}`}>
+                  <div>
+                    <strong>
+                      {l.flash ? '✨ ' : ''}
+                      {l.name}
+                    </strong>
+                    {l.priceTier && l.priceTier !== 'piece' && !l.flash
+                      ? ` (${t(lang, `tier_${l.priceTier}`)})`
+                      : ''}
+                    {l.flash ? (
+                      <span className="muted"> · {t(lang, 'flashBadge')}</span>
+                    ) : null}
                   </div>
-                ) : null}
-              </li>
-            ))}
+                  <div className="grid-2" style={{ gap: 6, marginTop: 4 }}>
+                    <label className="muted" style={{ fontSize: '0.8rem' }}>
+                      {t(lang, 'qty')}
+                      <input
+                        inputMode="decimal"
+                        value={String(l.qty)}
+                        onChange={(e) => {
+                          const n = Number(
+                            String(e.target.value).replace(',', '.'),
+                          )
+                          if (!Number.isFinite(n)) return
+                          if (l.flash) {
+                            setFlashLines((prev) =>
+                              prev
+                                .map((f) =>
+                                  f.id === l.productId
+                                    ? { ...f, qty: Math.max(0, n) }
+                                    : f,
+                                )
+                                .filter((f) => f.qty > 0),
+                            )
+                          } else {
+                            const p = state.products.find(
+                              (x) => x.id === l.productId,
+                            )
+                            if (p) {
+                              setQtyAbsolute(p, l.priceTier || 'piece', n)
+                            }
+                          }
+                        }}
+                      />
+                    </label>
+                    <label className="muted" style={{ fontSize: '0.8rem' }}>
+                      {t(lang, 'unitPriceEdit')}
+                      <input
+                        inputMode="decimal"
+                        value={String(l.unitPriceDa)}
+                        onChange={(e) => {
+                          const n = Number(
+                            String(e.target.value).replace(',', '.'),
+                          )
+                          if (!Number.isFinite(n) || n < 0) return
+                          if (l.flash) {
+                            setFlashLines((prev) =>
+                              prev.map((f) =>
+                                f.id === l.productId
+                                  ? { ...f, unitPriceDa: n }
+                                  : f,
+                              ),
+                            )
+                          } else {
+                            setPriceOverrides((m) => ({ ...m, [key]: n }))
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                  <div className="muted" style={{ marginTop: 2 }}>
+                    = {formatDa(l.lineTotalDa)}
+                    <button
+                      type="button"
+                      className="btn ghost"
+                      style={{ marginInlineStart: 8 }}
+                      onClick={() => {
+                        if (l.flash) {
+                          setFlashLines((prev) =>
+                            prev.filter((f) => f.id !== l.productId),
+                          )
+                        } else {
+                          const p = state.products.find(
+                            (x) => x.id === l.productId,
+                          )
+                          if (p) setQtyAbsolute(p, l.priceTier || 'piece', 0)
+                          setPriceOverrides((m) => {
+                            const n = { ...m }
+                            delete n[key]
+                            return n
+                          })
+                        }
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                  {l.imei ? (
+                    <div className="muted" style={{ fontSize: '0.85em' }}>
+                      IMEI {l.imei}
+                    </div>
+                  ) : null}
+                </li>
+              )
+            })}
           </ul>
         ) : null}
+
+        <div className="field" style={{ marginTop: 8 }}>
+          <label>{t(lang, 'totalOverrideLabel')}</label>
+          <input
+            inputMode="decimal"
+            value={totalOverride}
+            onChange={(e) => setTotalOverride(e.target.value)}
+            placeholder={String(computedTotal)}
+          />
+          <div className="muted" style={{ marginTop: 4 }}>
+            {t(lang, 'totalOverrideHint')}
+          </div>
+        </div>
 
         {retail ? (
           <div className="field" style={{ marginTop: 8 }}>
@@ -5826,6 +6075,7 @@ function OrderPage({
               value={discountPercent}
               onChange={(e) => setDiscountPercent(e.target.value)}
               placeholder="0"
+              disabled={hasTotalOverride}
             />
           </div>
         ) : null}
