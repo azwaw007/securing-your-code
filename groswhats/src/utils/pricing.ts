@@ -61,7 +61,11 @@ export function stockUnitsForTier(
   p: Product,
   tier: PriceTier,
   qty: number,
+  packSize?: number,
 ): number {
+  if (packSize && packSize > 1) {
+    return +(qty * packSize).toFixed(3)
+  }
   if (isCartonTier(tier) && p.piecesPerPack && p.piecesPerPack > 0) {
     return +(qty * p.piecesPerPack).toFixed(3)
   }
@@ -72,8 +76,12 @@ export function maxQtyForTier(
   p: Product,
   tier: PriceTier,
   availableStock?: number,
+  packSize?: number,
 ): number {
   const stock = availableStock ?? p.stock
+  if (packSize && packSize > 1) {
+    return Math.floor(stock / packSize)
+  }
   if (isCartonTier(tier) && p.piecesPerPack && p.piecesPerPack > 0) {
     return Math.floor(stock / p.piecesPerPack)
   }
@@ -92,9 +100,12 @@ export function amountFromQtyDa(qty: number, unitPriceDa: number): number {
   return Math.round(qty * unitPriceDa * 100) / 100
 }
 
-/** Coût d’achat pour 1 unité vendue (pièce ou carton) */
-export function costForTier(p: Product, tier: PriceTier): number {
+/** Coût d’achat pour 1 unité vendue (pièce ou carton/pack) */
+export function costForTier(p: Product, tier: PriceTier, packSize?: number): number {
   const base = p.costDa || 0
+  if (packSize && packSize > 1) {
+    return +(base * packSize).toFixed(2)
+  }
   if (isCartonTier(tier) && p.piecesPerPack && p.piecesPerPack > 0) {
     return +(base * p.piecesPerPack).toFixed(2)
   }

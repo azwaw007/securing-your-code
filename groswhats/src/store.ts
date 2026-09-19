@@ -49,7 +49,7 @@ import { countryByCode, convertPriceDa } from './data/countries'
 import { bestForeignCatalogHit, catalogFor, catalogNameHits } from './data/catalogs'
 import { domainById } from './data/domains'
 import { catalogImagePath } from './utils/productArt'
-import { resolvePackSize } from './utils/packSize'
+import { resolvePackSize, normalizePackOptions } from './utils/packSize'
 import { parseLanguage } from './locale/langs'
 import { defaultZakatOn } from './locale/adapt'
 
@@ -499,9 +499,7 @@ function migrate(raw: unknown): AppState {
         typeof p.piecesPerPack === 'number' && p.piecesPerPack > 0
           ? Math.round(p.piecesPerPack)
           : undefined
-      const resolvedPack =
-        piecesPerPack ??
-        (typeof p.name === 'string' ? resolvePackSize(p.name) : undefined)
+      const packOptions = normalizePackOptions((p as Product).packOptions)
       const gros =
         typeof p.grosPriceDa === 'number' && p.grosPriceDa > 0
           ? p.grosPriceDa
@@ -521,7 +519,8 @@ function migrate(raw: unknown): AppState {
         costDa: typeof p.costDa === 'number' ? p.costDa : 0,
         stock: typeof p.stock === 'number' ? p.stock : 0,
         stockByLocation,
-        piecesPerPack: resolvedPack,
+        piecesPerPack,
+        packOptions,
         barcode:
           typeof (p as Product).barcode === 'string'
             ? (p as Product).barcode!.trim()
@@ -917,10 +916,19 @@ export function applyShopSetup(state: AppState, input: ShopSetupInput): AppState
     const wholesale = input.commerceMode === 'gros'
     const pack = wholesale
       ? seed.pack ?? resolvePackSize(seed.name)
-      : resolvePackSize(seed.name, seed.pack)
+      : seed.pack
     const gros =
       wholesale && pack && pack > 1
         ? convertPriceDa(seed.priceDa * pack * 0.88, factor)
+        : undefined
+    const packOptions =
+      !wholesale && seed.packs?.length
+        ? seed.packs
+            .map((o) => ({
+              size: o.size,
+              priceDa: convertPriceDa(o.priceDa, factor),
+            }))
+            .filter((o) => o.size > 1 && o.priceDa > 0)
         : undefined
     const locId = activeLocationId(state)
     const base: Product = {
@@ -934,6 +942,7 @@ export function applyShopSetup(state: AppState, input: ShopSetupInput): AppState
       stock,
       lowStockAt: low,
       piecesPerPack: pack && pack > 1 ? pack : undefined,
+      packOptions: packOptions?.length ? packOptions : undefined,
       demiGrosPriceDa:
         wholesale && pack ? convertPriceDa(seed.priceDa * 0.94, factor) : undefined,
       grosPriceDa: gros,
@@ -1731,9 +1740,12 @@ export function reviseOrder(
 /** Combien d’unités de stock (base) une ligne de commande retire. */
 export function stockUnitsSold(
   product: Product | undefined,
-  line: Pick<OrderLine, 'unit' | 'qty' | 'priceTier'>,
+  line: Pick<OrderLine, 'unit' | 'qty' | 'priceTier' | 'packSize'>,
 ): number {
   if (!product) return line.qty
+  if (line.packSize && line.packSize > 1) {
+    return +(line.qty * line.packSize).toFixed(3)
+  }
   const tier = line.priceTier
   if (
     (tier === 'gros' ||

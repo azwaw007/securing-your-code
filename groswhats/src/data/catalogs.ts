@@ -6,6 +6,8 @@ export type SeedSpec = {
   costDa: number
   unit: Unit
   pack?: number
+  /** Packs détail (ex. œufs ×10 / ×15 / ×30) — stock en pièces */
+  packs?: { size: number; priceDa: number }[]
   category: ProductCategory
   emoji: string
   /** Rayon caisse détail (spécialité) */
@@ -43,6 +45,13 @@ function s(
   return { name, priceDa, costDa, emoji, category, unit, pack, aisleId: aisle }
 }
 
+function withPacks(
+  seed: SeedSpec,
+  packs: { size: number; priceDa: number }[],
+): SeedSpec {
+  return { ...seed, packs }
+}
+
 const CATALOGS: Record<string, SeedSpec[]> = {
   'alim-gros': [
     s('Huile de table 5 L', 1450, 1180, '🫒', 'alimentaire', 'piece', 4),
@@ -60,8 +69,7 @@ const CATALOGS: Record<string, SeedSpec[]> = {
     s('Beurre 200 g', 290, 230, '🧈', 'alimentaire', 'piece', 20),
     s('Fromage triangles 24p', 240, 185, '🧀', 'alimentaire', 'piece', 12),
     s('Yaourt nature x8', 250, 200, '🍶', 'alimentaire', 'piece', 8),
-    s('Œufs plateau 30', 720, 580, '🥚', 'alimentaire', 'piece', 4),
-    s('Œufs pack x6', 165, 130, '🥚', 'alimentaire', 'piece', 6),
+    s('Œufs', 24, 18, '🥚', 'alimentaire', 'piece', 30),
     s('Tomate concentrée 70 g', 48, 32, '🍅', 'alimentaire', 'piece', 50),
     s('Harissa 70 g', 42, 28, '🌶️', 'alimentaire', 'piece', 50),
     s('Thon 160 g', 185, 145, '🐟', 'alimentaire', 'piece', 48),
@@ -87,7 +95,11 @@ const CATALOGS: Record<string, SeedSpec[]> = {
     s('Couscous 1 kg', 185, 155, '🍲', 'alimentaire', 'kg', undefined, 'epicerie'),
     s('Lait 1 L', 185, 160, '🥛', 'alimentaire', 'piece', undefined, 'laitiers'),
     s('Beurre 200 g', 310, 260, '🧈', 'alimentaire', 'piece', undefined, 'laitiers'),
-    s('Œufs x6', 180, 145, '🥚', 'alimentaire', 'piece', 6, 'laitiers'),
+    withPacks(s('Œufs', 22, 16, '🥚', 'alimentaire', 'piece', undefined, 'laitiers'), [
+      { size: 10, priceDa: 200 },
+      { size: 15, priceDa: 290 },
+      { size: 30, priceDa: 560 },
+    ]),
     s('Yaourt nature x8', 250, 200, '🍶', 'alimentaire', 'piece', 8, 'laitiers'),
     s('Tomate concentrée', 55, 40, '🍅', 'alimentaire', 'piece', undefined, 'epicerie'),
     s('Thon boîte', 200, 165, '🐟', 'alimentaire', 'piece', undefined, 'epicerie'),
