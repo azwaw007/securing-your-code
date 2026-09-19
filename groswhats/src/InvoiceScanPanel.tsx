@@ -18,6 +18,8 @@ import {
 } from './utils/invoiceParse'
 import { lookupOffProduct } from './utils/offLookup'
 import { addProduct, addPurchase, addSupplier, uid } from './store'
+import { HybridSendToPc } from './HybridBridgePanel'
+import { isLikelyMobileDevice } from './utils/deviceBridge'
 
 type HistFilter = 'supplier' | 'product' | 'aisle'
 
@@ -77,8 +79,9 @@ export function InvoiceScanPanel({
   const [rows, setRows] = useState<InvoiceMatchedLine[]>([])
   const [paidDa, setPaidDa] = useState('')
   const [note, setNote] = useState('')
-  const [step, setStep] = useState<'capture' | 'review'>('capture')
+  const [step, setStep] = useState<'capture' | 'review' | 'send'>('capture')
   const [offBusy, setOffBusy] = useState(false)
+  const mobile = isLikelyMobileDevice()
   const [online, setOnline] = useState(isOnline())
 
   useEffect(() => {
@@ -254,6 +257,36 @@ export function InvoiceScanPanel({
   }
 
   return (
+    <>
+    {step === 'send' ? (
+      <HybridSendToPc
+        lang={lang}
+        supplierName={supplierName.trim() || 'Fournisseur'}
+        note={note}
+        paidDa={Number(String(paidDa || total).replace(',', '.')) || total}
+        lines={rows
+          .filter((r) => r.selected && r.qty > 0)
+          .map((r) => ({
+            name: r.name,
+            barcode: r.barcode,
+            qty: r.qty,
+            unitCostDa: r.unitCostDa,
+            category: r.category,
+            aisleId: r.aisleId,
+            imageDataUrl: r.imageDataUrl,
+          }))}
+        onFlash={onFlash}
+        onDone={() => {
+          setRows([])
+          setOcrText('')
+          setPreview(null)
+          setPaidDa('')
+          setNote('')
+          setStep('capture')
+        }}
+      />
+    ) : null}
+    {step !== 'send' ? (
     <div className="card">
       <h2>📷 {t(lang, 'invoiceScanTitle')}</h2>
       <p className="muted">{t(lang, 'invoiceScanHint')}</p>
@@ -263,6 +296,15 @@ export function InvoiceScanPanel({
       <div className="notice" style={{ marginBottom: 10 }}>
         {online ? t(lang, 'invoiceOfflineReady') : t(lang, 'invoiceOfflineNow')}
       </div>
+      {mobile ? (
+        <div className="notice" style={{ marginBottom: 10 }}>
+          {t(lang, 'hybridPhoneTip')}
+        </div>
+      ) : (
+        <div className="notice" style={{ marginBottom: 10 }}>
+          {t(lang, 'hybridPcTip')}
+        </div>
+      )}
 
       {step === 'capture' ? (
         <>
@@ -485,13 +527,33 @@ export function InvoiceScanPanel({
             type="button"
             className="btn block"
             disabled={!rows.some((r) => r.selected) || busy}
+            onClick={() => {
+              if (!supplierName.trim() && !supplierId) {
+                onFlash('invoiceNeedSupplier')
+                return
+              }
+              setStep('send')
+            }}
+          >
+            📡 {t(lang, 'hybridSendToPc')}
+          </button>
+          <button
+            type="button"
+            className="btn secondary block"
+            style={{ marginTop: 8 }}
+            disabled={!rows.some((r) => r.selected) || busy}
             onClick={confirmPurchase}
           >
             ✅ {t(lang, 'invoiceConfirmPurchase')}
           </button>
+          <p className="muted" style={{ marginTop: 8 }}>
+            {t(lang, 'hybridOrValidateHere')}
+          </p>
         </>
       )}
     </div>
+    ) : null}
+    </>
   )
 }
 

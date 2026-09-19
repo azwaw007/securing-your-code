@@ -21,6 +21,7 @@ import {
   openCashSession,
 } from './store'
 import { InvoiceScanPanel, PurchasesHistoryGrouped } from './InvoiceScanPanel'
+import { HybridReceiveFromPhone } from './HybridBridgePanel'
 
 export function BarcodeScanInput({
   lang,
@@ -531,6 +532,13 @@ export function PurchasesPage({
       </div>
 
       <InvoiceScanPanel
+        state={state}
+        lang={lang}
+        onState={onState}
+        onFlash={onFlash}
+      />
+
+      <HybridReceiveFromPhone
         state={state}
         lang={lang}
         onState={onState}
