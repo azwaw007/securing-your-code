@@ -1,5 +1,7 @@
-# Images Open Food Facts téléchargées localement (ne pas versionner le bulk).
+# Tout est ignoré par défaut…
 *
+# …sauf le pack OFF de base versionné dans le dépôt (~100 photos, < 1 Mo).
 !.gitignore
 !README.md
 !index.json
+!*.jpg
