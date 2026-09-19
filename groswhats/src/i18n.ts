@@ -930,6 +930,11 @@ const fr: Dict = {
     'Photo ou fichier de la facture → lecture auto → produits reconnus / créés → stock mis à jour.',
   invoiceScanDevices:
     'Un seul appareil suffit (téléphone OU PC). La caméra Bluetooth du téléphone ne se partage pas au navigateur PC : utilise l’app sur le téléphone, ou envoie la photo puis « Importer ».',
+  invoiceOfflineReady:
+    'Scan facture utilisable hors ligne (OCR inclus dans l’app). Open Food Facts seulement si Internet.',
+  invoiceOfflineNow:
+    'Mode hors ligne : photo + OCR + stock local OK. Open Food Facts indisponible.',
+  invoiceOffNeedsNet: 'Open Food Facts nécessite Internet — ignoré hors ligne.',
   invoiceScanCamera: 'Photo caméra',
   invoiceScanUpload: 'Importer une image',
   invoicePasteText: 'Ou colle le texte de la facture',
@@ -1897,6 +1902,11 @@ const ar: Dict = {
     'صورة أو ملف الفاتورة → قراءة تلقائية → منتجات معروفة / جديدة → تحديث المخزون.',
   invoiceScanDevices:
     'جهاز واحد يكفي (هاتف أو حاسوب). كاميرا البلوتوث لا تُشارك مع متصفح الحاسوب: استخدم التطبيق على الهاتف، أو أرسل الصورة ثم «استيراد».',
+  invoiceOfflineReady:
+    'مسح الفاتورة يعمل بدون إنترنت (OCR داخل التطبيق). Open Food Facts فقط مع الإنترنت.',
+  invoiceOfflineNow:
+    'بدون إنترنت: صورة + OCR + المخزون المحلي يعمل. Open Food Facts غير متاح.',
+  invoiceOffNeedsNet: 'Open Food Facts يحتاج إنترنت — يُتجاهل بدون شبكة.',
   invoiceScanCamera: 'صورة بالكاميرا',
   invoiceScanUpload: 'استيراد صورة',
   invoicePasteText: 'أو الصق نص الفاتورة',

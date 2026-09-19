@@ -9,7 +9,7 @@ import type {
 import { t } from './i18n'
 import { formatDa, formatQty } from './utils/format'
 import { compressImageFile } from './utils/image'
-import { ocrInvoiceImage } from './utils/invoiceOcr'
+import { isOnline, ocrInvoiceImage } from './utils/invoiceOcr'
 import {
   findSupplierMatch,
   matchInvoiceLineToStock,
@@ -79,6 +79,17 @@ export function InvoiceScanPanel({
   const [note, setNote] = useState('')
   const [step, setStep] = useState<'capture' | 'review'>('capture')
   const [offBusy, setOffBusy] = useState(false)
+  const [online, setOnline] = useState(isOnline())
+
+  useEffect(() => {
+    const sync = () => setOnline(isOnline())
+    window.addEventListener('online', sync)
+    window.addEventListener('offline', sync)
+    return () => {
+      window.removeEventListener('online', sync)
+      window.removeEventListener('offline', sync)
+    }
+  }, [])
 
   const total = useMemo(
     () =>
@@ -249,6 +260,9 @@ export function InvoiceScanPanel({
       <div className="notice" style={{ marginBottom: 10 }}>
         {t(lang, 'invoiceScanDevices')}
       </div>
+      <div className="notice" style={{ marginBottom: 10 }}>
+        {online ? t(lang, 'invoiceOfflineReady') : t(lang, 'invoiceOfflineNow')}
+      </div>
 
       {step === 'capture' ? (
         <>
@@ -356,12 +370,18 @@ export function InvoiceScanPanel({
             <button
               type="button"
               className="btn secondary"
-              disabled={offBusy || busy}
+              disabled={offBusy || busy || !online}
               onClick={() => void enrichNewWithOff()}
+              title={!online ? t(lang, 'invoiceOffNeedsNet') : undefined}
             >
               {offBusy ? '…' : `🌐 ${t(lang, 'invoiceEnrichOff')}`}
             </button>
           </div>
+          {!online ? (
+            <div className="muted" style={{ marginBottom: 8 }}>
+              {t(lang, 'invoiceOffNeedsNet')}
+            </div>
+          ) : null}
 
           {rows.length === 0 ? (
             <div className="empty">{t(lang, 'invoiceNoLines')}</div>
