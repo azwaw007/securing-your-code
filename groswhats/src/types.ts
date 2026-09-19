@@ -467,6 +467,8 @@ export interface Order {
   dueDate?: string
   /** Note libre (acte cabinet, etc.) */
   note?: string
+  /** Dernière correction (stock + caisse resynchronisés) */
+  revisedAt?: string
   createdAt: string
   whatsappSent: boolean
   invoiceNumber?: string

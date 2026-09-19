@@ -1662,6 +1662,72 @@ export function createOrder(
   }
 }
 
+/**
+ * Corrige une facture déjà enregistrée :
+ * - stock : annule l’ancien déstockage puis applique les nouvelles lignes
+ * - caisse / crédit : met à jour paidDa / remainingDa (le total caisse du jour suit)
+ */
+export function reviseOrder(
+  state: AppState,
+  orderId: string,
+  input: {
+    lines: OrderLine[]
+    totalDa: number
+    paidDa: number
+    note?: string
+    discountPercent?: number
+    discountDa?: number
+  },
+): AppState {
+  const prev = state.orders.find((o) => o.id === orderId)
+  if (!prev) return state
+  if (!input.lines.length) return state
+
+  const locId = prev.locationId || activeLocationId(state)
+  const stockDelta = new Map<string, number>()
+
+  for (const line of prev.lines) {
+    if (line.flash || line.productId.startsWith('flash')) continue
+    const p = state.products.find((x) => x.id === line.productId)
+    const units = stockUnitsSold(p, line)
+    stockDelta.set(line.productId, (stockDelta.get(line.productId) ?? 0) + units)
+  }
+  for (const line of input.lines) {
+    if (line.flash || line.productId.startsWith('flash')) continue
+    const p = state.products.find((x) => x.id === line.productId)
+    const units = stockUnitsSold(p, line)
+    stockDelta.set(line.productId, (stockDelta.get(line.productId) ?? 0) - units)
+  }
+
+  const pay = buildPaymentFields(input.totalDa, input.paidDa)
+  const subtotalDa = +input.lines
+    .reduce((s, l) => s + l.lineTotalDa, 0)
+    .toFixed(2)
+
+  const products = state.products.map((p) => {
+    const d = stockDelta.get(p.id)
+    if (!d || Math.abs(d) < 0.0001) return p
+    return adjustStockAt(p, locId, d)
+  })
+
+  const orders = state.orders.map((o) => {
+    if (o.id !== orderId) return o
+    return {
+      ...o,
+      lines: input.lines.map((l) => ({ ...l })),
+      totalDa: +input.totalDa.toFixed(2),
+      subtotalDa,
+      discountPercent: input.discountPercent,
+      discountDa: input.discountDa,
+      note: input.note !== undefined ? input.note : o.note,
+      revisedAt: new Date().toISOString(),
+      ...pay,
+    }
+  })
+
+  return { ...state, products, orders }
+}
+
 /** Combien d’unités de stock (base) une ligne de commande retire. */
 export function stockUnitsSold(
   product: Product | undefined,

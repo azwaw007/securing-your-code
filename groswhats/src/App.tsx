@@ -212,6 +212,7 @@ import { TableFloorPanel } from './TableFloorPanel'
 import { RepairOrderPanel } from './RepairOrderPanel'
 import { StaffPanel } from './StaffPanel'
 import { ExpertComptableCard } from './ExpertComptableCard'
+import { OrderRevisePanel } from './OrderRevisePanel'
 import { classifyHomeScan } from './utils/clientQr'
 import { APP_BRAND } from './brand'
 import { APP_VERSION, activateLicense, getAccessStatus } from './license/license'
@@ -1014,6 +1015,8 @@ export default function App() {
           seedFrom={historySeed?.from}
           seedTo={historySeed?.to}
           onSeedConsumed={() => setHistorySeed(null)}
+          onState={setState}
+          onFlash={flash}
           onOpenClient={(id) => {
             setFocusClientId(id)
             goTo('clients')
@@ -2763,6 +2766,8 @@ function HistoryPage({
   onBoth,
   onInvoice,
   onOpenClient,
+  onState,
+  onFlash,
 }: {
   state: AppState
   lang: Language
@@ -2774,6 +2779,8 @@ function HistoryPage({
   onBoth: (order: Order) => Promise<void>
   onInvoice: (order: Order) => void
   onOpenClient?: (id: string) => void
+  onState: (fn: (s: AppState) => AppState) => void
+  onFlash: (key: string) => void
 }) {
   const [query, setQuery] = useState('')
   const [kind, setKind] = useState<ActivityKind>('all')
@@ -2782,6 +2789,7 @@ function HistoryPage({
   >('today')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+  const [editOrderId, setEditOrderId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!seedFrom && !seedTo) return
@@ -2828,6 +2836,24 @@ function HistoryPage({
     )
     return state.orders.filter((o) => ids.has(o.id))
   }, [filtered, state.orders])
+
+  const editing = editOrderId
+    ? state.orders.find((o) => o.id === editOrderId) ?? null
+    : null
+
+  if (editing) {
+    return (
+      <div className="page">
+        <OrderRevisePanel
+          lang={lang}
+          order={editing}
+          onState={onState}
+          onFlash={onFlash}
+          onClose={() => setEditOrderId(null)}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="page">
@@ -2984,6 +3010,15 @@ function HistoryPage({
                 onBoth={() => onBoth(o)}
                 onInvoice={() => onInvoice(o)}
               />
+              <button
+                type="button"
+                className="btn secondary block"
+                style={{ marginTop: 8 }}
+                onClick={() => setEditOrderId(o.id)}
+              >
+                ✏️ {t(lang, 'orderReviseBtn')}
+                {o.revisedAt ? ` · ${t(lang, 'orderRevisedBadge')}` : ''}
+              </button>
             </div>
           ))}
         </div>

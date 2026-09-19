@@ -583,6 +583,21 @@ const fr: Dict = {
     'Laisse vide pour le total calculé. Ou tape le montant final négocié.',
   totalOverrideActive: 'Total forcé',
   totalOverrideNote: 'Total forcé en caisse',
+  orderReviseBtn: 'Modifier la facture',
+  orderReviseTitle: 'Corriger la facture',
+  orderReviseHint:
+    'Change quantités, prix ou montant payé. Le stock et la caisse se mettent à jour.',
+  orderReviseSync:
+    'À l’enregistrement : le stock est recalculé (ancien → nouveau) et le montant encaissé (caisse / crédit) suit paidDa.',
+  orderRevisePaidHint:
+    'Ce montant entre en caisse. Le reste dû met à jour le crédit client.',
+  orderReviseSave: 'Enregistrer (stock + caisse)',
+  orderReviseSaveHint:
+    'La facture, le stock et la caisse / le crédit sont synchronisés ensemble.',
+  orderReviseInvalid: 'Vérifie les lignes et le montant payé',
+  orderRevised: 'Facture corrigée — stock et caisse mis à jour',
+  orderRevisedBadge: 'corrigée',
+  orderRevisedAt: 'Corrigée le',
   heldSalesTitle: 'Tickets en attente',
   heldSalesEmpty: 'Aucun ticket en attente',
   resumeHeldSale: 'Reprendre',
@@ -1610,6 +1625,21 @@ const ar: Dict = {
     'اتركه فارغاً للمجموع المحسوب، أو اكتب المبلغ النهائي المتفق عليه.',
   totalOverrideActive: 'مجموع مفروض',
   totalOverrideNote: 'مجموع مفروض في الصندوق',
+  orderReviseBtn: 'تعديل الفاتورة',
+  orderReviseTitle: 'تصحيح الفاتورة',
+  orderReviseHint:
+    'غيّر الكميات أو الأسعار أو المبلغ المدفوع. يُحدَّث المخزون والصندوق معاً.',
+  orderReviseSync:
+    'عند الحفظ: يُعاد حساب المخزون (القديم ← الجديد) ويتبع مبلغ الصندوق / الدين المبلغ المدفوع.',
+  orderRevisePaidHint:
+    'هذا المبلغ يدخل الصندوق. الباقي يحدّث دين الزبون.',
+  orderReviseSave: 'حفظ (مخزون + صندوق)',
+  orderReviseSaveHint:
+    'الفاتورة والمخزون والصندوق / الدين تُزامَن معاً.',
+  orderReviseInvalid: 'تحقق من الأسطر والمبلغ المدفوع',
+  orderRevised: 'تم تصحيح الفاتورة — المخزون والصندوق محدَّثان',
+  orderRevisedBadge: 'مصحَّحة',
+  orderRevisedAt: 'صُحِّحت في',
   heldSalesTitle: 'تذاكر معلّقة',
   heldSalesEmpty: 'لا تذاكر معلّقة',
   resumeHeldSale: 'استئناف',
