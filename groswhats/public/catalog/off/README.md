@@ -3,6 +3,9 @@
 Images face avant téléchargées depuis [Open Food Facts](https://world.openfoodfacts.org/)
 (produits tagués Algérie), pour `imageDataUrl: "catalog/off/{EAN}.jpg"`.
 
+Dans l’app AZ POS, un scan / saisie EAN remplit **nom + photo** automatiquement
+(API en ligne, ou `index.json` + images locales hors ligne).
+
 ## Générer
 
 Depuis `groswhats/` :

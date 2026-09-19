@@ -277,6 +277,41 @@ def download_product_images(
     return rows, ok, missing
 
 
+def write_off_index(az_rows: list[dict[str, Any]], images_dir: Path) -> Path:
+    """Index lean pour lookup offline dans AZ POS (catalog/off/index.json)."""
+    products: dict[str, dict[str, Any]] = {}
+    for row in az_rows:
+        code = str(row.get("barcode") or "").strip()
+        if not code:
+            continue
+        entry: dict[str, Any] = {"name": row.get("name") or code}
+        if row.get("brands"):
+            entry["brands"] = row["brands"]
+        if row.get("category"):
+            entry["category"] = row["category"]
+        img = row.get("imageDataUrl") or ""
+        if isinstance(img, str) and "catalog/off/" in img:
+            entry["file"] = img.rsplit("/", 1)[-1]
+        elif images_dir.is_dir():
+            for cand in images_dir.glob(f"{code}.*"):
+                if cand.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"}:
+                    entry["file"] = cand.name
+                    break
+        products[code] = entry
+
+    index_path = images_dir / "index.json"
+    images_dir.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "source": "openfoodfacts",
+        "country": "algeria",
+        "count": len(products),
+        "products": products,
+    }
+    with open(index_path, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, ensure_ascii=False, indent=2)
+    return index_path
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
@@ -409,11 +444,14 @@ def main() -> int:
     with open(args.az_pos_out, "w", encoding="utf-8") as fh:
         json.dump(az_payload, fh, ensure_ascii=False, indent=2)
 
+    index_path = write_off_index(az_rows, images_dir)
+
     print(f"Produits récupérés : {len(products)} (total API ≈ {total_count})")
     print(f"Lignes AZ POS : {len(az_rows)}")
     print(f"Images OK : {images_ok} · sans image : {images_missing}")
     print(f"Brut OFF : {args.output}")
     print(f"Import AZ POS : {args.az_pos_out}")
+    print(f"Index offline : {index_path}")
     if args.download_images:
         print(f"Images : {images_dir}")
     return 0

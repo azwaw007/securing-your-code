@@ -152,10 +152,13 @@ export function ProductBarcodeField({
   lang,
   value,
   onChange,
+  offStatus,
 }: {
   lang: Language
   value: string
   onChange: (v: string) => void
+  /** Statut lookup Open Food Facts (nom + photo auto) */
+  offStatus?: 'idle' | 'loading' | 'ok' | 'miss'
 }) {
   const [camOpen, setCamOpen] = useState(false)
 
@@ -190,6 +193,21 @@ export function ProductBarcodeField({
         <div className="muted" style={{ marginTop: 4 }}>
           {t(lang, 'barcodeCamFieldHint')}
         </div>
+        {offStatus === 'loading' ? (
+          <div className="muted" style={{ marginTop: 4 }}>
+            {t(lang, 'offLookupLoading')}
+          </div>
+        ) : null}
+        {offStatus === 'ok' ? (
+          <div className="notice" style={{ marginTop: 6 }}>
+            {t(lang, 'offLookupOk')}
+          </div>
+        ) : null}
+        {offStatus === 'miss' ? (
+          <div className="muted" style={{ marginTop: 4 }}>
+            {t(lang, 'offLookupMiss')}
+          </div>
+        ) : null}
       </div>
       {camOpen ? (
         <BarcodeCameraModal
