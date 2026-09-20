@@ -45,6 +45,7 @@ export type Screen =
   | 'cashierPin'
   | 'creditLimit'
   | 'fiscal'
+  | 'tpe'
 
 /** Mode d’encaissement DZ (outil optionnel « Paiements DZ ») */
 export type PaymentMethod = 'cash' | 'baridimob' | 'ccp' | 'card' | 'cheque'
@@ -61,6 +62,7 @@ export type OptionalToolId =
   | 'cashierPin'
   | 'creditLimit'
   | 'fiscal'
+  | 'tpe'
 
 export type ExpenseCategory =
   | 'personnel'

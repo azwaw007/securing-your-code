@@ -140,6 +140,7 @@ export function OptionalToolPage({
       {toolId === 'payments' ? (
         <PaymentsTool state={state} lang={lang} />
       ) : null}
+      {toolId === 'tpe' ? <TpeTool state={state} lang={lang} /> : null}
       {toolId === 'debtRemind' ? (
         <DebtRemindTool state={state} lang={lang} />
       ) : null}
@@ -250,6 +251,68 @@ function PaymentsTool({ state, lang }: { state: AppState; lang: Language }) {
           : 'À la caisse, choisis le mode (espèce, BaridiMob…).'}
       </div>
     </div>
+  )
+}
+
+/** Aide + total carte du jour (le TPE reste un appareil séparé) */
+function TpeTool({ state, lang }: { state: AppState; lang: Language }) {
+  const cardToday = useMemo(() => {
+    const start = new Date()
+    start.setHours(0, 0, 0, 0)
+    const end = new Date()
+    end.setHours(23, 59, 59, 999)
+    return state.orders
+      .filter((o) => {
+        const t0 = new Date(o.createdAt).getTime()
+        return (
+          t0 >= start.getTime() &&
+          t0 <= end.getTime() &&
+          o.paymentMethod === 'card'
+        )
+      })
+      .reduce((s, o) => s + (o.paidDa || 0), 0)
+  }, [state.orders])
+
+  return (
+    <>
+      <div className="card">
+        <h2>{lang === 'ar' ? 'كيف تستعمل TPE' : 'Comment utiliser le TPE'}</h2>
+        <ol style={{ margin: '8px 0 0', paddingInlineStart: 20, lineHeight: 1.5 }}>
+          <li>
+            {lang === 'ar'
+              ? 'في الصندوق اضغط « TPE / بطاقة »'
+              : 'À la caisse, appuie sur « TPE / Carte »'}
+          </li>
+          <li>
+            {lang === 'ar'
+              ? 'أدخل نفس المبلغ على جهاز TPE'
+              : 'Tape le même montant sur le lecteur TPE'}
+          </li>
+          <li>
+            {lang === 'ar'
+              ? 'الزبون يمرّر البطاقة / يدخل الرمز'
+              : 'Le client passe la carte / tape son code'}
+          </li>
+          <li>
+            {lang === 'ar'
+              ? 'إذا نجح الدفع اضغط « بطاقة مقبولة » في التطبيق'
+              : 'Si OK sur le TPE, appuie « Carte acceptée » dans l’app'}
+          </li>
+        </ol>
+        <div className="notice" style={{ marginTop: 12 }}>
+          {lang === 'ar'
+            ? 'الجهاز منفصل (CIB / Satim…). التطبيق يسجّل الدفع فقط.'
+            : 'Le terminal reste séparé (CIB / Satim…). L’app enregistre seulement le paiement.'}
+        </div>
+      </div>
+      <div className="card">
+        <h2>{lang === 'ar' ? 'بطاقة اليوم' : 'Cartes aujourd’hui'}</h2>
+        <div className="list-item">
+          <strong>💳 TPE / CIB</strong>
+          <strong>{formatDa(cardToday)}</strong>
+        </div>
+      </div>
+    </>
   )
 }
 

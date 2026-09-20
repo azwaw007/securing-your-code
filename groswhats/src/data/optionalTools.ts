@@ -40,6 +40,16 @@ export const OPTIONAL_TOOLS: OptionalToolDef[] = [
     hintAr: 'نقد، بريدي موب، CCP، بطاقة، شيك',
   },
   {
+    id: 'tpe',
+    screen: 'tpe',
+    icon: '🏦',
+    tone: 'navy',
+    labelFr: 'Lecteur TPE',
+    labelAr: 'قارئ TPE',
+    hintFr: 'Paiement carte CIB via ton terminal',
+    hintAr: 'دفع بالبطاقة عبر جهاز TPE',
+  },
+  {
     id: 'debtRemind',
     screen: 'debtRemind',
     icon: '📲',
@@ -160,14 +170,14 @@ export function paymentMethodLabel(
     cash: 'Espèce',
     baridimob: 'BaridiMob',
     ccp: 'CCP',
-    card: 'CIB / Carte',
+    card: 'TPE / CIB',
     cheque: 'Chèque',
   }
   const ar: Record<PaymentMethod, string> = {
     cash: 'نقد',
     baridimob: 'بريدي موب',
     ccp: 'CCP',
-    card: 'بطاقة',
+    card: 'TPE / بطاقة',
     cheque: 'شيك',
   }
   return lang === 'ar' ? ar[method] : fr[method]

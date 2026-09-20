@@ -5497,9 +5497,11 @@ function OrderPage({
   const [verseInput, setVerseInput] = useState('')
   const [dueDays, setDueDays] = useState(15)
   const [payMethod, setPayMethod] = useState<PaymentMethod>('cash')
+  const [tpeStep, setTpeStep] = useState(false)
   const [invoiceDraft, setInvoiceDraft] = useState('')
   const [showClientBook, setShowClientBook] = useState(clientFirst)
   const paymentsOn = isToolEnabled(state.settings, 'payments')
+  const tpeOn = isToolEnabled(state.settings, 'tpe')
   const creditLimitOn = isToolEnabled(state.settings, 'creditLimit')
 
   const isQuick = clientId === QUICK
@@ -5888,12 +5890,13 @@ function OrderPage({
     onSeedHeldConsumed?.()
   }, [seedHeldId])
 
-  function finishSale(paidDa: number) {
+  function finishSale(paidDa: number, methodOverride?: PaymentMethod) {
     if (!canValidate) return
     if (paidDa < total - 0.001 && isQuick) {
       speak(lang === 'ar' ? 'اختَر زبوناً للدين' : 'Choisis un client pour le reste', lang)
       return
     }
+    const method = methodOverride ?? payMethod
     const pay = buildPaymentFields(total, paidDa)
     if (creditLimitOn && !isQuick && client && pay.remainingDa > 0.001) {
       const limit = client.creditLimitDa
@@ -5927,13 +5930,17 @@ function OrderPage({
         ? `${t(lang, 'totalOverrideNote')}: ${Math.round(total)} DA`
         : undefined,
       ...pay,
-      paymentMethod: paymentsOn ? payMethod : undefined,
+      paymentMethod:
+        paymentsOn || tpeOn || methodOverride
+          ? method
+          : undefined,
       dueDate:
         pay.remainingDa > 0.001 ? dueDateFromDays(dueDays) : undefined,
     })
     setLastOrder(created)
     setInvoiceDraft(buildInvoiceText(created, state.settings))
     clearCart()
+    setTpeStep(false)
     speak(
       lang === 'ar'
         ? `تم. ${Math.round(total)} دينار`
@@ -6763,6 +6770,41 @@ function OrderPage({
         ) : (
           <div className="pay-final">
             <div className="notice">{t(lang, 'payBeforePrint')}</div>
+            {tpeStep ? (
+              <div className="card" style={{ marginBottom: 12, textAlign: 'center' }}>
+                <h2>🏦 {t(lang, 'tpeTitle')}</h2>
+                <p className="muted">{t(lang, 'tpeHint')}</p>
+                <div
+                  style={{
+                    fontSize: '2.2rem',
+                    fontWeight: 800,
+                    margin: '16px 0',
+                    letterSpacing: 1,
+                  }}
+                >
+                  {formatDa(total)}
+                </div>
+                <p className="muted">{t(lang, 'tpeEnterAmount')}</p>
+                <button
+                  type="button"
+                  className="btn block btn-ok"
+                  data-sfx-cash
+                  style={{ marginTop: 12 }}
+                  onClick={() => finishSale(total, 'card')}
+                >
+                  ✅ {t(lang, 'tpeAccepted')}
+                </button>
+                <button
+                  type="button"
+                  className="btn ghost block"
+                  style={{ marginTop: 8 }}
+                  onClick={() => setTpeStep(false)}
+                >
+                  ← {t(lang, 'tpeCancel')}
+                </button>
+              </div>
+            ) : (
+              <>
             {paymentsOn ? (
               <div className="btn-row" style={{ flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
                 {PAYMENT_METHODS.map((m) => (
@@ -6782,12 +6824,45 @@ function OrderPage({
                 type="button"
                 className="choice-card pay-cash"
                 data-sfx-cash
-                onClick={() => finishSale(total)}
+                onClick={() => {
+                  if (paymentsOn && payMethod === 'card') {
+                    setTpeStep(true)
+                    return
+                  }
+                  if (paymentsOn && payMethod !== 'cash') {
+                    finishSale(total)
+                    return
+                  }
+                  setPayMethod('cash')
+                  finishSale(total)
+                }}
               >
-                <span className="choice-emoji">💵</span>
-                <strong>{t(lang, 'paidFull')}</strong>
+                <span className="choice-emoji">
+                  {paymentsOn && payMethod !== 'cash'
+                    ? paymentMethodEmoji(payMethod)
+                    : '💵'}
+                </span>
+                <strong>
+                  {paymentsOn && payMethod !== 'cash'
+                    ? paymentMethodLabel(payMethod, lang)
+                    : t(lang, 'paidFull')}
+                </strong>
                 <span className="muted">{formatDa(total)}</span>
               </button>
+              {tpeOn || paymentsOn ? (
+                <button
+                  type="button"
+                  className="choice-card"
+                  onClick={() => {
+                    setPayMethod('card')
+                    setTpeStep(true)
+                  }}
+                >
+                  <span className="choice-emoji">🏦</span>
+                  <strong>{t(lang, 'tpePayBtn')}</strong>
+                  <span className="muted">{t(lang, 'tpePayHint')}</span>
+                </button>
+              ) : null}
               <button
                 type="button"
                 className="choice-card pay-credit"
@@ -6881,6 +6956,8 @@ function OrderPage({
             >
               ← {t(lang, 'back')}
             </button>
+              </>
+            )}
           </div>
         )}
       </div>
