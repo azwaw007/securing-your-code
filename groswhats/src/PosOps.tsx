@@ -17,59 +17,95 @@ import {
   createSaleReturn,
   deleteSupplier,
   expectedCashForSession,
+  barcodesMatch,
   findProductByBarcode,
   openCashSession,
 } from './store'
 import { InvoiceScanPanel, PurchasesHistoryGrouped } from './InvoiceScanPanel'
 import { HybridReceiveFromPhone } from './HybridBridgePanel'
+import { BarcodeCameraModal, isBarcodeCameraSupported } from './BarcodeCamera'
 
 export function BarcodeScanInput({
   lang,
   onScan,
+  onEmpty,
   placeholder,
 }: {
   lang: Language
   onScan: (code: string) => void
+  /** Champ vide + clic Ajouter */
+  onEmpty?: () => void
   placeholder?: string
 }) {
   const [value, setValue] = useState('')
+  const [camOpen, setCamOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   function submit(code: string) {
     const c = code.trim()
-    if (!c) return
+    if (!c) {
+      onEmpty?.()
+      inputRef.current?.focus()
+      return
+    }
     onScan(c)
     setValue('')
   }
 
   return (
-    <div className="barcode-row">
-      <span className="barcode-icon" aria-hidden>
-        ⬛
-      </span>
-      <input
-        ref={inputRef}
-        className="barcode-input"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault()
-            submit(value)
-          }
-        }}
-        placeholder={placeholder || t(lang, 'barcodeHint')}
-        autoComplete="off"
-        inputMode="numeric"
-      />
-      <button
-        type="button"
-        className="btn secondary"
-        onClick={() => submit(value)}
-      >
-        {t(lang, 'barcodeAdd')}
-      </button>
-    </div>
+    <>
+      <div className="barcode-row">
+        <span className="barcode-icon" aria-hidden>
+          ⬛
+        </span>
+        <input
+          ref={inputRef}
+          className="barcode-input"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              submit(value)
+            }
+          }}
+          placeholder={placeholder || t(lang, 'barcodeHint')}
+          autoComplete="off"
+          inputMode="numeric"
+          enterKeyHint="done"
+        />
+        <button
+          type="button"
+          className="btn secondary barcode-cam-btn"
+          onClick={() => {
+            if (!isBarcodeCameraSupported()) {
+              window.alert(t(lang, 'barcodeCamUnsupported'))
+              return
+            }
+            setCamOpen(true)
+          }}
+          title={t(lang, 'barcodeCamTitle')}
+          aria-label={t(lang, 'barcodeCamTitle')}
+        >
+          📷
+        </button>
+        <button
+          type="button"
+          className="btn secondary barcode-add-btn"
+          onClick={() => submit(value)}
+        >
+          {t(lang, 'barcodeAdd')}
+        </button>
+      </div>
+      {camOpen ? (
+        <BarcodeCameraModal
+          lang={lang}
+          playSound={false}
+          onDetect={(code) => submit(code)}
+          onClose={() => setCamOpen(false)}
+        />
+      ) : null}
+    </>
   )
 }
 
@@ -671,12 +707,13 @@ export function bumpProductFromBarcode(
   products: Product[],
   code: string,
   bump: (p: Product, tier: PriceTier, delta: number) => void,
-): 'ok' | 'missing' {
-  const q = code.trim().toLowerCase()
-  const p = products.find(
-    (x) => x.barcode && x.barcode.trim().toLowerCase() === q,
-  )
+  stockOf?: (p: Product) => number,
+): 'ok' | 'missing' | 'ok-nostock' {
+  const q = code.trim()
+  if (!q) return 'missing'
+  const p = products.find((x) => x.barcode && barcodesMatch(x.barcode, q))
   if (!p) return 'missing'
+  const stock = stockOf ? stockOf(p) : p.stock
   bump(p, 'piece', 1)
-  return 'ok'
+  return stock > 0 ? 'ok' : 'ok-nostock'
 }

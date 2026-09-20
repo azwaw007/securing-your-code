@@ -34,12 +34,15 @@ export function BarcodeCameraModal({
   onClose,
   title,
   hint,
+  playSound = true,
 }: {
   lang: Language
   onDetect: (code: string) => void
   onClose: () => void
   title?: string
   hint?: string
+  /** Bip succès (désactiver si l’appelant gère déjà le son) */
+  playSound?: boolean
 }) {
   const reactId = useId().replace(/:/g, '')
   const readerId = `az-barcode-reader-${reactId}`
@@ -49,8 +52,10 @@ export function BarcodeCameraModal({
   const doneRef = useRef(false)
   const onDetectRef = useRef(onDetect)
   const onCloseRef = useRef(onClose)
+  const playSoundRef = useRef(playSound)
   onDetectRef.current = onDetect
   onCloseRef.current = onClose
+  playSoundRef.current = playSound
 
   useEffect(() => {
     let cancelled = false
@@ -60,50 +65,90 @@ export function BarcodeCameraModal({
     })
     scannerRef.current = scanner
 
-    async function start() {
-      try {
-        await scanner.start(
-          { facingMode: 'environment' },
-          {
-            fps: 12,
-            qrbox: (viewW, viewH) => {
-              const w = Math.min(viewW * 0.92, 360)
-              const h = Math.min(viewH * 0.35, 180)
-              return { width: Math.floor(w), height: Math.floor(h) }
+    const config = {
+      fps: 12,
+      qrbox: (viewW: number, viewH: number) => {
+        const w = Math.min(viewW * 0.92, 360)
+        const h = Math.min(viewH * 0.42, 220)
+        return { width: Math.floor(w), height: Math.floor(h) }
+      },
+      aspectRatio: 1.333,
+      disableFlip: false,
+    }
+
+    function onDecoded(decodedText: string) {
+      const code = decodedText.trim()
+      if (!code || doneRef.current) return
+      doneRef.current = true
+      void scanner
+        .stop()
+        .catch(() => undefined)
+        .finally(() => {
+          if (playSoundRef.current) playBarcodeOk()
+          onDetectRef.current(code)
+          onCloseRef.current()
+        })
+    }
+
+    async function startWithCamera() {
+      const cameras = [
+        { facingMode: 'environment' } as const,
+        { facingMode: { exact: 'environment' } } as const,
+        { facingMode: 'user' } as const,
+      ]
+      let lastErr: unknown
+      for (const cameraIdOrConfig of cameras) {
+        if (cancelled) return
+        try {
+          await scanner.start(
+            cameraIdOrConfig,
+            config,
+            onDecoded,
+            () => {
+              /* frame sans code — ignorer */
             },
-            aspectRatio: 1.333,
-            disableFlip: false,
-          },
-          (decodedText) => {
-            const code = decodedText.trim()
-            if (!code || doneRef.current) return
-            doneRef.current = true
-            void scanner
-              .stop()
-              .catch(() => undefined)
-              .finally(() => {
-                playBarcodeOk()
-                onDetectRef.current(code)
-                onCloseRef.current()
-              })
-          },
-          () => {
-            /* frame sans code — ignorer */
-          },
-        )
-        if (!cancelled) setBusy(false)
-      } catch {
-        if (!cancelled) {
-          setError(t(lang, 'barcodeCamDenied'))
-          setBusy(false)
+          )
+          if (!cancelled) setBusy(false)
+          return
+        } catch (err) {
+          lastErr = err
+          if (scanner.isScanning) {
+            await scanner.stop().catch(() => undefined)
+          }
         }
+      }
+      // Dernier recours : première caméra listée (WebView Android / iOS)
+      try {
+        const devices = await Html5Qrcode.getCameras()
+        if (cancelled) return
+        if (devices.length > 0) {
+          await scanner.start(
+            devices[devices.length - 1]!.id,
+            config,
+            onDecoded,
+            () => undefined,
+          )
+          if (!cancelled) setBusy(false)
+          return
+        }
+      } catch (err) {
+        lastErr = err
+      }
+      if (!cancelled) {
+        console.warn('[BarcodeCamera] start failed', lastErr)
+        setError(t(lang, 'barcodeCamDenied'))
+        setBusy(false)
       }
     }
 
-    void start()
+    // Laisser le DOM peindre le conteneur (téléphone / WebView)
+    const timer = window.setTimeout(() => {
+      void startWithCamera()
+    }, 80)
 
     return () => {
       cancelled = true
+      window.clearTimeout(timer)
       const s = scannerRef.current
       scannerRef.current = null
       if (s?.isScanning) {

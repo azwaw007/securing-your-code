@@ -2792,6 +2792,19 @@ html.easy-mode .home-tile {
   font-size: 1rem;
   padding: 8px 4px;
   color: var(--ink);
+  min-width: 0;
+}
+
+.barcode-cam-btn {
+  min-width: 48px;
+  font-size: 1.25rem;
+  padding: 0 10px;
+  flex-shrink: 0;
+}
+
+.barcode-add-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .barcode-product-row {

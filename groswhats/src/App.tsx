@@ -5837,17 +5837,40 @@ function OrderPage({
         {showHomeScan(mode, domainId) ? (
         <BarcodeScanInput
           lang={lang}
+          onEmpty={() => onFlash('barcodeNeedCode')}
           onScan={(code) => {
-            const r = bumpProductFromBarcode(state.products, code, bump)
+            const r = bumpProductFromBarcode(
+              state.products,
+              code,
+              (p, tier, delta) => {
+                // Scan caisse : ajoute même si stock 0 (sinon « Ajouter » semble mort)
+                const key = lineKey(p.id, tier)
+                setQtyMap((m) => {
+                  const current = m[key] ?? 0
+                  const next = Math.max(0, +(current + delta).toFixed(3))
+                  if (next <= 0) {
+                    const copy = { ...m }
+                    delete copy[key]
+                    return copy
+                  }
+                  return { ...m, [key]: next }
+                })
+              },
+              (p) => displayStock(state, p),
+            )
             if (r === 'missing') {
               playBarcodeError()
+              onFlash('barcodeMissing')
               speak(
                 lang === 'ar' ? 'باركود غير موجود' : 'Code-barres inconnu',
                 lang,
               )
-            } else {
-              playBarcodeOk()
+              return
             }
+            playBarcodeOk()
+            onFlash(r === 'ok-nostock' ? 'barcodeNoStock' : 'barcodeOk')
+            setProductQuery('')
+            setCategoryFilter('all')
           }}
         />
         ) : null}
