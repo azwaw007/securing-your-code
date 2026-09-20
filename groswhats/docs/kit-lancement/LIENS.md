@@ -6,7 +6,7 @@
 |------|-----|
 | Vitrine AZ Soft | https://az-pos-dz.vercel.app/az-soft/ |
 | Démo web (essai) | https://az-pos-dz.vercel.app |
-| Install Windows | https://github.com/azwaw007/securing-your-code/releases/download/v1.0.0-win/AZ-POS-Setup-1.0.0.exe |
+| Install Windows | https://github.com/azwaw007/securing-your-code/releases/download/v1.1.0-win/AZ-POS-Setup-1.1.0.exe |
 | Release GitHub (fichiers) | https://github.com/azwaw007/securing-your-code/releases/tag/v1.0.0-win |
 | Guide utilisateur | https://az-pos-dz.vercel.app/guide.html |
 | Confidentialité | https://az-pos-dz.vercel.app/privacy.html |

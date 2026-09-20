@@ -1,7 +1,7 @@
 {
   "name": "az-pos",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "AZ POS — point de vente Algérie (web, Android, Windows)",
   "author": "AZ POS",
   "type": "module",
@@ -53,6 +53,7 @@
     "directories": {
       "output": "release"
     },
+    "artifactName": "AZ-POS-Setup-${version}.${ext}",
     "files": [
       "dist/**/*",
       "electron/**/*",
@@ -79,7 +80,11 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "shortcutName": "AZ POS"
+      "shortcutName": "AZ POS",
+      "artifactName": "AZ-POS-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "AZ-POS-Portable-${version}.${ext}"
     }
   }
 }
