@@ -162,3 +162,76 @@ function formatAppointmentWhen(iso: string, lang: string): string {
     return iso
   }
 }
+
+/** Relance dette client (WhatsApp) */
+export function buildDebtReminder(
+  settings: ShopSettings,
+  order: Pick<Order, 'clientName' | 'totalDa' | 'paidDa' | 'remainingDa' | 'dueDate' | 'payment'>,
+): string {
+  const lang = settings.language
+  const remaining =
+    order.remainingDa ??
+    (order.payment === 'credit' ? order.totalDa : 0)
+  const shop = settings.shopName || 'AZ POS'
+  if (lang === 'ar') {
+    return [
+      `تذكير بالدين — ${shop}`,
+      '',
+      `الزبون : ${order.clientName}`,
+      `المتبقي : ${formatDa(remaining)}`,
+      order.dueDate ? `الاستحقاق : ${order.dueDate}` : '',
+      settings.phone ? `للتواصل : ${settings.phone}` : '',
+      '',
+      'شكراً لتعاونكم',
+    ]
+      .filter(Boolean)
+      .join('\n')
+  }
+  return [
+    `Rappel de dette — ${shop}`,
+    '',
+    `Client : ${order.clientName}`,
+    `Reste dû : ${formatDa(remaining)}`,
+    order.dueDate ? `Échéance : ${order.dueDate}` : '',
+    settings.phone ? `Contact : ${settings.phone}` : '',
+    '',
+    'Merci pour votre collaboration',
+  ]
+    .filter(Boolean)
+    .join('\n')
+}
+
+/** Rappel renouvellement abonnement gym */
+export function buildMembershipReminder(
+  settings: ShopSettings,
+  client: { name: string; membershipEnd?: string; membershipPlan?: string },
+): string {
+  const lang = settings.language
+  const shop = settings.shopName || 'Club'
+  if (lang === 'ar') {
+    return [
+      `تذكير تجديد الاشتراك — ${shop}`,
+      '',
+      `العضو : ${client.name}`,
+      client.membershipPlan ? `الصيغة : ${client.membershipPlan}` : '',
+      client.membershipEnd ? `ينتهي : ${client.membershipEnd}` : '',
+      settings.phone ? `للتجديد : ${settings.phone}` : '',
+      '',
+      'ننتظركم 💪',
+    ]
+      .filter(Boolean)
+      .join('\n')
+  }
+  return [
+    `Rappel renouvellement — ${shop}`,
+    '',
+    `Membre : ${client.name}`,
+    client.membershipPlan ? `Formule : ${client.membershipPlan}` : '',
+    client.membershipEnd ? `Fin : ${client.membershipEnd}` : '',
+    settings.phone ? `Pour renouveler : ${settings.phone}` : '',
+    '',
+    'À bientôt 💪',
+  ]
+    .filter(Boolean)
+    .join('\n')
+}
