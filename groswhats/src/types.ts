@@ -147,6 +147,8 @@ export interface Product {
   /** N° de lot */
   lotNumber?: string
   createdAt: string
+  /** Dernière mutation stock / fiche (sync multi-poste LWW) */
+  updatedAt?: string
 }
 
 export interface Supplier {
@@ -308,6 +310,8 @@ export interface Client {
   /** Avocat — réf affaire */
   caseRef?: string
   createdAt: string
+  /** Dernière mutation fiche (sync multi-poste) */
+  updatedAt?: string
 }
 
 export type MedicalDocKind =
@@ -647,7 +651,7 @@ export interface Expense {
   createdAt: string
 }
 
-export type TeamRole = 'owner' | 'driver'
+export type TeamRole = 'owner' | 'driver' | 'cashier'
 
 /** Poste cabinet (santé) — médecin vs réception/caisse */
 export type ClinicStation = 'doctor' | 'reception'
@@ -672,6 +676,17 @@ export interface Driver {
   name: string
   phone: string
   /** PIN 4 chiffres pour connexion livreur */
+  pin: string
+  active: boolean
+  createdAt: string
+}
+
+/** Caissier multi-poste (2ᵉ téléphone caisse) */
+export interface Cashier {
+  id: string
+  name: string
+  phone: string
+  /** PIN 4 chiffres pour connexion caissier */
   pin: string
   active: boolean
   createdAt: string
@@ -718,11 +733,13 @@ export interface TeamSettings {
   companyCode: string
   role: TeamRole
   currentDriverId: string | null
+  /** Caissier connecté sur ce téléphone */
+  currentCashierId: string | null
   /** Secret simple pour sync cloud (généré côté patron) */
   syncSecret: string
-  /** false = un seul téléphone (patron). true = livreurs + missions */
+  /** false = un seul téléphone (patron). true = livreurs + caissiers + sync boutique */
   multiPosteEnabled: boolean
-  /** Premier lancement multi-poste : choix Patron / Livreur fait */
+  /** Premier lancement multi-poste : choix Patron / Livreur / Caissier fait */
   hasChosenRole: boolean
 }
 
@@ -738,6 +755,7 @@ export interface AppState {
   expenses: Expense[]
   cashEntries: CashEntry[]
   drivers: Driver[]
+  cashiers: Cashier[]
   missions: Mission[]
   team: TeamSettings
   suppliers: Supplier[]

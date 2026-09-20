@@ -1,4 +1,4 @@
-/** Merge missions / stops : ne jamais écraser le progrès livreur. */
+/** Merge missions / stops / boutique : ne jamais écraser le progrès livreur ni perdre ventes. */
 
 const STATUS_RANK = { todo: 0, skipped: 1, done: 2 }
 
@@ -61,9 +61,11 @@ function mergeMission(cloud, incoming) {
   for (const s of incoming.stops || []) {
     byId.set(s.id, mergeStop(byId.get(s.id), s))
   }
-  // Keep cloud-only stops that already progressed
   for (const s of cloud.stops || []) {
-    if (![...(incoming.stops || [])].some((x) => x.id === s.id) && hasProgress({ stops: [s], status: s.status })) {
+    if (
+      ![...(incoming.stops || [])].some((x) => x.id === s.id) &&
+      hasProgress({ stops: [s], status: s.status })
+    ) {
       byId.set(s.id, s)
     }
   }
@@ -81,7 +83,6 @@ function mergeMission(cloud, incoming) {
 
   return {
     ...newer,
-    // Structure (title/date/driver) from newer; progress from merge
     stops,
     status,
     updatedAt,
@@ -110,17 +111,151 @@ function mergeMissions(cloudList, incomingList) {
   )
 }
 
-function mergeDrivers(cloudList, incomingList) {
+function mergeByIdKeepCloud(cloudList, incomingList) {
   const map = new Map()
-  for (const d of cloudList || []) map.set(d.id, d)
-  for (const d of incomingList || []) map.set(d.id, d)
+  for (const d of cloudList || []) {
+    if (d && d.id) map.set(d.id, d)
+  }
+  for (const d of incomingList || []) {
+    if (d && d.id) map.set(d.id, d)
+  }
   return [...map.values()]
+}
+
+function stampOf(row) {
+  return row?.updatedAt || row?.createdAt || ''
+}
+
+/** Produits lean : LWW par updatedAt ; si égal → min stock / dépôt (anti-survente). */
+function mergeProduct(cloud, incoming) {
+  if (!cloud) return incoming
+  if (!incoming) return cloud
+  const cStamp = stampOf(cloud)
+  const iStamp = stampOf(incoming)
+  if (iStamp > cStamp) return incoming
+  if (cStamp > iStamp) return cloud
+  const locs = new Set([
+    ...Object.keys(cloud.stockByLocation || {}),
+    ...Object.keys(incoming.stockByLocation || {}),
+  ])
+  const locMap = {}
+  for (const loc of locs) {
+    const a = cloud.stockByLocation?.[loc]
+    const b = incoming.stockByLocation?.[loc]
+    if (typeof a === 'number' && typeof b === 'number') locMap[loc] = Math.min(a, b)
+    else if (typeof a === 'number') locMap[loc] = a
+    else if (typeof b === 'number') locMap[loc] = b
+  }
+  const sum = Object.values(locMap).reduce(
+    (s, n) => s + (typeof n === 'number' && Number.isFinite(n) ? n : 0),
+    0,
+  )
+  return {
+    ...cloud,
+    ...incoming,
+    stockByLocation: locMap,
+    stock: +sum.toFixed(3),
+    updatedAt: cloud.updatedAt || incoming.updatedAt || cloud.createdAt,
+  }
+}
+
+function mergeProducts(cloudList, incomingList) {
+  if (!Array.isArray(incomingList)) return Array.isArray(cloudList) ? cloudList : []
+  const cloud = Array.isArray(cloudList) ? cloudList : []
+  const map = new Map(cloud.filter((p) => p && p.id).map((p) => [p.id, p]))
+  for (const p of incomingList) {
+    if (!p || !p.id) continue
+    map.set(p.id, mergeProduct(map.get(p.id), p))
+  }
+  return [...map.values()]
+}
+
+function mergeClients(cloudList, incomingList) {
+  if (!Array.isArray(incomingList)) return Array.isArray(cloudList) ? cloudList : []
+  const map = new Map()
+  for (const c of cloudList || []) {
+    if (c && c.id) map.set(c.id, c)
+  }
+  for (const c of incomingList || []) {
+    if (!c || !c.id) continue
+    const prev = map.get(c.id)
+    if (!prev) {
+      map.set(c.id, c)
+      continue
+    }
+    const newer = stampOf(c) >= stampOf(prev) ? c : prev
+    const older = newer === c ? prev : c
+    map.set(c.id, {
+      ...older,
+      ...newer,
+      balanceAdjustDa:
+        typeof newer.balanceAdjustDa === 'number'
+          ? newer.balanceAdjustDa
+          : older.balanceAdjustDa,
+    })
+  }
+  return [...map.values()]
+}
+
+/** Ventes / encaissements : union par id (append-only). */
+function mergeByIdUnion(cloudList, incomingList) {
+  if (!Array.isArray(incomingList)) return Array.isArray(cloudList) ? cloudList : []
+  const map = new Map()
+  for (const row of cloudList || []) {
+    if (row && row.id) map.set(row.id, row)
+  }
+  for (const row of incomingList || []) {
+    if (!row || !row.id) continue
+    const prev = map.get(row.id)
+    if (!prev) {
+      map.set(row.id, row)
+      continue
+    }
+    // Ne jamais baisser paidDa / amountDa
+    if (typeof prev.paidDa === 'number' || typeof row.paidDa === 'number') {
+      map.set(row.id, {
+        ...prev,
+        ...row,
+        paidDa: Math.max(prev.paidDa || 0, row.paidDa || 0),
+        remainingDa: Math.min(
+          prev.remainingDa ?? row.remainingDa ?? 0,
+          row.remainingDa ?? prev.remainingDa ?? 0,
+        ),
+      })
+    } else if (typeof prev.amountDa === 'number' || typeof row.amountDa === 'number') {
+      map.set(row.id, {
+        ...prev,
+        ...row,
+        amountDa: Math.max(prev.amountDa || 0, row.amountDa || 0),
+      })
+    } else {
+      map.set(row.id, { ...prev, ...row })
+    }
+  }
+  return [...map.values()].sort((a, b) =>
+    (b.createdAt || '').localeCompare(a.createdAt || ''),
+  )
+}
+
+function mergeDrivers(cloudList, incomingList) {
+  return mergeByIdKeepCloud(cloudList, incomingList)
+}
+
+function mergeCashiers(cloudList, incomingList) {
+  return mergeByIdKeepCloud(cloudList, incomingList)
 }
 
 function mergeTeamPayload(existing, incoming) {
   if (!existing) {
     return {
       ...incoming,
+      drivers: Array.isArray(incoming.drivers) ? incoming.drivers : [],
+      cashiers: Array.isArray(incoming.cashiers) ? incoming.cashiers : [],
+      missions: Array.isArray(incoming.missions) ? incoming.missions : [],
+      products: Array.isArray(incoming.products) ? incoming.products : [],
+      clients: Array.isArray(incoming.clients) ? incoming.clients : [],
+      orders: Array.isArray(incoming.orders) ? incoming.orders : [],
+      cashEntries: Array.isArray(incoming.cashEntries) ? incoming.cashEntries : [],
       updatedAt: incoming.updatedAt || new Date().toISOString(),
     }
   }
@@ -129,7 +264,12 @@ function mergeTeamPayload(existing, incoming) {
     syncSecret: incoming.syncSecret || existing.syncSecret,
     shopName: incoming.shopName || existing.shopName,
     drivers: mergeDrivers(existing.drivers, incoming.drivers),
+    cashiers: mergeCashiers(existing.cashiers, incoming.cashiers),
     missions: mergeMissions(existing.missions, incoming.missions),
+    products: mergeProducts(existing.products, incoming.products),
+    clients: mergeClients(existing.clients, incoming.clients),
+    orders: mergeByIdUnion(existing.orders, incoming.orders),
+    cashEntries: mergeByIdUnion(existing.cashEntries, incoming.cashEntries),
     updatedAt: new Date().toISOString(),
   }
 }
@@ -139,6 +279,10 @@ module.exports = {
   mergeMission,
   mergeMissions,
   mergeDrivers,
+  mergeCashiers,
+  mergeProducts,
+  mergeClients,
+  mergeByIdUnion,
   mergeTeamPayload,
   hasProgress,
   recomputeMissionStatus,
