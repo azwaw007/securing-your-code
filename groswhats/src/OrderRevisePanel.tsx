@@ -128,14 +128,6 @@ export function OrderRevisePanel({
             </div>
             <div className="muted" style={{ marginTop: 2 }}>
               = {formatDa(l.lineTotalDa)} · {formatQty(l.qty)}
-              <button
-                type="button"
-                className="btn ghost"
-                style={{ marginInlineStart: 8 }}
-                onClick={() => patchLine(i, { qty: 0 })}
-              >
-                ×
-              </button>
             </div>
           </li>
         ))}
