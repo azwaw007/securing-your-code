@@ -6487,8 +6487,6 @@ function OrderPage({
                 setTotalOverride(e.target.value)
               }}
               onFocus={(e) => {
-                // Sélectionner le montant calculé pour le remplacer sans
-                // le voir « disparaître » (ancien comportement placeholder).
                 requestAnimationFrame(() => e.target.select())
               }}
               onBlur={() => {
@@ -6507,17 +6505,42 @@ function OrderPage({
               }}
               placeholder={t(lang, 'totalOverridePlaceholder')}
             />
-            {totalDirty && totalOverride.trim() !== '' ? (
+            <div className="total-override-step-btns">
               <button
                 type="button"
-                className="btn ghost total-override-clear"
-                title={t(lang, 'totalOverrideClear')}
-                aria-label={t(lang, 'totalOverrideClear')}
-                onClick={() => resetTotalOverride()}
+                className="btn ghost total-override-dec"
+                title={t(lang, 'totalOverrideDec')}
+                aria-label={t(lang, 'totalOverrideDec')}
+                disabled={lines.length === 0 && !hasTotalOverride}
+                onClick={() => {
+                  const base = hasTotalOverride
+                    ? overrideParsed
+                    : computedTotal
+                  const next = Math.max(0, +(base - 100).toFixed(2))
+                  setTotalDirty(true)
+                  setTotalOverride(String(next))
+                }}
               >
-                ✕
+                −
               </button>
-            ) : null}
+              <button
+                type="button"
+                className="btn ghost total-override-add"
+                title={t(lang, 'totalOverrideAdd')}
+                aria-label={t(lang, 'totalOverrideAdd')}
+                disabled={lines.length === 0 && !hasTotalOverride}
+                onClick={() => {
+                  const base = hasTotalOverride
+                    ? overrideParsed
+                    : computedTotal
+                  const next = Math.max(0, +(base + 100).toFixed(2))
+                  setTotalDirty(true)
+                  setTotalOverride(String(next))
+                }}
+              >
+                +
+              </button>
+            </div>
           </div>
           <div className="muted" style={{ marginTop: 4 }}>
             {t(lang, 'totalOverrideHint')}
