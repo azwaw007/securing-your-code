@@ -13,6 +13,12 @@ export const APP_BRAND = {
    */
   supportWhatsapp: '0540456864',
   supportDisplay: '05 40 45 68 64',
+  /** Assets logo (public/brand/) */
+  logoStack: '/brand/logo-stack.webp',
+  logoWide: '/brand/logo-wide.webp',
+  logoHeader: '/brand/logo-header.webp',
+  /** Fond splash / icônes */
+  navy: '#0a1628',
 } as const
 
 export type AppBrand = typeof APP_BRAND

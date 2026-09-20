@@ -619,8 +619,15 @@ export default function App() {
             </button>
           ) : null}
           <div>
-            <div className="brand">
-              AZ <span>POS</span>
+            <div className="brand brand-mark">
+              <img
+                src={APP_BRAND.logoHeader}
+                alt={APP_BRAND.name}
+                className="brand-logo"
+                width={114}
+                height={64}
+                decoding="async"
+              />
             </div>
             <div className="muted">
               {state.settings.shopName}
@@ -704,8 +711,15 @@ export default function App() {
               ←
             </button>
             <div>
-              <div className="brand">
-                AZ <span>POS</span>
+              <div className="brand brand-mark">
+                <img
+                  src={APP_BRAND.logoHeader}
+                  alt={APP_BRAND.name}
+                  className="brand-logo"
+                  width={114}
+                  height={64}
+                  decoding="async"
+                />
               </div>
               <div className="muted">🚚 {t(lang, 'driverMode')}</div>
             </div>
@@ -1586,7 +1600,19 @@ function SettingsPage({
       <div className="card">
         <h2>{t(lang, 'settingsTitle')}</h2>
         <div className="notice">{t(lang, 'oneAppHint')}</div>
-        <div className="muted">{APP_BRAND.name} v{APP_VERSION}</div>
+        <div className="settings-brand">
+          <img
+            src={APP_BRAND.logoHeader}
+            alt={APP_BRAND.name}
+            className="brand-logo"
+            width={114}
+            height={64}
+            decoding="async"
+          />
+          <div className="muted">
+            {APP_BRAND.name} v{APP_VERSION}
+          </div>
+        </div>
         <div className="notice" style={{ marginTop: 8 }}>
           {licenseInfo || '…'}
         </div>

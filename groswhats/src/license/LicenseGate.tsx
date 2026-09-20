@@ -49,8 +49,15 @@ export function LicenseGate({ children }: { children: ReactNode }) {
     return (
       <div className="app-shell license-shell">
         <div className="card license-card">
-          <div className="brand">
-            AZ <span>POS</span>
+          <div className="brand brand-mark license-brand">
+            <img
+              src={APP_BRAND.logoWide}
+              alt={APP_BRAND.name}
+              className="brand-logo brand-logo-wide"
+              width={280}
+              height={156}
+              decoding="async"
+            />
           </div>
           <p className="muted">Version {APP_VERSION}</p>
           <h2>Activation requise</h2>
