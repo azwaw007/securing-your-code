@@ -1789,9 +1789,16 @@ textarea {
   color: #0f6b4c;
 }
 
-.license-banner a {
+.license-banner a,
+.license-banner .license-support-link {
   color: inherit;
   font-weight: 800;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  font: inherit;
 }
 
 .license-shell {

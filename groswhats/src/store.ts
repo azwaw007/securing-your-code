@@ -3,6 +3,7 @@ import type {
   CommerceMode,
   CashEntry,
   CashSession,
+  Cashier,
   Client,
   Driver,
   Expense,
@@ -126,7 +127,11 @@ export function setStockAt(p: Product, locId: string, qty: number): Product {
   const safe = Math.max(0, +qty.toFixed(3))
   const map = { ...(p.stockByLocation ?? {}) }
   map[locId] = safe
-  return syncProductStockSum({ ...p, stockByLocation: map })
+  return syncProductStockSum({
+    ...p,
+    stockByLocation: map,
+    updatedAt: new Date().toISOString(),
+  })
 }
 
 export function adjustStockAt(p: Product, locId: string, delta: number): Product {
@@ -299,6 +304,7 @@ function defaultTeam(): TeamSettings {
     companyCode: '',
     role: 'owner',
     currentDriverId: null,
+    currentCashierId: null,
     syncSecret: '',
     multiPosteEnabled: false,
     hasChosenRole: false,
@@ -346,6 +352,7 @@ function seedState(): AppState {
     expenses: [],
     cashEntries: [],
     drivers: [],
+    cashiers: [],
     missions: [],
     team: {
       ...defaultTeam(),
@@ -504,8 +511,14 @@ export function migrate(raw: unknown): AppState {
   const teamDefaults = defaultTeam()
   const team: TeamSettings = {
     companyCode: data.team?.companyCode || genCode(6),
-    role: data.team?.role === 'driver' ? 'driver' : 'owner',
+    role:
+      data.team?.role === 'driver'
+        ? 'driver'
+        : data.team?.role === 'cashier'
+          ? 'cashier'
+          : 'owner',
     currentDriverId: data.team?.currentDriverId ?? null,
+    currentCashierId: data.team?.currentCashierId ?? null,
     syncSecret: data.team?.syncSecret || genCode(8),
     multiPosteEnabled: data.team?.multiPosteEnabled === true,
     hasChosenRole: data.team?.hasChosenRole === true,
@@ -690,6 +703,15 @@ export function migrate(raw: unknown): AppState {
       ...d,
       active: d.active !== false,
       pin: String(d.pin || '0000').slice(0, 4),
+    })),
+    cashiers: ((data as AppState).cashiers ?? []).map((c) => ({
+      ...c,
+      id: c.id || uid('ca'),
+      name: typeof c.name === 'string' ? c.name : '',
+      phone: typeof c.phone === 'string' ? c.phone : '',
+      active: c.active !== false,
+      pin: String(c.pin || '0000').replace(/\D/g, '').slice(0, 4).padStart(4, '0'),
+      createdAt: c.createdAt || new Date().toISOString(),
     })),
     missions: (data.missions ?? []).map((m) => ({
       ...m,
@@ -1144,6 +1166,7 @@ export function addProduct(
       ...input,
       id: uid('p'),
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       stockByLocation: input.stockByLocation,
     },
     locId,
@@ -1154,15 +1177,18 @@ export function addProduct(
 
 export function updateProduct(state: AppState, id: string, patch: Partial<Product>): AppState {
   const locId = activeLocationId(state)
+  const now = new Date().toISOString()
   return {
     ...state,
     products: state.products.map((p) => {
       if (p.id !== id) return p
       if (typeof patch.stock === 'number' && patch.stockByLocation === undefined) {
         const { stock: _stock, ...rest } = patch
-        return syncProductStockSum(setStockAt({ ...p, ...rest }, locId, patch.stock))
+        return syncProductStockSum(
+          setStockAt({ ...p, ...rest, updatedAt: now }, locId, patch.stock),
+        )
       }
-      return syncProductStockSum({ ...p, ...patch })
+      return syncProductStockSum({ ...p, ...patch, updatedAt: now })
     }),
   }
 }
@@ -2415,6 +2441,50 @@ export function deleteDriver(state: AppState, id: string): AppState {
   }
 }
 
+export function addCashier(
+  state: AppState,
+  input: Omit<Cashier, 'id' | 'createdAt' | 'active'> & { active?: boolean },
+): AppState {
+  const pin = String(input.pin).replace(/\D/g, '').slice(0, 4).padStart(4, '0')
+  const clash =
+    state.drivers.some((d) => d.active !== false && d.pin === pin) ||
+    (state.cashiers || []).some((c) => c.active !== false && c.pin === pin)
+  if (clash) return state
+  const cashier: Cashier = {
+    id: uid('ca'),
+    name: input.name.trim(),
+    phone: input.phone.trim(),
+    pin,
+    active: input.active !== false,
+    createdAt: new Date().toISOString(),
+  }
+  return { ...state, cashiers: [cashier, ...(state.cashiers || [])] }
+}
+
+export function updateCashier(
+  state: AppState,
+  id: string,
+  patch: Partial<Omit<Cashier, 'id' | 'createdAt'>>,
+): AppState {
+  return {
+    ...state,
+    cashiers: (state.cashiers || []).map((c) =>
+      c.id === id ? { ...c, ...patch } : c,
+    ),
+  }
+}
+
+export function deleteCashier(state: AppState, id: string): AppState {
+  return {
+    ...state,
+    cashiers: (state.cashiers || []).filter((c) => c.id !== id),
+    team:
+      state.team.currentCashierId === id
+        ? { ...state.team, currentCashierId: null }
+        : state.team,
+  }
+}
+
 export function createMission(
   state: AppState,
   input: {
@@ -2735,6 +2805,149 @@ export function mergeCloudDrivers(state: AppState, incoming: Driver[]): AppState
   const map = new Map(state.drivers.map((d) => [d.id, d]))
   for (const d of incoming) map.set(d.id, d)
   return { ...state, drivers: [...map.values()] }
+}
+
+export function mergeCloudCashiers(
+  state: AppState,
+  incoming: Cashier[],
+): AppState {
+  const local = state.cashiers || []
+  if (state.team.role === 'owner' && local.length > 0) {
+    const map = new Map(incoming.map((c) => [c.id, c]))
+    for (const c of local) map.set(c.id, c)
+    return { ...state, cashiers: [...map.values()] }
+  }
+  const map = new Map(local.map((c) => [c.id, c]))
+  for (const c of incoming) map.set(c.id, c)
+  return { ...state, cashiers: [...map.values()] }
+}
+
+function stampOf(row: { updatedAt?: string; createdAt?: string }): string {
+  return row.updatedAt || row.createdAt || ''
+}
+
+export function mergeCloudProducts(
+  state: AppState,
+  incoming: Product[],
+): AppState {
+  const map = new Map(state.products.map((p) => [p.id, p]))
+  for (const p of incoming) {
+    if (!p?.id) continue
+    const prev = map.get(p.id)
+    if (!prev) {
+      map.set(p.id, p)
+      continue
+    }
+    const iStamp = stampOf(p)
+    const cStamp = stampOf(prev)
+    if (iStamp > cStamp) {
+      map.set(p.id, {
+        ...prev,
+        ...p,
+        // garder image locale si cloud lean n’en a pas
+        imageDataUrl: p.imageDataUrl || prev.imageDataUrl,
+        costDa:
+          typeof p.costDa === 'number' ? p.costDa : prev.costDa,
+      })
+    } else if (iStamp < cStamp) {
+      map.set(p.id, prev)
+    } else {
+      const locs = new Set([
+        ...Object.keys(prev.stockByLocation || {}),
+        ...Object.keys(p.stockByLocation || {}),
+      ])
+      const locMap: Record<string, number> = {}
+      for (const loc of locs) {
+        const a = prev.stockByLocation?.[loc]
+        const b = p.stockByLocation?.[loc]
+        if (typeof a === 'number' && typeof b === 'number') locMap[loc] = Math.min(a, b)
+        else if (typeof a === 'number') locMap[loc] = a
+        else if (typeof b === 'number') locMap[loc] = b
+      }
+      const sum = Object.values(locMap).reduce((s, n) => s + n, 0)
+      map.set(p.id, {
+        ...prev,
+        ...p,
+        imageDataUrl: p.imageDataUrl || prev.imageDataUrl,
+        costDa: typeof p.costDa === 'number' ? p.costDa : prev.costDa,
+        stockByLocation: locMap,
+        stock: +sum.toFixed(3),
+      })
+    }
+  }
+  return { ...state, products: [...map.values()] }
+}
+
+export function mergeCloudClients(
+  state: AppState,
+  incoming: Client[],
+): AppState {
+  const map = new Map(state.clients.map((c) => [c.id, c]))
+  for (const c of incoming) {
+    if (!c?.id) continue
+    const prev = map.get(c.id)
+    if (!prev) {
+      map.set(c.id, c)
+      continue
+    }
+    const newer = stampOf(c) >= stampOf(prev) ? c : prev
+    const older = newer === c ? prev : c
+    map.set(c.id, { ...older, ...newer })
+  }
+  return { ...state, clients: [...map.values()] }
+}
+
+export function mergeCloudOrders(state: AppState, incoming: Order[]): AppState {
+  const map = new Map(state.orders.map((o) => [o.id, o]))
+  for (const o of incoming) {
+    if (!o?.id) continue
+    const prev = map.get(o.id)
+    if (!prev) {
+      map.set(o.id, o)
+      continue
+    }
+    map.set(o.id, {
+      ...prev,
+      ...o,
+      paidDa: Math.max(prev.paidDa || 0, o.paidDa || 0),
+      remainingDa: Math.min(
+        prev.remainingDa ?? o.remainingDa ?? 0,
+        o.remainingDa ?? prev.remainingDa ?? 0,
+      ),
+    })
+  }
+  return {
+    ...state,
+    orders: [...map.values()].sort((a, b) =>
+      (b.createdAt || '').localeCompare(a.createdAt || ''),
+    ),
+  }
+}
+
+export function mergeCloudCashEntries(
+  state: AppState,
+  incoming: CashEntry[],
+): AppState {
+  const map = new Map((state.cashEntries || []).map((e) => [e.id, e]))
+  for (const e of incoming) {
+    if (!e?.id) continue
+    const prev = map.get(e.id)
+    if (!prev) {
+      map.set(e.id, e)
+      continue
+    }
+    map.set(e.id, {
+      ...prev,
+      ...e,
+      amountDa: Math.max(prev.amountDa || 0, e.amountDa || 0),
+    })
+  }
+  return {
+    ...state,
+    cashEntries: [...map.values()].sort((a, b) =>
+      (b.createdAt || '').localeCompare(a.createdAt || ''),
+    ),
+  }
 }
 
 export function findProductByBarcode(

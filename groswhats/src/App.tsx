@@ -16,6 +16,7 @@ import type {
   Unit,
   ClinicStation,
   FlashSaleLine,
+  TeamRole,
 } from './types'
 import { ALL_UNITS, EXPENSE_CATEGORIES } from './types'
 import {
@@ -140,7 +141,7 @@ import {
   DEFAULT_AGENT_PERMISSIONS,
   type AgentPermissions,
 } from './agent/permissions'
-import { openWhatsapp, openWhatsappText } from './utils/whatsapp'
+import { openWhatsapp, openWhatsappText, openSupportWhatsapp } from './utils/whatsapp'
 import {
   buildProductStory,
   buildProductWhatsappPromo,
@@ -203,6 +204,7 @@ import {
 import { CalculatorPage } from './CalculatorPage'
 import { DeliveryMapPage } from './DeliveryMapPage'
 import { MissionsPage } from './MissionsPage'
+import { CashierHome } from './CashierHome'
 import { AgentPage } from './AgentPage'
 import { GlobalSmartSearch, SmartSearchBar, suggestNames } from './SmartSearchBar'
 import type { SearchHit } from './utils/smartSearch'
@@ -479,6 +481,9 @@ export default function App() {
   const low = lowStockProducts(state)
   const isDriverMode =
     state.team.multiPosteEnabled && state.team.role === 'driver'
+  const isCashierMode =
+    state.team.multiPosteEnabled && state.team.role === 'cashier'
+  const needCashierLogin = isCashierMode && !state.team.currentCashierId
   const clinicStation = clinicStationOf(state)
   const isClinicDoctor = clinicStation === 'doctor'
   const isClinicReception = clinicStation === 'reception'
@@ -493,6 +498,20 @@ export default function App() {
   useEffect(() => {
     if (isDriverMode && screen !== 'missions') goTo('missions')
   }, [isDriverMode, screen])
+
+  useEffect(() => {
+    if (needCashierLogin) return
+    if (
+      isCashierMode &&
+      (screen === 'settings' ||
+        screen === 'profits' ||
+        screen === 'purchases' ||
+        screen === 'staff' ||
+        screen === 'missions')
+    ) {
+      goTo('home')
+    }
+  }, [isCashierMode, needCashierLogin, screen])
 
   /** Voix agent / TTS désactivée */
   useEffect(() => {
@@ -517,7 +536,7 @@ export default function App() {
     <div
       className={`app-shell mode-${state.settings.commerceMode || 'gros'} metier-${metier.family} ${screen === 'delivery' ? 'map-mode' : ''} ${
         state.settings.easyMode !== false ? 'easy-ui' : ''
-      } ${isDriverMode ? 'driver-mode' : ''} ${isClinicDoctor ? 'clinic-doctor' : ''} ${isClinicReception ? 'clinic-reception' : ''}`}
+      } ${isDriverMode ? 'driver-mode' : ''} ${isCashierMode ? 'cashier-mode' : ''} ${isClinicDoctor ? 'clinic-doctor' : ''} ${isClinicReception ? 'clinic-reception' : ''}`}
     >
       {needSetup ? (
         <SetupWizard
@@ -556,11 +575,22 @@ export default function App() {
               updateTeam(s, {
                 role,
                 hasChosenRole: true,
-                currentDriverId: role === 'owner' ? null : s.team.currentDriverId,
+                currentDriverId: role === 'driver' ? s.team.currentDriverId : null,
+                currentCashierId:
+                  role === 'cashier' ? s.team.currentCashierId : null,
               }),
             )
-            goTo('missions')
+            goTo(role === 'driver' ? 'missions' : 'home')
           }}
+        />
+      ) : null}
+
+      {!needSetup && !needRolePick && needCashierLogin ? (
+        <CashierHome
+          state={state}
+          lang={lang}
+          onState={setState}
+          onFlash={flash}
         />
       ) : null}
 
@@ -574,7 +604,7 @@ export default function App() {
         />
       ) : null}
 
-      {!needSetup && !needRolePick && !needClinicRolePick && screen !== 'delivery' && !isDriverMode ? (
+      {!needSetup && !needRolePick && !needCashierLogin && !needClinicRolePick && screen !== 'delivery' && !isDriverMode ? (
       <header className="topbar">
         <div className="topbar-left">
           {showBackBtn && screen !== 'home' ? (
@@ -647,6 +677,7 @@ export default function App() {
             onClick={() => goTo('settings')}
             aria-label={t(lang, 'settings')}
             title={t(lang, 'settings')}
+            hidden={isCashierMode}
           >
             ⚙️
           </button>
@@ -685,7 +716,7 @@ export default function App() {
         <div className="badge map-toast">{toast}</div>
       ) : null}
 
-      {!needSetup && !needRolePick && screen === 'delivery' ? (
+      {!needSetup && !needRolePick && !needCashierLogin && screen === 'delivery' ? (
         <button
           type="button"
           className="back-btn map-back"
@@ -696,7 +727,7 @@ export default function App() {
         </button>
       ) : null}
 
-      {!needSetup && !needRolePick ? (
+      {!needSetup && !needRolePick && !needCashierLogin ? (
       <>
       {isAlive('home') && !isDriverMode ? (
         <div
@@ -704,6 +735,14 @@ export default function App() {
           aria-hidden={screen !== 'home'}
           inert={screen !== 'home' ? true : undefined}
         >
+        {isCashierMode && state.team.currentCashierId ? (
+          <CashierHome
+            state={state}
+            lang={lang}
+            onState={setState}
+            onFlash={flash}
+          />
+        ) : null}
         <HomePage
           state={state}
           stats={stats}
@@ -1241,6 +1280,7 @@ export default function App() {
                 hasChosenRole: enabled ? false : true,
                 role: enabled ? next.team.role : 'owner',
                 currentDriverId: enabled ? next.team.currentDriverId : null,
+                currentCashierId: enabled ? next.team.currentCashierId : null,
               })
               return next
             })
@@ -1282,9 +1322,19 @@ export default function App() {
       </>
       ) : null}
 
-      {!needSetup && !needRolePick && !isDriverMode ? (
+      {!needSetup && !needRolePick && !needCashierLogin && !isDriverMode ? (
       <nav className="bottom-nav" aria-label="Navigation">
-        {navItems(state.settings.commerceMode, clinicStation).map((item) => (
+        {navItems(state.settings.commerceMode, clinicStation)
+          .filter((item) => {
+            if (!isCashierMode) return true
+            return (
+              item.id === 'home' ||
+              item.id === 'order' ||
+              item.id === 'clients' ||
+              item.id === 'products'
+            )
+          })
+          .map((item) => (
           <button
             key={item.id}
             className={`nav-btn ${screen === item.id ? 'active' : ''}`}
@@ -1324,12 +1374,12 @@ function RolePickGate({
   onPick,
 }: {
   lang: Language
-  onPick: (role: 'owner' | 'driver') => void
+  onPick: (role: TeamRole) => void
 }) {
   return (
     <div className="page role-pick">
       <div className="card">
-        <h2>🚚 {t(lang, 'rolePickTitle')}</h2>
+        <h2>📱 {t(lang, 'rolePickTitle')}</h2>
         <p className="muted">{t(lang, 'rolePickHint')}</p>
         <div className="choice-grid">
           <button
@@ -1340,6 +1390,15 @@ function RolePickGate({
             <span className="choice-emoji">👔</span>
             <strong>{t(lang, 'roleOwner')}</strong>
             <span className="muted">{t(lang, 'roleOwnerHint')}</span>
+          </button>
+          <button
+            type="button"
+            className="choice-card"
+            onClick={() => onPick('cashier')}
+          >
+            <span className="choice-emoji">🧾</span>
+            <strong>{t(lang, 'roleCashier')}</strong>
+            <span className="muted">{t(lang, 'roleCashierHint')}</span>
           </button>
           <button
             type="button"
@@ -1530,6 +1589,26 @@ function SettingsPage({
         <div className="muted">{APP_BRAND.name} v{APP_VERSION}</div>
         <div className="notice" style={{ marginTop: 8 }}>
           {licenseInfo || '…'}
+        </div>
+        <div className="card" style={{ marginTop: 10 }}>
+          <h3 style={{ margin: '0 0 6px' }}>💬 {t(lang, 'supportTitle')}</h3>
+          <p className="muted" style={{ margin: '0 0 10px' }}>
+            {t(lang, 'supportHint')} {APP_BRAND.supportDisplay}
+          </p>
+          <button
+            type="button"
+            className="btn block"
+            onClick={() => {
+              openSupportWhatsapp({
+                language: lang === 'ar' ? 'ar' : 'fr',
+                shopName: state.settings.shopName,
+                version: APP_VERSION,
+              })
+              onFlash('supportOpened')
+            }}
+          >
+            {t(lang, 'supportWhatsapp')}
+          </button>
         </div>
         <div className="notice pro-upsell">
           <strong>{t(lang, 'proUpsell')}</strong>
