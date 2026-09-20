@@ -34,6 +34,33 @@ export type Screen =
   | 'returns'
   | 'purchases'
   | 'staff'
+  /** Outils optionnels (Réglages → icônes accueil) */
+  | 'payments'
+  | 'debtRemind'
+  | 'supplierDebts'
+  | 'inventory'
+  | 'expiry'
+  | 'membership'
+  | 'exportCompta'
+  | 'cashierPin'
+  | 'creditLimit'
+  | 'fiscal'
+
+/** Mode d’encaissement DZ (outil optionnel « Paiements DZ ») */
+export type PaymentMethod = 'cash' | 'baridimob' | 'ccp' | 'card' | 'cheque'
+
+/** Outils cochables dans Réglages → affichés sur l’accueil */
+export type OptionalToolId =
+  | 'payments'
+  | 'debtRemind'
+  | 'supplierDebts'
+  | 'inventory'
+  | 'expiry'
+  | 'membership'
+  | 'exportCompta'
+  | 'cashierPin'
+  | 'creditLimit'
+  | 'fiscal'
 
 export type ExpenseCategory =
   | 'personnel'
@@ -113,6 +140,10 @@ export interface Product {
   oemRef?: string
   /** Favori caisse (accès rapide) */
   favorite?: boolean
+  /** DLC / date de péremption YYYY-MM-DD (outil optionnel) */
+  expiryDate?: string
+  /** N° de lot */
+  lotNumber?: string
   createdAt: string
 }
 
@@ -139,6 +170,8 @@ export interface Purchase {
   lines: PurchaseLine[]
   totalDa: number
   paidDa: number
+  /** Échéance paiement fournisseur YYYY-MM-DD */
+  dueDate?: string
   note: string
   createdAt: string
 }
@@ -214,6 +247,8 @@ export interface Client {
    * Solde affiché = reste des factures + balanceAdjustDa
    */
   balanceAdjustDa?: number
+  /** Plafond de crédit (DA) — outil optionnel */
+  creditLimitDa?: number
   /** Santé — date de naissance YYYY-MM-DD */
   birthDate?: string
   /** Santé — sexe */
@@ -476,6 +511,8 @@ export interface Order {
   remainingDa: number
   /** paye si remainingDa ≈ 0, sinon credit (même partiel) */
   payment: 'paye' | 'credit'
+  /** Mode d’encaissement DZ (espèce, BaridiMob…) — outil optionnel */
+  paymentMethod?: PaymentMethod
   /** Date d’échéance (YYYY-MM-DD) si reste dû > 0 */
   dueDate?: string
   /** Note libre (acte cabinet, etc.) */
@@ -545,6 +582,17 @@ export interface ShopSettings {
   showCalculator: boolean
   /** Afficher galerie photos */
   showGallery: boolean
+  /**
+   * Outils optionnels cochés dans Réglages → icônes sur l’accueil.
+   * Absent / false = masqué (défaut).
+   */
+  enabledTools?: Partial<Record<OptionalToolId, boolean>>
+  /** PIN caissier (4–6 chiffres) — outil cashierPin */
+  cashierPin?: string
+  /** Identité fiscale magasin (outil fiscal) */
+  fiscalNif?: string
+  fiscalRc?: string
+  fiscalAi?: string
   /** Permissions système agentic (optionnel — défauts complets) */
   agentPermissions?: Partial<AgentPermissionFlags>
   /** Multi-magasin / multi-dépôts (AZ POS Pro lean) */

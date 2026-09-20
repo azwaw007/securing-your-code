@@ -13,12 +13,17 @@ export function buildTicketText(order: Order, settings: ShopSettings): string {
     })
     .join('\n')
   const pay = paymentSummaryLines(order, lang)
+  const fiscal: string[] = []
+  if (settings.fiscalNif) fiscal.push(`NIF: ${settings.fiscalNif}`)
+  if (settings.fiscalRc) fiscal.push(`RC: ${settings.fiscalRc}`)
+  if (settings.fiscalAi) fiscal.push(`AI: ${settings.fiscalAi}`)
 
   if (lang === 'ar') {
     return [
       settings.shopName,
       settings.city,
       settings.phone,
+      ...fiscal,
       '------------------------',
       `تذكرة: ${order.id.slice(-6).toUpperCase()}`,
       `التاريخ: ${date}`,
@@ -45,6 +50,7 @@ export function buildTicketText(order: Order, settings: ShopSettings): string {
     settings.shopName.toUpperCase(),
     settings.city,
     settings.phone,
+    ...fiscal,
     '------------------------',
     `Ticket: ${order.id.slice(-6).toUpperCase()}`,
     `Date: ${date}`,

@@ -432,6 +432,27 @@ export function migrate(raw: unknown): AppState {
     showZakat: incoming.showZakat !== false,
     showCalculator: incoming.showCalculator !== false,
     showGallery: incoming.showGallery !== false,
+    enabledTools:
+      incoming.enabledTools && typeof incoming.enabledTools === 'object'
+        ? (incoming.enabledTools as ShopSettings['enabledTools'])
+        : undefined,
+    cashierPin:
+      typeof incoming.cashierPin === 'string' &&
+      /^\d{4,6}$/.test(incoming.cashierPin.trim())
+        ? incoming.cashierPin.trim()
+        : undefined,
+    fiscalNif:
+      typeof incoming.fiscalNif === 'string' && incoming.fiscalNif.trim()
+        ? incoming.fiscalNif.trim()
+        : undefined,
+    fiscalRc:
+      typeof incoming.fiscalRc === 'string' && incoming.fiscalRc.trim()
+        ? incoming.fiscalRc.trim()
+        : undefined,
+    fiscalAi:
+      typeof incoming.fiscalAi === 'string' && incoming.fiscalAi.trim()
+        ? incoming.fiscalAi.trim()
+        : undefined,
     agentPermissions: {
       ...DEFAULT_AGENT_PERMISSIONS,
       ...(incoming.agentPermissions as Partial<AgentPermissions> | undefined),
@@ -549,6 +570,16 @@ export function migrate(raw: unknown): AppState {
             ? (p as Product).oemRef!.trim()
             : undefined,
         favorite: (p as Product).favorite === true,
+        expiryDate:
+          typeof (p as Product).expiryDate === 'string' &&
+          /^\d{4}-\d{2}-\d{2}$/.test((p as Product).expiryDate!)
+            ? (p as Product).expiryDate
+            : undefined,
+        lotNumber:
+          typeof (p as Product).lotNumber === 'string' &&
+          (p as Product).lotNumber!.trim()
+            ? (p as Product).lotNumber!.trim()
+            : undefined,
         demiGrosPriceDa:
           typeof p.demiGrosPriceDa === 'number' && p.demiGrosPriceDa > 0
             ? p.demiGrosPriceDa
@@ -570,6 +601,10 @@ export function migrate(raw: unknown): AppState {
       lng: typeof c.lng === 'number' ? c.lng : undefined,
       balanceAdjustDa:
         typeof c.balanceAdjustDa === 'number' ? c.balanceAdjustDa : 0,
+      creditLimitDa:
+        typeof c.creditLimitDa === 'number' && c.creditLimitDa > 0
+          ? c.creditLimitDa
+          : undefined,
       birthDate: typeof c.birthDate === 'string' ? c.birthDate : undefined,
       sex: c.sex === 'M' || c.sex === 'F' || c.sex === 'X' ? c.sex : undefined,
       bloodGroup: typeof c.bloodGroup === 'string' ? c.bloodGroup : undefined,
@@ -604,10 +639,20 @@ export function migrate(raw: unknown): AppState {
     orders: (data.orders ?? []).map((o) => {
       const total = typeof o.totalDa === 'number' ? o.totalDa : 0
       const pay = normalizeOrderAmounts(o, total)
+      const pm = (o as Order).paymentMethod
+      const paymentMethod =
+        pm === 'cash' ||
+        pm === 'baridimob' ||
+        pm === 'ccp' ||
+        pm === 'card' ||
+        pm === 'cheque'
+          ? pm
+          : undefined
       return {
         ...o,
         totalDa: total,
         ...pay,
+        paymentMethod,
         lines: (o.lines ?? []).map((l) => ({
           ...l,
           unitCostDa: typeof l.unitCostDa === 'number' ? l.unitCostDa : 0,
@@ -679,6 +724,11 @@ export function migrate(raw: unknown): AppState {
       lines: Array.isArray(p.lines) ? p.lines : [],
       totalDa: typeof p.totalDa === 'number' ? p.totalDa : 0,
       paidDa: typeof p.paidDa === 'number' ? p.paidDa : 0,
+      dueDate:
+        typeof (p as Purchase).dueDate === 'string' &&
+        /^\d{4}-\d{2}-\d{2}$/.test((p as Purchase).dueDate!)
+          ? (p as Purchase).dueDate
+          : undefined,
       note: typeof p.note === 'string' ? p.note : '',
       createdAt: p.createdAt || new Date().toISOString(),
     })),

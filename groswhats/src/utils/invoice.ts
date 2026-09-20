@@ -11,6 +11,20 @@ function discountLine(order: Order, lang: string): string | null {
     : `Remise: -${formatDa(order.discountDa)}${pct}`
 }
 
+function fiscalHeaderLines(settings: ShopSettings, lang: string): string[] {
+  const lines: string[] = []
+  if (settings.fiscalNif) {
+    lines.push(lang === 'ar' ? `NIF: ${settings.fiscalNif}` : `NIF: ${settings.fiscalNif}`)
+  }
+  if (settings.fiscalRc) {
+    lines.push(lang === 'ar' ? `RC: ${settings.fiscalRc}` : `RC: ${settings.fiscalRc}`)
+  }
+  if (settings.fiscalAi) {
+    lines.push(lang === 'ar' ? `AI: ${settings.fiscalAi}` : `AI: ${settings.fiscalAi}`)
+  }
+  return lines
+}
+
 export function buildInvoiceText(order: Order, settings: ShopSettings): string {
   const lang = settings.language
   const invoiceNo = order.invoiceNumber ?? order.id.slice(-6).toUpperCase()
@@ -23,6 +37,7 @@ export function buildInvoiceText(order: Order, settings: ShopSettings): string {
     .join('\n')
   const pay = paymentSummaryLines(order, lang)
   const disc = discountLine(order, lang)
+  const fiscal = fiscalHeaderLines(settings, lang)
 
   if (lang === 'ar') {
     return [
@@ -30,6 +45,7 @@ export function buildInvoiceText(order: Order, settings: ShopSettings): string {
       settings.shopName,
       settings.city,
       settings.phone,
+      ...fiscal,
       '------------------------',
       `التاريخ: ${date}`,
       `الزبون: ${order.clientName}`,
@@ -51,6 +67,7 @@ export function buildInvoiceText(order: Order, settings: ShopSettings): string {
     settings.shopName,
     settings.city,
     settings.phone,
+    ...fiscal,
     '------------------------',
     `Date: ${date}`,
     `Client: ${order.clientName}`,

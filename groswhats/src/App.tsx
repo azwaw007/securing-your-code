@@ -186,6 +186,19 @@ import {
   StockAlertCard,
   DueAlertCard,
 } from './ExtraScreens'
+import { CashierPinGate, OptionalToolPage } from './OptionalTools'
+import {
+  OPTIONAL_TOOLS,
+  OPTIONAL_TOOL_SCREENS,
+  PAYMENT_METHODS,
+  isCashierUnlocked,
+  isToolEnabled,
+  paymentMethodEmoji,
+  paymentMethodLabel,
+  toolLabel,
+  type OptionalToolId,
+  type PaymentMethod,
+} from './data/optionalTools'
 import { CalculatorPage } from './CalculatorPage'
 import { DeliveryMapPage } from './DeliveryMapPage'
 import { MissionsPage } from './MissionsPage'
@@ -326,10 +339,17 @@ export default function App() {
   } | null>(null)
   const [agentSeed, setAgentSeed] = useState<string | null>(null)
   const [redoSetup, setRedoSetup] = useState(false)
+  const [cashierGateTick, setCashierGateTick] = useState(0)
   const lang = state.settings.language
   const domainId = state.settings.domainId
   const vocab = shopVocab(state.settings.commerceMode, lang, domainId)
   const metier = metierPackFor(domainId, state.settings.commerceMode)
+  const needsCashierPin =
+    isToolEnabled(state.settings, 'cashierPin') &&
+    !!state.settings.cashierPin &&
+    !isCashierUnlocked()
+  // re-render when unlock changes
+  void cashierGateTick
 
   useEffect(() => {
     registerMuteAskHandler(null)
@@ -513,6 +533,14 @@ export default function App() {
             setRedoSetup(false)
             goTo('home')
           }}
+        />
+      ) : null}
+
+      {!needSetup && needsCashierPin ? (
+        <CashierPinGate
+          settings={state.settings}
+          lang={lang}
+          onUnlock={() => setCashierGateTick((n) => n + 1)}
         />
       ) : null}
 
@@ -1159,6 +1187,32 @@ export default function App() {
           />
         </div>
       ) : null}
+      {OPTIONAL_TOOL_SCREENS.map((toolScreen) =>
+        isAlive(toolScreen) && !isDriverMode ? (
+          <div
+            key={toolScreen}
+            className={`screen-pane ${screen === toolScreen ? 'is-active' : 'is-cached'}`}
+            aria-hidden={screen !== toolScreen}
+            inert={screen !== toolScreen ? true : undefined}
+          >
+            <OptionalToolPage
+              toolId={toolScreen as OptionalToolId}
+              state={state}
+              lang={lang}
+              onState={setState}
+              onFlash={(msg) => setToast(msg)}
+              onFocusClient={(id) => {
+                setFocusClientId(id)
+                goTo('clients')
+              }}
+              onFocusProduct={(id) => {
+                setFocusProductId(id)
+                goTo('products')
+              }}
+            />
+          </div>
+        ) : null,
+      )}
       {isAlive('settings') && !isDriverMode ? (
         <div
           className={`screen-pane ${screen === 'settings' ? 'is-active' : 'is-cached'}`}
@@ -1395,6 +1449,9 @@ function SettingsPage({
   const [showGallery, setShowGallery] = useState(
     state.settings.showGallery !== false,
   )
+  const [enabledTools, setEnabledTools] = useState<
+    Partial<Record<OptionalToolId, boolean>>
+  >(() => ({ ...(state.settings.enabledTools || {}) }))
   const [agentPerms, setAgentPerms] = useState<AgentPermissions>(() => ({
     ...DEFAULT_AGENT_PERMISSIONS,
     ...state.settings.agentPermissions,
@@ -1455,6 +1512,7 @@ function SettingsPage({
       showZakat,
       showCalculator,
       showGallery,
+      enabledTools,
       agentPermissions: agentPerms,
       ...extra,
     })
@@ -1678,6 +1736,9 @@ function SettingsPage({
 
         <div className="field">
           <label>{t(lang, 'showIconsTitle')}</label>
+          <p className="muted" style={{ marginTop: 0 }}>
+            {t(lang, 'optionalToolsHint')}
+          </p>
           <label className="check-row">
             <input
               type="checkbox"
@@ -1702,6 +1763,26 @@ function SettingsPage({
             />
             <span>{t(lang, 'gallery')}</span>
           </label>
+          {OPTIONAL_TOOLS.map((tool) => (
+            <label className="check-row" key={tool.id}>
+              <input
+                type="checkbox"
+                checked={enabledTools[tool.id] === true}
+                onChange={(e) => {
+                  const on = e.target.checked
+                  const next = { ...enabledTools, [tool.id]: on }
+                  setEnabledTools(next)
+                  saveAll({ enabledTools: next })
+                }}
+              />
+              <span>
+                {tool.icon} {toolLabel(tool, lang)}
+                <div className="muted">
+                  {lang === 'ar' ? tool.hintAr : tool.hintFr}
+                </div>
+              </span>
+            </label>
+          ))}
         </div>
 
         <label className="field check-row">
@@ -2391,6 +2472,20 @@ function HomePage({
       : []),
     { id: 'settings', label: t(lang, 'appSettings'), icon: '⚙️', tone: 'charcoal' },
   ]
+  const optionalApps: Array<{
+    id: Screen
+    label: string
+    icon: string
+    tone: string
+    badge?: number
+  }> = OPTIONAL_TOOLS.filter((tool) => isToolEnabled(state.settings, tool.id)).map(
+    (tool) => ({
+      id: tool.screen,
+      label: toolLabel(tool, lang),
+      icon: tool.icon,
+      tone: tool.tone,
+    }),
+  )
   const moreBadge = moreApps.reduce((n, app) => n + (app.badge ?? 0), 0)
 
   return (
@@ -2630,6 +2725,22 @@ function HomePage({
             </button>
           ))}
         </div>
+
+        {optionalApps.length > 0 ? (
+          <div className="app-grid" style={{ marginTop: 10 }} aria-label={t(lang, 'showIconsTitle')}>
+            {optionalApps.map((app) => (
+              <button
+                key={app.id}
+                type="button"
+                className="app-tile"
+                onClick={() => onGo(app.id, app.label)}
+              >
+                <span className={`app-icon tone-${app.tone}`}>{app.icon}</span>
+                <span className="app-label">{app.label}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
 
         <button
           type="button"
@@ -3614,6 +3725,8 @@ function ProductsPage({
   const [packOptionRows, setPackOptionRows] = useState<
     { size: string; priceDa: string }[]
   >([])
+  const [expiryDate, setExpiryDate] = useState('')
+  const [lotNumber, setLotNumber] = useState('')
   const [imageDataUrl, setImageDataUrl] = useState<string | undefined>()
   const [photoBusy, setPhotoBusy] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
@@ -3663,6 +3776,7 @@ function ProductsPage({
   const trackImei = showImeiTracking(domainId)
   const trackVariants = showRetailVariants(domainId)
   const trackOem = showOemRef(domainId)
+  const showExpiry = isToolEnabled(state.settings, 'expiry')
 
   const productSuggestions = useMemo(() => {
     const names = [
@@ -3863,6 +3977,26 @@ function ProductsPage({
             </span>
           </label>
         ) : null}
+        {showExpiry ? (
+          <div className="grid-2">
+            <div className="field">
+              <label>{t(lang, 'productExpiry')}</label>
+              <input
+                type="date"
+                value={expiryDate}
+                onChange={(e) => setExpiryDate(e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label>{t(lang, 'productLot')}</label>
+              <input
+                value={lotNumber}
+                onChange={(e) => setLotNumber(e.target.value)}
+                placeholder="LOT…"
+              />
+            </div>
+          </div>
+        ) : null}
         <ProductPricingFields
           lang={lang}
           commerceMode={state.settings.commerceMode}
@@ -3925,9 +4059,14 @@ function ProductsPage({
               color: color.trim() || undefined,
               oemRef: oemRef.trim() || undefined,
               favorite: favorite || undefined,
+              expiryDate: showExpiry && expiryDate ? expiryDate : undefined,
+              lotNumber:
+                showExpiry && lotNumber.trim() ? lotNumber.trim() : undefined,
             })
             setName('')
             setBarcode('')
+            setExpiryDate('')
+            setLotNumber('')
             setAisleId(
               retailChipRayons(domainId, state.settings, lang)[0]?.id || '',
             )
@@ -4224,6 +4363,8 @@ function ProductEditCard({
   const [stock, setStock] = useState(String(stockValue))
   const [lowStockAt, setLowStockAt] = useState(String(product.lowStockAt))
   const [barcode, setBarcode] = useState(product.barcode || '')
+  const [expiryDate, setExpiryDate] = useState(product.expiryDate || '')
+  const [lotNumber, setLotNumber] = useState(product.lotNumber || '')
   const [draftImage, setDraftImage] = useState(product.imageDataUrl)
   const nameRef = useRef(name)
   const imageRef = useRef(draftImage)
@@ -4247,6 +4388,7 @@ function ProductEditCard({
   const trackImei = showImeiTracking(domainId)
   const trackVariants = showRetailVariants(domainId)
   const trackOem = showOemRef(domainId)
+  const showExpiry = settings ? isToolEnabled(settings, 'expiry') : false
 
   return (
     <div className="card">
@@ -4368,6 +4510,26 @@ function ProductEditCard({
           </span>
         </label>
       ) : null}
+      {showExpiry ? (
+        <div className="grid-2">
+          <div className="field">
+            <label>{t(lang, 'productExpiry')}</label>
+            <input
+              type="date"
+              value={expiryDate}
+              onChange={(e) => setExpiryDate(e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label>{t(lang, 'productLot')}</label>
+            <input
+              value={lotNumber}
+              onChange={(e) => setLotNumber(e.target.value)}
+              placeholder="LOT…"
+            />
+          </div>
+        </div>
+      ) : null}
       <ProductPricingFields
         lang={lang}
         commerceMode={commerceMode}
@@ -4431,6 +4593,9 @@ function ProductEditCard({
             color: color.trim() || undefined,
             oemRef: oemRef.trim() || undefined,
             favorite: favorite || undefined,
+            expiryDate: showExpiry && expiryDate ? expiryDate : undefined,
+            lotNumber:
+              showExpiry && lotNumber.trim() ? lotNumber.trim() : undefined,
           })
         }}
       >
@@ -4580,6 +4745,7 @@ function ClientsPage({
           lang={lang}
           countryCode={state.settings.countryCode || 'DZ'}
           client={selected}
+          showCreditLimit={isToolEnabled(state.settings, 'creditLimit')}
           onCancel={() => setEditing(false)}
           onSave={(patch) => {
             onUpdate(selected.id, patch)
@@ -5108,6 +5274,7 @@ function ClientEditCard({
   lang,
   countryCode,
   client,
+  showCreditLimit,
   onCancel,
   onSave,
   onGps,
@@ -5117,6 +5284,7 @@ function ClientEditCard({
   lang: Language
   countryCode: string
   client: Client
+  showCreditLimit?: boolean
   onCancel: () => void
   onSave: (patch: Partial<Omit<Client, 'id' | 'createdAt'>>) => void
   onGps: () => void
@@ -5128,6 +5296,9 @@ function ClientEditCard({
   const [city, setCity] = useState(client.city)
   const [address, setAddress] = useState(client.address ?? '')
   const [notes, setNotes] = useState(client.notes ?? '')
+  const [creditLimitDa, setCreditLimitDa] = useState(
+    client.creditLimitDa ? String(client.creditLimitDa) : '',
+  )
   const [mapsPaste, setMapsPaste] = useState('')
 
   return (
@@ -5166,6 +5337,20 @@ function ClientEditCard({
         <label>{t(lang, 'clientNotes')}</label>
         <textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </div>
+      {showCreditLimit ? (
+        <div className="field">
+          <label>{t(lang, 'clientCreditLimit')}</label>
+          <input
+            type="number"
+            inputMode="decimal"
+            min={0}
+            value={creditLimitDa}
+            onChange={(e) => setCreditLimitDa(e.target.value)}
+            placeholder="50000"
+          />
+          <div className="muted">{t(lang, 'clientCreditLimitHint')}</div>
+        </div>
+      ) : null}
       <div className="field">
         <label>{t(lang, 'pasteMapsLink')}</label>
         <input
@@ -5203,15 +5388,20 @@ function ClientEditCard({
       <button
         className="btn block"
         disabled={!name.trim() || !phone.trim()}
-        onClick={() =>
+        onClick={() => {
+          const lim = Number(String(creditLimitDa).replace(',', '.'))
           onSave({
             name: name.trim(),
             phone: phone.trim(),
             city: city.trim(),
             address: address.trim(),
             notes: notes.trim(),
+            creditLimitDa:
+              showCreditLimit && Number.isFinite(lim) && lim > 0
+                ? lim
+                : undefined,
           })
-        }
+        }}
       >
         {t(lang, 'saveClient')}
       </button>
@@ -5306,8 +5496,11 @@ function OrderPage({
   const [payStep, setPayStep] = useState(false)
   const [verseInput, setVerseInput] = useState('')
   const [dueDays, setDueDays] = useState(15)
+  const [payMethod, setPayMethod] = useState<PaymentMethod>('cash')
   const [invoiceDraft, setInvoiceDraft] = useState('')
   const [showClientBook, setShowClientBook] = useState(clientFirst)
+  const paymentsOn = isToolEnabled(state.settings, 'payments')
+  const creditLimitOn = isToolEnabled(state.settings, 'creditLimit')
 
   const isQuick = clientId === QUICK
   const favorites = useMemo(
@@ -5702,6 +5895,21 @@ function OrderPage({
       return
     }
     const pay = buildPaymentFields(total, paidDa)
+    if (creditLimitOn && !isQuick && client && pay.remainingDa > 0.001) {
+      const limit = client.creditLimitDa
+      if (typeof limit === 'number' && limit > 0) {
+        const nextDebt = clientDebt + pay.remainingDa
+        if (nextDebt > limit + 0.001) {
+          const msg =
+            lang === 'ar'
+              ? `تجاوز سقف الدين (${Math.round(limit)} دج)`
+              : `Plafond crédit dépassé (${Math.round(limit)} DA)`
+          onFlash(msg)
+          speak(msg, lang)
+          return
+        }
+      }
+    }
     const forcedDiscount = hasTotalOverride
       ? Math.max(0, +(subtotal - total).toFixed(2))
       : discountDa
@@ -5719,6 +5927,7 @@ function OrderPage({
         ? `${t(lang, 'totalOverrideNote')}: ${Math.round(total)} DA`
         : undefined,
       ...pay,
+      paymentMethod: paymentsOn ? payMethod : undefined,
       dueDate:
         pay.remainingDa > 0.001 ? dueDateFromDays(dueDays) : undefined,
     })
@@ -6554,6 +6763,20 @@ function OrderPage({
         ) : (
           <div className="pay-final">
             <div className="notice">{t(lang, 'payBeforePrint')}</div>
+            {paymentsOn ? (
+              <div className="btn-row" style={{ flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                {PAYMENT_METHODS.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    className={`tier-chip ${payMethod === m ? 'active' : ''}`}
+                    onClick={() => setPayMethod(m)}
+                  >
+                    {paymentMethodEmoji(m)} {paymentMethodLabel(m, lang)}
+                  </button>
+                ))}
+              </div>
+            ) : null}
             <div className="choice-grid pay-choice">
               <button
                 type="button"
