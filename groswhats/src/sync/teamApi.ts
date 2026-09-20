@@ -1,11 +1,16 @@
-﻿import type { Driver, Mission } from '../types'
+﻿import type { CashEntry, Cashier, Client, Driver, Mission, Order, Product } from '../types'
 
 export interface TeamCloudPayload {
   companyCode: string
   syncSecret: string
   shopName: string
   drivers: Driver[]
+  cashiers?: Cashier[]
   missions: Mission[]
+  products?: Product[]
+  clients?: Client[]
+  orders?: Order[]
+  cashEntries?: CashEntry[]
   updatedAt: string
   storage?: string
   warning?: string
@@ -126,6 +131,7 @@ export async function pullTeamCloud(
   companyCode: string,
   syncSecret: string,
   driverId?: string,
+  cashierId?: string,
 ): Promise<{ ok: boolean; data?: TeamCloudPayload; message?: string; storage?: string }> {
   try {
     const q = new URLSearchParams({
@@ -133,6 +139,7 @@ export async function pullTeamCloud(
       syncSecret,
     })
     if (driverId) q.set('driverId', driverId)
+    if (cashierId) q.set('cashierId', cashierId)
     const res = await fetch(`/api/team?${q.toString()}`)
     const body = (await res.json().catch(() => ({}))) as TeamCloudPayload & {
       message?: string
@@ -154,9 +161,12 @@ export async function joinAsDriver(input: {
   companyCode: string
   syncSecret: string
   pin: string
+  role?: 'driver' | 'cashier'
 }): Promise<{
   ok: boolean
+  role?: 'driver' | 'cashier'
   driver?: Driver
+  cashier?: Cashier
   data?: TeamCloudPayload
   message?: string
 }> {
@@ -168,11 +178,19 @@ export async function joinAsDriver(input: {
     })
     const body = (await res.json().catch(() => ({}))) as {
       message?: string
+      role?: 'driver' | 'cashier'
       driver?: Driver
+      cashier?: Cashier
       data?: TeamCloudPayload
     }
     if (!res.ok) return { ok: false, message: body.message || `HTTP ${res.status}` }
-    return { ok: true, driver: body.driver, data: body.data }
+    return {
+      ok: true,
+      role: body.role,
+      driver: body.driver,
+      cashier: body.cashier,
+      data: body.data,
+    }
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : 'offline' }
   }

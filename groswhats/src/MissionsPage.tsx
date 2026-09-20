@@ -5,19 +5,18 @@ import { WILAYAS, matchWilayaCode, wilayaByCode } from './data/wilayas'
 import { openWhatsappText } from './utils/whatsapp'
 import {
   missionWhatsappText,
-  pullTeamCloud,
-  pushTeamCloud,
   type MissionPack,
 } from './sync/teamApi'
+import { syncTeamPull, syncTeamPush } from './sync/shopSync'
 import { formatDa } from './utils/format'
 import {
+  addCashier,
   addDriver,
   createMission,
+  deleteCashier,
   deleteDriver,
   deleteMission,
   ensureCompanyCode,
-  mergeCloudDrivers,
-  mergeCloudMissions,
   missionCollectTotal,
   reorderMissionStops,
   updateDriver,
@@ -88,10 +87,15 @@ function OwnerMissionsView({
   onState: (next: AppState | ((s: AppState) => AppState)) => void
   onFlash: (key: string) => void
 }) {
-  const [tab, setTab] = useState<'missions' | 'drivers' | 'team'>('missions')
+  const [tab, setTab] = useState<'missions' | 'drivers' | 'cashiers' | 'team'>(
+    'missions',
+  )
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [pin, setPin] = useState('1234')
+  const [cashierName, setCashierName] = useState('')
+  const [cashierPhone, setCashierPhone] = useState('')
+  const [cashierPin, setCashierPin] = useState('4321')
   const [title, setTitle] = useState('')
   const [date, setDate] = useState(todayIso())
   const [wilayaCode, setWilayaCode] = useState(
@@ -110,62 +114,21 @@ function OwnerMissionsView({
 
   async function syncPull() {
     setBusy(true)
-    const s = ensureCompanyCode(state)
-    const res = await pullTeamCloud(s.team.companyCode, s.team.syncSecret)
+    const res = await syncTeamPull(ensureCompanyCode(state))
     setBusy(false)
-    if (!res.ok || !res.data) {
+    if (!res.ok) {
       onFlash('teamSyncFail')
       return false
     }
-    onState((prev) => {
-      let next = mergeCloudDrivers(prev, res.data!.drivers || [])
-      next = mergeCloudMissions(next, res.data!.missions || [])
-      return next
-    })
+    onState(() => res.state)
     onFlash('teamPulled')
     return true
   }
 
   async function syncPush(override?: AppState) {
     setBusy(true)
-    let s = ensureCompanyCode(override ?? state)
-
-    // 1) Pull + merge local avant push → ne pas écraser le livreur
-    const pulled = await pullTeamCloud(s.team.companyCode, s.team.syncSecret)
-    if (pulled.ok && pulled.data) {
-      onState((prev) => {
-        let next = mergeCloudDrivers(prev, pulled.data!.drivers || [])
-        next = mergeCloudMissions(next, pulled.data!.missions || [])
-        s = ensureCompanyCode(next)
-        return next
-      })
-      // laisser React appliquer ; utiliser l’état mergé pour le push
-      s = ensureCompanyCode(
-        (() => {
-          let next = mergeCloudDrivers(s, pulled.data!.drivers || [])
-          next = mergeCloudMissions(next, pulled.data!.missions || [])
-          return next
-        })(),
-      )
-    }
-
-    const res = await pushTeamCloud({
-      companyCode: s.team.companyCode,
-      syncSecret: s.team.syncSecret,
-      shopName: s.settings.shopName,
-      drivers: s.drivers,
-      missions: s.missions,
-      updatedAt: new Date().toISOString(),
-    })
-
-    if (res.ok && res.data) {
-      onState((prev) => {
-        let next = mergeCloudDrivers(prev, res.data!.drivers || [])
-        next = mergeCloudMissions(next, res.data!.missions || [])
-        return next
-      })
-    }
-
+    const res = await syncTeamPush(ensureCompanyCode(override ?? state))
+    if (res.ok) onState(() => res.state)
     setBusy(false)
     onFlash(res.ok ? 'teamSynced' : 'teamSyncFail')
     return res.ok
@@ -212,6 +175,13 @@ function OwnerMissionsView({
           </button>
           <button
             type="button"
+            className={`btn ${tab === 'cashiers' ? '' : 'secondary'}`}
+            onClick={() => setTab('cashiers')}
+          >
+            {t(lang, 'cashiers')}
+          </button>
+          <button
+            type="button"
             className={`btn ${tab === 'team' ? '' : 'secondary'}`}
             onClick={() => setTab('team')}
           >
@@ -234,6 +204,7 @@ function OwnerMissionsView({
           </div>
           <p className="muted">{t(lang, 'teamSetupHint')}</p>
           <div className="notice">{t(lang, 'teamBlobHint')}</div>
+          <div className="notice">{t(lang, 'shopSyncHint')}</div>
           <div className="btn-row">
             <button
               type="button"
@@ -260,14 +231,122 @@ function OwnerMissionsView({
                     role: 'driver',
                     hasChosenRole: true,
                     currentDriverId: null,
+                    currentCashierId: null,
                   }),
                 )
               }
             >
               {t(lang, 'switchToDriver')}
             </button>
+            <button
+              type="button"
+              className="btn secondary"
+              onClick={() =>
+                onState((s) =>
+                  updateTeam(s, {
+                    role: 'cashier',
+                    hasChosenRole: true,
+                    currentDriverId: null,
+                    currentCashierId: null,
+                  }),
+                )
+              }
+            >
+              {t(lang, 'switchToCashier')}
+            </button>
           </div>
         </div>
+      ) : null}
+
+      {tab === 'cashiers' ? (
+        <>
+          <div className="card">
+            <h3>{t(lang, 'addCashier')}</h3>
+            <p className="muted">{t(lang, 'cashiersHint')}</p>
+            <div className="field">
+              <label>{t(lang, 'cashierName')}</label>
+              <input
+                value={cashierName}
+                onChange={(e) => setCashierName(e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label>{t(lang, 'phone')}</label>
+              <input
+                value={cashierPhone}
+                onChange={(e) => setCashierPhone(e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label>{t(lang, 'cashierPin')}</label>
+              <input
+                value={cashierPin}
+                onChange={(e) =>
+                  setCashierPin(e.target.value.replace(/\D/g, '').slice(0, 4))
+                }
+                inputMode="numeric"
+                maxLength={4}
+              />
+            </div>
+            <button
+              type="button"
+              className="btn block"
+              disabled={!cashierName.trim() || cashierPin.length < 4}
+              onClick={() => {
+                const before = (state.cashiers || []).length
+                const next = addCashier(state, {
+                  name: cashierName.trim(),
+                  phone: cashierPhone.trim(),
+                  pin: cashierPin,
+                })
+                if ((next.cashiers || []).length <= before) {
+                  onFlash('cashierPinClash')
+                  return
+                }
+                onState(() => next)
+                setCashierName('')
+                setCashierPhone('')
+                setCashierPin('4321')
+                onFlash('cashierAdded')
+                void syncPush(next)
+              }}
+            >
+              {t(lang, 'addCashier')}
+            </button>
+          </div>
+          <div className="card">
+            <h3>
+              {t(lang, 'cashiers')} ({(state.cashiers || []).length})
+            </h3>
+            {(state.cashiers || []).length === 0 ? (
+              <div className="empty">{t(lang, 'noCashiers')}</div>
+            ) : (
+              (state.cashiers || []).map((c) => (
+                <div className="list-item" key={c.id}>
+                  <div>
+                    <strong>{c.name}</strong>
+                    <div className="muted">
+                      {c.phone || '—'} · PIN {c.pin}
+                      {!c.active ? ` · ${t(lang, 'inactive')}` : ''}
+                    </div>
+                  </div>
+                  <div className="btn-row">
+                    <button
+                      type="button"
+                      className="btn danger"
+                      onClick={() => {
+                        onState((s) => deleteCashier(s, c.id))
+                        onFlash('cashierDeleted')
+                      }}
+                    >
+                      {t(lang, 'delete')}
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </>
       ) : null}
 
       {tab === 'drivers' ? (
