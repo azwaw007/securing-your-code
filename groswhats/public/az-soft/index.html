@@ -8,6 +8,8 @@
       name="description"
       content="AZ POS par AZ Soft : caisse tactile, stock, clients, WhatsApp, multi-magasin Pro. Démo gratuite pour commerçants en Algérie."
     />
+    <link rel="icon" type="image/png" sizes="32x32" href="/brand/favicon-32.png" />
+    <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -66,6 +68,13 @@
         color: var(--ink);
       }
       .brand span { color: var(--brand); }
+      .brand-logo {
+        display: block;
+        width: min(100%, 420px);
+        height: auto;
+        border-radius: 16px;
+        margin: 0;
+      }
       .hero h1 {
         font-family: var(--font-display);
         font-size: clamp(1.2rem, 3.2vw, 1.55rem);
@@ -280,7 +289,15 @@
   <body>
     <header class="hero">
       <div class="hero-copy">
-        <p class="brand">AZ <span>Soft</span></p>
+        <p class="brand">
+          <img
+            class="brand-logo"
+            src="/brand/logo-wide.webp"
+            alt="AZ Soft — AZ POS"
+            width="1200"
+            height="675"
+          />
+        </p>
         <h1>AZ POS — la caisse qui suit ton magasin.</h1>
         <p class="lead">
           Stock, clients, crédit et WhatsApp sur téléphone ou PC.

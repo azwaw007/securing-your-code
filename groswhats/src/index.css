@@ -159,6 +159,76 @@ button {
   color: var(--brand);
 }
 
+.brand-mark {
+  display: flex;
+  align-items: center;
+  line-height: 0;
+}
+
+.brand-logo {
+  display: block;
+  height: 40px;
+  width: auto;
+  border-radius: 10px;
+  object-fit: contain;
+}
+
+.brand-logo-wide {
+  height: auto;
+  width: min(100%, 280px);
+  border-radius: 12px;
+}
+
+.license-brand {
+  margin-bottom: 8px;
+}
+
+.settings-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.brand-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  background: #0a1628;
+  animation: brand-splash-fade 1.4s ease forwards;
+  pointer-events: none;
+}
+
+.brand-splash-logo {
+  width: min(72vw, 280px);
+  height: auto;
+  border-radius: 24px;
+  animation: brand-splash-pop 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes brand-splash-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.88);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes brand-splash-fade {
+  0%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 .muted {
   color: var(--muted);
   font-size: 0.92rem;

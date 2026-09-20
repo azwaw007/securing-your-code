@@ -15,13 +15,15 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: [
         'favicon.svg',
+        'brand/*',
+        'icons/*',
         'catalog/*.png',
         'tessdata/*.traineddata',
         'tessdata/README.md',
       ],
       workbox: {
         globPatterns: [
-          '**/*.{js,css,html,ico,png,svg,woff2,json,traineddata,wasm}',
+          '**/*.{js,css,html,ico,png,svg,jpg,webp,woff2,json,traineddata,wasm}',
         ],
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
       },
@@ -31,18 +33,12 @@ export default defineConfig({
         description:
           'Point de vente, stock, WhatsApp, caisse et livraisons pour commerçants en Algérie',
         theme_color: '#0f6b4c',
-        background_color: '#f3efe6',
+        background_color: '#0a1628',
         display: 'standalone',
         orientation: 'any',
         lang: 'fr',
         start_url: '/',
         icons: [
-          {
-            src: 'favicon.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
-            purpose: 'any maskable',
-          },
           {
             src: 'icons/icon-192.png',
             sizes: '192x192',
