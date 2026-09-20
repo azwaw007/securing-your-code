@@ -5310,10 +5310,18 @@ function OrderPage({
   const [showClientBook, setShowClientBook] = useState(clientFirst)
 
   const isQuick = clientId === QUICK
-  const favorites = useMemo(
-    () => state.products.filter((p) => p.favorite),
-    [state.products],
-  )
+  const favorites = useMemo(() => {
+    /** Poids / mesure toujours en accès rapide à la caisse (+ favoris ⭐ manuels) */
+    const list = state.products.filter(
+      (p) => p.favorite === true || isDecimalUnit(p.unit),
+    )
+    return [...list].sort((a, b) => {
+      const aw = isDecimalUnit(a.unit) ? 0 : 1
+      const bw = isDecimalUnit(b.unit) ? 0 : 1
+      if (aw !== bw) return aw - bw
+      return a.name.localeCompare(b.name, 'fr')
+    })
+  }, [state.products])
   const productSuggestions = useMemo(() => {
     const names = [
       ...state.products.map((p) => p.name),
@@ -5951,7 +5959,7 @@ function OrderPage({
             </button>
           </div>
         ) : null}
-        {isShopRetail(mode) && favorites.length > 0 ? (
+        {favorites.length > 0 ? (
           <div className="chip-row retail-fav-chips" aria-label={t(lang, 'retailFavorites')}>
             <span className="muted" style={{ alignSelf: 'center', marginInlineEnd: 4 }}>
               ⭐ {t(lang, 'retailFavorites')}
@@ -5964,6 +5972,9 @@ function OrderPage({
                 onClick={() => bump(p, tierOf(p.id), qtyStep(p.unit))}
               >
                 {p.name}
+                {isDecimalUnit(p.unit) ? (
+                  <span className="muted"> · {unitLabel(lang, p.unit)}</span>
+                ) : null}
               </button>
             ))}
           </div>
