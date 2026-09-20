@@ -3352,10 +3352,11 @@ html[data-theme='night'] option {
   display: flex;
   align-items: stretch;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
-.total-override-row input {
-  flex: 1;
+.total-override-row > input:first-of-type {
+  flex: 1 1 10rem;
   min-width: 0;
 }
 
@@ -3363,7 +3364,20 @@ html[data-theme='night'] option {
   display: flex;
   align-items: stretch;
   gap: 4px;
-  flex-shrink: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.total-override-adjust {
+  flex: 1 1 4.5rem;
+  width: auto;
+  min-width: 4.5rem;
+  max-width: 7rem;
+  min-height: 52px;
+  padding: 0 8px;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 600;
 }
 
 .total-override-add,
