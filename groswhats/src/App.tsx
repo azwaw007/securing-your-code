@@ -6388,21 +6388,61 @@ function OrderPage({
                     style={{ marginTop: 2 }}
                   >
                     <span className="muted">= {formatDa(l.lineTotalDa)}</span>
-                    <button
-                      type="button"
-                      className="btn ghost cart-line-add"
-                      title={t(lang, 'addCartLineQty')}
-                      aria-label={t(lang, 'addCartLineQty')}
-                      onClick={() => {
-                        if (l.flash) {
-                          setFlashLines((prev) =>
-                            prev.map((f) =>
-                              f.id === l.productId
-                                ? { ...f, qty: f.qty + 1 }
-                                : f,
-                            ),
+                    <div className="cart-line-qty-btns">
+                      <button
+                        type="button"
+                        className="btn ghost cart-line-dec"
+                        title={t(lang, 'decCartLineQty')}
+                        aria-label={t(lang, 'decCartLineQty')}
+                        onClick={() => {
+                          if (l.flash) {
+                            setFlashLines((prev) =>
+                              prev
+                                .map((f) =>
+                                  f.id === l.productId
+                                    ? { ...f, qty: Math.max(0, f.qty - 1) }
+                                    : f,
+                                )
+                                .filter((f) => f.qty > 0),
+                            )
+                            return
+                          }
+                          const p = state.products.find(
+                            (x) => x.id === l.productId,
                           )
-                        } else {
+                          if (!p) return
+                          const step =
+                            l.packSize && l.packSize > 1
+                              ? 1
+                              : isCartonTier(l.priceTier || 'piece')
+                                ? 1
+                                : qtyStep(p.unit)
+                          bump(
+                            p,
+                            l.priceTier || 'piece',
+                            -step,
+                            l.packSize,
+                          )
+                        }}
+                      >
+                        −
+                      </button>
+                      <button
+                        type="button"
+                        className="btn ghost cart-line-add"
+                        title={t(lang, 'addCartLineQty')}
+                        aria-label={t(lang, 'addCartLineQty')}
+                        onClick={() => {
+                          if (l.flash) {
+                            setFlashLines((prev) =>
+                              prev.map((f) =>
+                                f.id === l.productId
+                                  ? { ...f, qty: f.qty + 1 }
+                                  : f,
+                              ),
+                            )
+                            return
+                          }
                           const p = state.products.find(
                             (x) => x.id === l.productId,
                           )
@@ -6419,11 +6459,11 @@ function OrderPage({
                             step,
                             l.packSize,
                           )
-                        }
-                      }}
-                    >
-                      +
-                    </button>
+                        }}
+                      >
+                        +
+                      </button>
+                    </div>
                   </div>
                   {l.imei ? (
                     <div className="muted" style={{ fontSize: '0.85em' }}>

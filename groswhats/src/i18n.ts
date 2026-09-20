@@ -627,6 +627,7 @@ const fr: Dict = {
   totalOverrideNote: 'Total forcé en caisse',
   removeCartLine: 'Retirer cet article',
   addCartLineQty: 'Ajouter 1 à la quantité',
+  decCartLineQty: 'Retirer 1 de la quantité',
   orderReviseBtn: 'Modifier la facture',
   orderReviseTitle: 'Corriger la facture',
   orderReviseHint:
@@ -1714,6 +1715,7 @@ const ar: Dict = {
   totalOverrideNote: 'مجموع مفروض في الصندوق',
   removeCartLine: 'إزالة هذا المنتج',
   addCartLineQty: 'زيادة الكمية بـ 1',
+  decCartLineQty: 'إنقاص الكمية بـ 1',
   orderReviseBtn: 'تعديل الفاتورة',
   orderReviseTitle: 'تصحيح الفاتورة',
   orderReviseHint:

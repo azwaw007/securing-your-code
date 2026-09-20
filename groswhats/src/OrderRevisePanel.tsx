@@ -130,15 +130,28 @@ export function OrderRevisePanel({
               <span className="muted">
                 = {formatDa(l.lineTotalDa)} · {formatQty(l.qty)}
               </span>
-              <button
-                type="button"
-                className="btn ghost cart-line-add"
-                title={t(lang, 'addCartLineQty')}
-                aria-label={t(lang, 'addCartLineQty')}
-                onClick={() => patchLine(i, { qty: l.qty + 1 })}
-              >
-                +
-              </button>
+              <div className="cart-line-qty-btns">
+                <button
+                  type="button"
+                  className="btn ghost cart-line-dec"
+                  title={t(lang, 'decCartLineQty')}
+                  aria-label={t(lang, 'decCartLineQty')}
+                  onClick={() =>
+                    patchLine(i, { qty: Math.max(0, l.qty - 1) })
+                  }
+                >
+                  −
+                </button>
+                <button
+                  type="button"
+                  className="btn ghost cart-line-add"
+                  title={t(lang, 'addCartLineQty')}
+                  aria-label={t(lang, 'addCartLineQty')}
+                  onClick={() => patchLine(i, { qty: l.qty + 1 })}
+                >
+                  +
+                </button>
+              </div>
             </div>
           </li>
         ))}
