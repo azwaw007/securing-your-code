@@ -3341,32 +3341,6 @@ html[data-theme='night'] option {
   gap: 8px;
 }
 
-.cart-line-qty-btns {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.cart-line-add,
-.cart-line-dec {
-  flex-shrink: 0;
-  min-width: 40px;
-  min-height: 40px;
-  padding: 0 10px;
-  font-size: 1.35rem;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.cart-line-add {
-  color: #0f766e;
-}
-
-.cart-line-dec {
-  color: #b45309;
-}
-
 .total-override-row {
   display: flex;
   align-items: stretch;
