@@ -13,6 +13,8 @@ import { isOnline, ocrInvoiceImage } from './utils/invoiceOcr'
 import {
   findSupplierMatch,
   matchInvoiceLineToStock,
+  MAYBE_MATCH_THRESHOLD,
+  STOCK_MATCH_THRESHOLD,
   parseInvoiceText,
   type InvoiceMatchedLine,
 } from './utils/invoiceParse'
@@ -31,8 +33,11 @@ function toMatched(
   state: AppState,
   parsed: ReturnType<typeof parseInvoiceText>['lines'][0],
 ): InvoiceMatchedLine {
-  const { product, score } = matchInvoiceLineToStock(parsed, state.products)
-  if (product && score >= 0.72) {
+  const { product, score, candidates } = matchInvoiceLineToStock(
+    parsed,
+    state.products,
+  )
+  if (product && score >= STOCK_MATCH_THRESHOLD) {
     return {
       ...parsed,
       id: lineId(),
@@ -47,6 +52,25 @@ function toMatched(
         parsed.unitCostDa > 0 ? parsed.unitCostDa : product.costDa || 0,
       createIfNew: false,
       selected: true,
+      matchScore: score,
+      candidates,
+    }
+  }
+  if (candidates.length && score >= MAYBE_MATCH_THRESHOLD) {
+    const top = candidates[0]
+    const maybe = state.products.find((p) => p.id === top.productId)
+    return {
+      ...parsed,
+      id: lineId(),
+      match: 'maybe',
+      productId: top.productId,
+      category: maybe?.category || 'alimentaire',
+      aisleId: maybe?.aisleId,
+      imageDataUrl: maybe?.imageDataUrl,
+      createIfNew: true,
+      selected: true,
+      matchScore: score,
+      candidates,
     }
   }
   return {
@@ -56,6 +80,48 @@ function toMatched(
     category: 'alimentaire',
     createIfNew: true,
     selected: true,
+    matchScore: score,
+    candidates,
+  }
+}
+
+function patchRow(
+  rows: InvoiceMatchedLine[],
+  id: string,
+  patch: Partial<InvoiceMatchedLine>,
+): InvoiceMatchedLine[] {
+  return rows.map((x) => (x.id === id ? { ...x, ...patch } : x))
+}
+
+function linkRowToProduct(
+  state: AppState,
+  row: InvoiceMatchedLine,
+  productId: string,
+): InvoiceMatchedLine {
+  if (!productId) {
+    return {
+      ...row,
+      match: 'new',
+      productId: undefined,
+      createIfNew: true,
+      aisleId: undefined,
+      category: 'alimentaire',
+    }
+  }
+  const p = state.products.find((x) => x.id === productId)
+  if (!p) return row
+  return {
+    ...row,
+    name: row.name.trim() ? row.name : p.name,
+    barcode: row.barcode || p.barcode,
+    match: 'stock',
+    productId: p.id,
+    category: p.category,
+    aisleId: p.aisleId,
+    imageDataUrl: row.imageDataUrl || p.imageDataUrl,
+    unitCostDa: row.unitCostDa > 0 ? row.unitCostDa : p.costDa || 0,
+    createIfNew: false,
+    matchScore: 1,
   }
 }
 
@@ -145,14 +211,20 @@ export function InvoiceScanPanel({
     setOffBusy(true)
     try {
       const next = [...rows]
+      let hits = 0
       for (const row of targets) {
         const hit = await lookupOffProduct(row.barcode!)
         if (!hit) continue
+        hits++
         const i = next.findIndex((x) => x.id === row.id)
         if (i < 0) continue
+        const nameIsCode =
+          !next[i].name ||
+          next[i].name === next[i].barcode ||
+          next[i].name === row.barcode
         next[i] = {
           ...next[i],
-          name: next[i].name === next[i].barcode ? hit.name : next[i].name || hit.name,
+          name: nameIsCode ? hit.name : next[i].name || hit.name,
           category: hit.category,
           imageDataUrl: next[i].imageDataUrl || hit.imageDataUrl,
           match: 'off',
@@ -160,7 +232,7 @@ export function InvoiceScanPanel({
         }
       }
       setRows(next)
-      onFlash('invoiceOffDone')
+      onFlash(hits > 0 ? 'invoiceOffDone' : 'invoiceOffMiss')
     } finally {
       setOffBusy(false)
     }
@@ -194,7 +266,13 @@ export function InvoiceScanPanel({
       const purchaseLines: PurchaseLine[] = []
       for (const row of selected) {
         let productId = row.productId
-        if (!productId || row.createIfNew) {
+        const linkExisting =
+          row.match === 'stock' ||
+          (row.match === 'maybe' && row.productId && !row.createIfNew)
+
+        if (linkExisting && productId) {
+          // ok — use existing
+        } else if (!productId || row.createIfNew) {
           const already = row.barcode
             ? next.products.find(
                 (p) =>
@@ -206,6 +284,12 @@ export function InvoiceScanPanel({
           if (already) {
             productId = already.id
           } else if (row.match === 'stock' && row.productId) {
+            productId = row.productId
+          } else if (
+            row.match === 'maybe' &&
+            row.productId &&
+            !row.createIfNew
+          ) {
             productId = row.productId
           } else {
             const draft: Omit<Product, 'id' | 'createdAt'> = {
@@ -412,18 +496,26 @@ export function InvoiceScanPanel({
             <button
               type="button"
               className="btn secondary"
-              disabled={offBusy || busy || !online}
+              disabled={
+                offBusy ||
+                busy ||
+                !rows.some((r) => r.selected && r.match !== 'stock' && r.barcode)
+              }
               onClick={() => void enrichNewWithOff()}
-              title={!online ? t(lang, 'invoiceOffNeedsNet') : undefined}
+              title={
+                online
+                  ? t(lang, 'invoiceEnrichOffHint')
+                  : t(lang, 'invoiceEnrichOffOffline')
+              }
             >
               {offBusy ? '…' : `🌐 ${t(lang, 'invoiceEnrichOff')}`}
             </button>
           </div>
-          {!online ? (
-            <div className="muted" style={{ marginBottom: 8 }}>
-              {t(lang, 'invoiceOffNeedsNet')}
-            </div>
-          ) : null}
+          <div className="muted" style={{ marginBottom: 8 }}>
+            {online
+              ? t(lang, 'invoiceEnrichOffHint')
+              : t(lang, 'invoiceEnrichOffOffline')}
+          </div>
 
           {rows.length === 0 ? (
             <div className="empty">{t(lang, 'invoiceNoLines')}</div>
@@ -437,41 +529,153 @@ export function InvoiceScanPanel({
                       checked={r.selected}
                       onChange={(e) =>
                         setRows((prev) =>
-                          prev.map((x) =>
-                            x.id === r.id
-                              ? { ...x, selected: e.target.checked }
-                              : x,
-                          ),
+                          patchRow(prev, r.id, { selected: e.target.checked }),
                         )
                       }
                     />
                     <span style={{ flex: 1 }}>
-                      <strong>{r.name}</strong>
+                      <input
+                        value={r.name}
+                        onChange={(e) =>
+                          setRows((prev) =>
+                            patchRow(prev, r.id, { name: e.target.value }),
+                          )
+                        }
+                        aria-label={t(lang, 'name')}
+                        style={{
+                          fontWeight: 600,
+                          width: '100%',
+                          marginBottom: 4,
+                        }}
+                      />
                       <div className="muted">
                         {r.match === 'stock'
                           ? `✅ ${t(lang, 'invoiceMatchStock')}`
-                          : r.match === 'off'
-                            ? `🌐 ${t(lang, 'invoiceMatchOff')}`
-                            : `🆕 ${t(lang, 'invoiceMatchNew')}`}
+                          : r.match === 'maybe'
+                            ? `≈ ${t(lang, 'invoiceMatchMaybe')}`
+                            : r.match === 'off'
+                              ? `🌐 ${t(lang, 'invoiceMatchOff')}`
+                              : `🆕 ${t(lang, 'invoiceMatchNew')}`}
+                        {r.matchScore != null && r.match !== 'stock'
+                          ? ` · ${Math.round(r.matchScore * 100)}%`
+                          : ''}
                         {r.barcode ? ` · ⬛ ${r.barcode}` : ''}
                         {r.aisleId ? ` · ${r.aisleId}` : ''}
                       </div>
+                      {state.products.length > 0 ? (
+                        <div className="field" style={{ marginTop: 4 }}>
+                          <select
+                            value={
+                              r.match === 'stock' ||
+                              (r.match === 'maybe' && !r.createIfNew)
+                                ? r.productId || ''
+                                : r.match === 'maybe'
+                                  ? r.productId || ''
+                                  : ''
+                            }
+                            onChange={(e) => {
+                              const pid = e.target.value
+                              setRows((prev) =>
+                                prev.map((x) =>
+                                  x.id === r.id
+                                    ? linkRowToProduct(state, x, pid)
+                                    : x,
+                                ),
+                              )
+                            }}
+                            aria-label={t(lang, 'invoiceLinkStock')}
+                          >
+                            <option value="">
+                              — {t(lang, 'invoiceCreateNewProduct')}
+                            </option>
+                            {(r.candidates?.length
+                              ? r.candidates
+                                  .map((c) =>
+                                    state.products.find(
+                                      (p) => p.id === c.productId,
+                                    ),
+                                  )
+                                  .filter(Boolean)
+                              : state.products
+                            ).map((p) =>
+                              p ? (
+                                <option key={p.id} value={p.id}>
+                                  {p.name}
+                                  {r.candidates?.find((c) => c.productId === p.id)
+                                    ? ` (${Math.round(
+                                        (r.candidates.find(
+                                          (c) => c.productId === p.id,
+                                        )?.score || 0) * 100,
+                                      )}%)`
+                                    : ''}
+                                </option>
+                              ) : null,
+                            )}
+                            {r.candidates?.length &&
+                            r.candidates.length < state.products.length ? (
+                              <optgroup label={t(lang, 'invoiceAllProducts')}>
+                                {state.products
+                                  .filter(
+                                    (p) =>
+                                      !r.candidates?.some(
+                                        (c) => c.productId === p.id,
+                                      ),
+                                  )
+                                  .map((p) => (
+                                    <option key={p.id} value={p.id}>
+                                      {p.name}
+                                    </option>
+                                  ))}
+                              </optgroup>
+                            ) : null}
+                          </select>
+                        </div>
+                      ) : null}
+                      {r.match === 'maybe' && r.productId ? (
+                        <div className="btn-row" style={{ gap: 6, marginTop: 4 }}>
+                          <button
+                            type="button"
+                            className="btn secondary"
+                            style={{ fontSize: 13, padding: '4px 10px' }}
+                            onClick={() =>
+                              setRows((prev) =>
+                                prev.map((x) =>
+                                  x.id === r.id
+                                    ? linkRowToProduct(state, x, r.productId!)
+                                    : x,
+                                ),
+                              )
+                            }
+                          >
+                            ✅ {t(lang, 'invoiceConfirmLink')}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn ghost"
+                            style={{ fontSize: 13, padding: '4px 10px' }}
+                            onClick={() =>
+                              setRows((prev) =>
+                                patchRow(prev, r.id, {
+                                  match: 'new',
+                                  createIfNew: true,
+                                  productId: undefined,
+                                }),
+                              )
+                            }
+                          >
+                            🆕 {t(lang, 'invoiceKeepNew')}
+                          </button>
+                        </div>
+                      ) : null}
                       <div className="grid-2" style={{ marginTop: 4 }}>
                         <input
                           value={String(r.qty)}
                           onChange={(e) =>
                             setRows((prev) =>
-                              prev.map((x) =>
-                                x.id === r.id
-                                  ? {
-                                      ...x,
-                                      qty:
-                                        Number(
-                                          e.target.value.replace(',', '.'),
-                                        ) || 0,
-                                    }
-                                  : x,
-                              ),
+                              patchRow(prev, r.id, {
+                                qty:
+                                  Number(e.target.value.replace(',', '.')) || 0,
+                              }),
                             )
                           }
                           aria-label={t(lang, 'qty')}
@@ -480,17 +684,10 @@ export function InvoiceScanPanel({
                           value={String(r.unitCostDa || '')}
                           onChange={(e) =>
                             setRows((prev) =>
-                              prev.map((x) =>
-                                x.id === r.id
-                                  ? {
-                                      ...x,
-                                      unitCostDa:
-                                        Number(
-                                          e.target.value.replace(',', '.'),
-                                        ) || 0,
-                                    }
-                                  : x,
-                              ),
+                              patchRow(prev, r.id, {
+                                unitCostDa:
+                                  Number(e.target.value.replace(',', '.')) || 0,
+                              }),
                             )
                           }
                           placeholder={t(lang, 'costDa')}

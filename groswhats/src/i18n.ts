@@ -1018,10 +1018,10 @@ const fr: Dict = {
   invoiceScanDevices:
     'Un seul appareil suffit (téléphone OU PC). La caméra Bluetooth du téléphone ne se partage pas au navigateur PC : utilise l’app sur le téléphone, ou envoie la photo puis « Importer ».',
   invoiceOfflineReady:
-    'Scan facture utilisable hors ligne (OCR inclus dans l’app). Open Food Facts seulement si Internet.',
+    'Scan facture utilisable hors ligne (OCR + matching stock inclus). Open Food Facts API seulement si Internet (catalogue local OK hors ligne).',
   invoiceOfflineNow:
-    'Mode hors ligne : photo + OCR + stock local OK. Open Food Facts indisponible.',
-  invoiceOffNeedsNet: 'Open Food Facts nécessite Internet — ignoré hors ligne.',
+    'Mode hors ligne : photo + OCR + stock local OK. Catalogue OFF local possible ; API Internet indisponible.',
+  invoiceOffNeedsNet: 'Open Food Facts API nécessite Internet — catalogue local reste disponible.',
   invoiceScanCamera: 'Photo caméra',
   invoiceScanUpload: 'Importer une image',
   invoicePasteText: 'Ou colle le texte de la facture',
@@ -1038,8 +1038,19 @@ const fr: Dict = {
   invoiceEnrichOff: 'Compléter nouveaux via Open Food Facts',
   invoiceOffDone: 'Fiches Open Food Facts appliquées',
   invoiceMatchStock: 'Déjà en stock',
+  invoiceMatchMaybe: 'Correspondance possible — confirme',
   invoiceMatchOff: 'Nouveau (Open Food Facts)',
   invoiceMatchNew: 'Nouveau produit',
+  invoiceLinkStock: 'Lier à un produit en stock',
+  invoiceCreateNewProduct: 'créer un nouveau produit',
+  invoiceAllProducts: 'Tous les produits',
+  invoiceConfirmLink: 'Lier à ce produit',
+  invoiceKeepNew: 'Garder comme nouveau',
+  invoiceEnrichOffHint:
+    'Complète nom / photo via catalogue local + Open Food Facts (si Internet).',
+  invoiceEnrichOffOffline:
+    'Hors ligne : catalogue local Open Food Facts seulement (pas d’API).',
+  invoiceOffMiss: 'Aucune fiche trouvée pour ces codes',
   invoiceConfirmPurchase: 'Valider achat + stock',
   invoiceGroupBy: 'Organiser l’historique',
   invoiceGroupSupplier: 'Par fournisseur',
@@ -2108,10 +2119,10 @@ const ar: Dict = {
   invoiceScanDevices:
     'جهاز واحد يكفي (هاتف أو حاسوب). كاميرا البلوتوث لا تُشارك مع متصفح الحاسوب: استخدم التطبيق على الهاتف، أو أرسل الصورة ثم «استيراد».',
   invoiceOfflineReady:
-    'مسح الفاتورة يعمل بدون إنترنت (OCR داخل التطبيق). Open Food Facts فقط مع الإنترنت.',
+    'مسح الفاتورة يعمل بدون إنترنت (OCR + مطابقة المخزون). واجهة Open Food Facts فقط مع الإنترنت (الفهرس المحلي يعمل بدون شبكة).',
   invoiceOfflineNow:
-    'بدون إنترنت: صورة + OCR + المخزون المحلي يعمل. Open Food Facts غير متاح.',
-  invoiceOffNeedsNet: 'Open Food Facts يحتاج إنترنت — يُتجاهل بدون شبكة.',
+    'بدون إنترنت: صورة + OCR + المخزون المحلي يعمل. فهرس OFF المحلي ممكن؛ الواجهة غير متاحة.',
+  invoiceOffNeedsNet: 'واجهة Open Food Facts تحتاج إنترنت — الفهرس المحلي يبقى متاحاً.',
   invoiceScanCamera: 'صورة بالكاميرا',
   invoiceScanUpload: 'استيراد صورة',
   invoicePasteText: 'أو الصق نص الفاتورة',
@@ -2128,8 +2139,19 @@ const ar: Dict = {
   invoiceEnrichOff: 'إكمال الجدد عبر Open Food Facts',
   invoiceOffDone: 'تم تطبيق بطاقات Open Food Facts',
   invoiceMatchStock: 'موجود في المخزون',
+  invoiceMatchMaybe: 'تطابق محتمل — أكّد',
   invoiceMatchOff: 'جديد (Open Food Facts)',
   invoiceMatchNew: 'منتج جديد',
+  invoiceLinkStock: 'ربط بمنتج في المخزون',
+  invoiceCreateNewProduct: 'إنشاء منتج جديد',
+  invoiceAllProducts: 'كل المنتجات',
+  invoiceConfirmLink: 'ربط بهذا المنتج',
+  invoiceKeepNew: 'الإبقاء كمنتج جديد',
+  invoiceEnrichOffHint:
+    'إكمال الاسم / الصورة عبر الفهرس المحلي + Open Food Facts (إن وُجد إنترنت).',
+  invoiceEnrichOffOffline:
+    'بدون إنترنت: فهرس Open Food Facts المحلي فقط (بدون API).',
+  invoiceOffMiss: 'لا بطاقة لهذه الرموز',
   invoiceConfirmPurchase: 'تأكيد الشراء + المخزون',
   invoiceGroupBy: 'تنظيم السجل',
   invoiceGroupSupplier: 'حسب المورد',
