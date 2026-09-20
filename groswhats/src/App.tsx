@@ -141,7 +141,7 @@ import {
   DEFAULT_AGENT_PERMISSIONS,
   type AgentPermissions,
 } from './agent/permissions'
-import { openWhatsapp, openWhatsappText } from './utils/whatsapp'
+import { openWhatsapp, openWhatsappText, openSupportWhatsapp } from './utils/whatsapp'
 import {
   buildProductStory,
   buildProductWhatsappPromo,
@@ -1589,6 +1589,26 @@ function SettingsPage({
         <div className="muted">{APP_BRAND.name} v{APP_VERSION}</div>
         <div className="notice" style={{ marginTop: 8 }}>
           {licenseInfo || '…'}
+        </div>
+        <div className="card" style={{ marginTop: 10 }}>
+          <h3 style={{ margin: '0 0 6px' }}>💬 {t(lang, 'supportTitle')}</h3>
+          <p className="muted" style={{ margin: '0 0 10px' }}>
+            {t(lang, 'supportHint')} {APP_BRAND.supportDisplay}
+          </p>
+          <button
+            type="button"
+            className="btn block"
+            onClick={() => {
+              openSupportWhatsapp({
+                language: lang === 'ar' ? 'ar' : 'fr',
+                shopName: state.settings.shopName,
+                version: APP_VERSION,
+              })
+              onFlash('supportOpened')
+            }}
+          >
+            {t(lang, 'supportWhatsapp')}
+          </button>
         </div>
         <div className="notice pro-upsell">
           <strong>{t(lang, 'proUpsell')}</strong>

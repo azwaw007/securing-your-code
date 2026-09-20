@@ -211,6 +211,10 @@ const fr: Dict = {
   proUpsell: 'AZ POS Pro — multi-magasin & usine',
   proUpsellLink: 'Voir l’offre Pro',
   azSoftSite: 'Site AZ Soft',
+  supportTitle: 'Service après-vente',
+  supportHint: 'Besoin d’aide ? WhatsApp AZ Soft :',
+  supportWhatsapp: 'Contacter le support WhatsApp',
+  supportOpened: 'WhatsApp support ouvert',
   installTitle: 'Installer AZ POS',
   installHint:
     'Sur téléphone : ajoute l’app à l’écran d’accueil. Sur PC : télécharge Windows.',
@@ -1376,6 +1380,10 @@ const ar: Dict = {
   proUpsell: 'AZ POS Pro — متعدد المتاجر والمصنع',
   proUpsellLink: 'عرض عرض Pro',
   azSoftSite: 'موقع AZ Soft',
+  supportTitle: 'خدمة ما بعد البيع',
+  supportHint: 'تحتاج مساعدة؟ واتساب AZ Soft:',
+  supportWhatsapp: 'تواصل مع الدعم واتساب',
+  supportOpened: 'تم فتح واتساب الدعم',
   installTitle: 'تثبيت AZ POS',
   installHint:
     'على الهاتف: أضف التطبيق لشاشة البداية. على الحاسوب: حمّل Windows.',

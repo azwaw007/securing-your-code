@@ -1,4 +1,5 @@
 import type { Order, ShopSettings } from '../types'
+import { APP_BRAND } from '../brand'
 import { unitLabel } from '../i18n'
 import { formatDa, formatQty, normalizePhone } from './format'
 import { paymentSummaryLines } from './paymentText'
@@ -235,3 +236,47 @@ export function buildMembershipReminder(
     .filter(Boolean)
     .join('\n')
 }
+
+/** Message SAV prérempli vers le support AZ Soft. */
+export function buildSupportWhatsappMessage(input?: {
+  language?: 'fr' | 'ar'
+  shopName?: string
+  version?: string
+}): string {
+  const lang = input?.language === 'ar' ? 'ar' : 'fr'
+  const shop = input?.shopName?.trim() || ''
+  const ver = input?.version?.trim() || ''
+  if (lang === 'ar') {
+    return [
+      'السلام، أحتاج مساعدة على AZ POS.',
+      shop ? `المحل: ${shop}` : '',
+      ver ? `الإصدار: ${ver}` : '',
+      '',
+      'المشكلة:',
+    ]
+      .filter(Boolean)
+      .join('\n')
+  }
+  return [
+    'Salam, j’ai besoin d’aide sur AZ POS.',
+    shop ? `Magasin : ${shop}` : '',
+    ver ? `Version : ${ver}` : '',
+    '',
+    'Problème :',
+  ]
+    .filter(Boolean)
+    .join('\n')
+}
+
+export function openSupportWhatsapp(input?: {
+  language?: 'fr' | 'ar'
+  shopName?: string
+  version?: string
+  phone?: string
+}): void {
+  openWhatsappText(
+    input?.phone || APP_BRAND.supportWhatsapp,
+    buildSupportWhatsappMessage(input),
+  )
+}
+

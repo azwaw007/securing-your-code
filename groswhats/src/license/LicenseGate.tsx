@@ -6,6 +6,8 @@ import {
   getAccessStatus,
   type AccessStatus,
 } from './license'
+import { APP_BRAND } from '../brand'
+import { openSupportWhatsapp } from '../utils/whatsapp'
 
 export function LicenseGate({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AccessStatus | null>(null)
@@ -67,13 +69,34 @@ export function LicenseGate({ children }: { children: ReactNode }) {
             />
           </div>
           {error ? <div className="badge warn">{error}</div> : null}
-          <button className="btn block" disabled={busy || !key.trim()} onClick={() => void onActivate()}>
+          <button
+            className="btn block"
+            disabled={busy || !key.trim()}
+            onClick={() => void onActivate()}
+          >
             Activer la licence
           </button>
           <p className="muted" style={{ marginTop: 12 }}>
-            Contact vendeur WhatsApp pour obtenir une licence.
+            Service après-vente AZ Soft — WhatsApp {APP_BRAND.supportDisplay}
           </p>
-          <a className="btn secondary block" href="/guide.html" target="_blank" rel="noreferrer">
+          <button
+            type="button"
+            className="btn secondary block"
+            onClick={() =>
+              openSupportWhatsapp({
+                language: 'fr',
+                version: APP_VERSION,
+              })
+            }
+          >
+            💬 Contacter le support
+          </button>
+          <a
+            className="btn ghost block"
+            href="/guide.html"
+            target="_blank"
+            rel="noreferrer"
+          >
             Guide d’utilisation
           </a>
         </div>
@@ -95,6 +118,18 @@ export function LicenseGate({ children }: { children: ReactNode }) {
             {status.daysLeft} j)
           </span>
         )}
+        <button
+          type="button"
+          className="license-support-link"
+          onClick={() =>
+            openSupportWhatsapp({
+              language: 'fr',
+              version: APP_VERSION,
+            })
+          }
+        >
+          SAV
+        </button>
         <a href="/guide.html" target="_blank" rel="noreferrer">
           Guide
         </a>
