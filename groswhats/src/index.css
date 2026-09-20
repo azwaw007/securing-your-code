@@ -167,9 +167,9 @@ button {
 
 .brand-logo {
   display: block;
-  height: 36px;
+  height: 40px;
   width: auto;
-  border-radius: 8px;
+  border-radius: 10px;
   object-fit: contain;
 }
 

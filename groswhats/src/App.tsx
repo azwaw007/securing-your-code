@@ -624,8 +624,8 @@ export default function App() {
                 src={APP_BRAND.logoHeader}
                 alt={APP_BRAND.name}
                 className="brand-logo"
-                width={114}
-                height={64}
+                width={128}
+                height={128}
                 decoding="async"
               />
             </div>
@@ -716,8 +716,8 @@ export default function App() {
                   src={APP_BRAND.logoHeader}
                   alt={APP_BRAND.name}
                   className="brand-logo"
-                  width={114}
-                  height={64}
+                  width={128}
+                  height={128}
                   decoding="async"
                 />
               </div>
@@ -1605,8 +1605,8 @@ function SettingsPage({
             src={APP_BRAND.logoHeader}
             alt={APP_BRAND.name}
             className="brand-logo"
-            width={114}
-            height={64}
+            width={128}
+            height={128}
             decoding="async"
           />
           <div className="muted">

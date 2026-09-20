@@ -55,7 +55,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
               alt={APP_BRAND.name}
               className="brand-logo brand-logo-wide"
               width={280}
-              height={156}
+              height={158}
               decoding="async"
             />
           </div>
