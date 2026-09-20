@@ -2623,7 +2623,8 @@ function HomePage({
             <span className="muted">{vocab.sellHint}</span>
           </button>
         </section>
-      ) : (
+      ) : null}
+
       <section className="home-apps" aria-label={t(lang, 'appMenu')}>
         <div className="app-grid">
           {dailyApps.map((app) => (
@@ -2676,7 +2677,6 @@ function HomePage({
           </div>
         ) : null}
       </section>
-      )}
 
       <div className="card home-recent">
         <div className="list-item" style={{ borderBottom: 'none', paddingTop: 0 }}>
