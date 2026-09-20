@@ -126,15 +126,18 @@ export function OrderRevisePanel({
                 />
               </label>
             </div>
-            <div className="muted" style={{ marginTop: 2 }}>
-              = {formatDa(l.lineTotalDa)} · {formatQty(l.qty)}
+            <div className="cart-line-total" style={{ marginTop: 2 }}>
+              <span className="muted">
+                = {formatDa(l.lineTotalDa)} · {formatQty(l.qty)}
+              </span>
               <button
                 type="button"
-                className="btn ghost"
-                style={{ marginInlineStart: 8 }}
-                onClick={() => patchLine(i, { qty: 0 })}
+                className="btn ghost cart-line-add"
+                title={t(lang, 'addCartLineQty')}
+                aria-label={t(lang, 'addCartLineQty')}
+                onClick={() => patchLine(i, { qty: l.qty + 1 })}
               >
-                ×
+                +
               </button>
             </div>
           </li>

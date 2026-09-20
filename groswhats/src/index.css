@@ -3341,14 +3341,15 @@ html[data-theme='night'] option {
   gap: 8px;
 }
 
-.cart-line-remove {
+.cart-line-add {
   flex-shrink: 0;
   min-width: 40px;
   min-height: 40px;
   padding: 0 10px;
-  font-size: 1.1rem;
+  font-size: 1.35rem;
+  font-weight: 700;
   line-height: 1;
-  color: #b91c1c;
+  color: #0f766e;
 }
 
 .total-override-row {

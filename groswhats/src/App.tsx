@@ -6390,36 +6390,39 @@ function OrderPage({
                     <span className="muted">= {formatDa(l.lineTotalDa)}</span>
                     <button
                       type="button"
-                      className="btn ghost cart-line-remove"
-                      title={t(lang, 'removeCartLine')}
-                      aria-label={t(lang, 'removeCartLine')}
+                      className="btn ghost cart-line-add"
+                      title={t(lang, 'addCartLineQty')}
+                      aria-label={t(lang, 'addCartLineQty')}
                       onClick={() => {
                         if (l.flash) {
                           setFlashLines((prev) =>
-                            prev.filter((f) => f.id !== l.productId),
+                            prev.map((f) =>
+                              f.id === l.productId
+                                ? { ...f, qty: f.qty + 1 }
+                                : f,
+                            ),
                           )
                         } else {
                           const p = state.products.find(
                             (x) => x.id === l.productId,
                           )
-                          if (p)
-                            setQtyAbsolute(
-                              p,
-                              l.priceTier || 'piece',
-                              0,
-                              l.packSize,
-                            )
-                          setPriceOverrides((m) => {
-                            const n = { ...m }
-                            delete n[key]
-                            return n
-                          })
+                          if (!p) return
+                          const step =
+                            l.packSize && l.packSize > 1
+                              ? 1
+                              : isCartonTier(l.priceTier || 'piece')
+                                ? 1
+                                : qtyStep(p.unit)
+                          bump(
+                            p,
+                            l.priceTier || 'piece',
+                            step,
+                            l.packSize,
+                          )
                         }
-                        // Ne pas effacer un total négocié : le montant
-                        // à encaisser reste visible (recalcul auto si non forcé).
                       }}
                     >
-                      ✕
+                      +
                     </button>
                   </div>
                   {l.imei ? (
