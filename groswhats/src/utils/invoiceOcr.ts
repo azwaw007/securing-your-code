@@ -18,7 +18,7 @@ async function getWorker(): Promise<Worker> {
   if (!workerPromise) {
     workerPromise = (async () => {
       const { createWorker } = await import('tesseract.js')
-      return createWorker(['fra', 'eng'], 1, {
+      return createWorker(['fra', 'eng', 'ara'], 1, {
         workerPath: workerUrl,
         corePath: coreUrl,
         langPath: tessdataPath(),

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Télécharge tessdata_fast (fra+eng) dans public/tessdata pour OCR hors ligne.
+ * Télécharge tessdata_fast (fra+eng+ara) dans public/tessdata pour OCR hors ligne.
  * Nécessite internet une fois (build / machine de dev) — pas en magasin.
  */
 import { createWriteStream } from 'node:fs'
@@ -20,6 +20,8 @@ const files = {
     'https://github.com/tesseract-ocr/tessdata_fast/raw/main/eng.traineddata',
   'fra.traineddata':
     'https://github.com/tesseract-ocr/tessdata_fast/raw/main/fra.traineddata',
+  'ara.traineddata':
+    'https://github.com/tesseract-ocr/tessdata_fast/raw/main/ara.traineddata',
 }
 
 await mkdir(dir, { recursive: true })

@@ -1,2 +1,3 @@
-# Données OCR Tesseract (fra + eng, tessdata_fast) — hors ligne
+# Données OCR Tesseract (fra + eng + ara, tessdata_fast) — hors ligne
 # Régénérer : node scripts/vendor-tessdata.mjs
+# ara = factures arabes / bilingues DZ

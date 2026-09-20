@@ -622,6 +622,8 @@ export interface ShopSettings {
     labelFr?: string
     labelAr?: string
   }>
+  /** Marge % par défaut à l’achat (prix vente suggéré = coût × (1+marge/100)) */
+  purchaseMarginPct?: number
 }
 
 export interface ZakatRecord {
@@ -760,6 +762,17 @@ export interface AppState {
   tables: FloorTable[]
   /** Ordres de réparation (garage, atelier…) */
   repairOrders: RepairOrder[]
+  /** Mémoire scan facture : nom OCR → produit (corrections utilisateur) */
+  invoiceAliases: InvoiceProductAlias[]
+}
+
+/** Lien mémorisé entre un libellé facture et un produit stock. */
+export interface InvoiceProductAlias {
+  /** Nom normalisé (voir normalizeInvoiceName) */
+  key: string
+  productId: string
+  hits: number
+  updatedAt: string
 }
 
 export const ALL_UNITS: Unit[] = [
