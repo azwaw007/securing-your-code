@@ -26,8 +26,16 @@ export function mapsRouteUrl(
   return `https://www.google.com/maps/dir/${path}`
 }
 
+/** Aperçu carte sans clé API (OpenStreetMap — l’ancien embed Google est souvent vide). */
 export function mapsEmbedUrl(lat: number, lng: number, zoom = 16): string {
-  return `https://maps.google.com/maps?q=${lat},${lng}&z=${zoom}&output=embed`
+  // delta approx. selon zoom pour cadrer le marqueur
+  const span = Math.max(0.002, 0.18 / Math.pow(2, Math.max(0, zoom - 10)))
+  const west = lng - span
+  const east = lng + span
+  const south = lat - span * 0.7
+  const north = lat + span * 0.7
+  const bbox = `${west}%2C${south}%2C${east}%2C${north}`
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat}%2C${lng}`
 }
 
 export function clientMapsUrl(client: {
