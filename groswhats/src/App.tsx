@@ -5504,6 +5504,9 @@ function OrderPage({
   const [totalOverride, setTotalOverride] = useState('')
   /** true si le caissier a saisi un montant négocié */
   const [totalDirty, setTotalDirty] = useState(false)
+  /** Montant à ajouter / retirer via − / + (saisie manuelle) */
+  const [totalAdjustAmount, setTotalAdjustAmount] = useState('')
+  const totalAdjustInputRef = useRef<HTMLInputElement>(null)
   const [tierMap, setTierMap] = useState<Record<string, PriceTier>>({})
   /** Pack sélectionné à la caisse (œufs ×10 / ×15 / ×30) — 0 = pièce */
   const [packSizeMap, setPackSizeMap] = useState<Record<string, number>>({})
@@ -5741,6 +5744,19 @@ function OrderPage({
   function resetTotalOverride() {
     setTotalOverride('')
     setTotalDirty(false)
+  }
+
+  function applyTotalAdjust(sign: 1 | -1) {
+    const delta = Number(String(totalAdjustAmount).replace(',', '.'))
+    if (!Number.isFinite(delta) || delta <= 0) {
+      totalAdjustInputRef.current?.focus()
+      totalAdjustInputRef.current?.select()
+      return
+    }
+    const base = hasTotalOverride ? overrideParsed : computedTotal
+    const next = Math.max(0, +(base + sign * delta).toFixed(2))
+    setTotalDirty(true)
+    setTotalOverride(String(next))
   }
 
   function addFlashLine() {
@@ -6736,31 +6752,37 @@ function OrderPage({
                 title={t(lang, 'totalOverrideDec')}
                 aria-label={t(lang, 'totalOverrideDec')}
                 disabled={lines.length === 0 && !hasTotalOverride}
-                onClick={() => {
-                  const base = hasTotalOverride
-                    ? overrideParsed
-                    : computedTotal
-                  const next = Math.max(0, +(base - 100).toFixed(2))
-                  setTotalDirty(true)
-                  setTotalOverride(String(next))
-                }}
+                onClick={() => applyTotalAdjust(-1)}
               >
                 −
               </button>
+              <input
+                ref={totalAdjustInputRef}
+                className="total-override-adjust"
+                inputMode="decimal"
+                value={totalAdjustAmount}
+                onChange={(e) => setTotalAdjustAmount(e.target.value)}
+                onFocus={(e) => {
+                  requestAnimationFrame(() => e.target.select())
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    applyTotalAdjust(1)
+                  }
+                }}
+                placeholder={t(lang, 'totalOverrideAdjustPlaceholder')}
+                title={t(lang, 'totalOverrideAdjustLabel')}
+                aria-label={t(lang, 'totalOverrideAdjustLabel')}
+                disabled={lines.length === 0 && !hasTotalOverride}
+              />
               <button
                 type="button"
                 className="btn ghost total-override-add"
                 title={t(lang, 'totalOverrideAdd')}
                 aria-label={t(lang, 'totalOverrideAdd')}
                 disabled={lines.length === 0 && !hasTotalOverride}
-                onClick={() => {
-                  const base = hasTotalOverride
-                    ? overrideParsed
-                    : computedTotal
-                  const next = Math.max(0, +(base + 100).toFixed(2))
-                  setTotalDirty(true)
-                  setTotalOverride(String(next))
-                }}
+                onClick={() => applyTotalAdjust(1)}
               >
                 +
               </button>
