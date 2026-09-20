@@ -123,6 +123,14 @@ export function showDepotTools(
   return isWholesale(mode)
 }
 
+/** Carte GPS magasins clients — grossistes / dépôt uniquement (pas le détail). */
+export function showDelivery(
+  mode: CommerceMode | undefined,
+  domainId?: string,
+): boolean {
+  return showDepotTools(mode, domainId)
+}
+
 /** Santé / auto / services : on facture une personne, pas un passage anonyme. */
 export function preferClientOnSale(
   mode: CommerceMode | undefined,

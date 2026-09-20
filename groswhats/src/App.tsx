@@ -110,6 +110,7 @@ import {
   preferClientOnSale,
   shopVocab,
   showDemiGros,
+  showDelivery,
   showDepotTools,
   showGallery,
   showGymCheckin,
@@ -2314,6 +2315,16 @@ function HomePage({
           : isWholesale(mode)
             ? [
                 { id: 'clients', label: vocab.client, icon: '👥', tone: 'navy' },
+                ...(showDelivery(mode, domainId)
+                  ? [
+                      {
+                        id: 'delivery' as Screen,
+                        label: t(lang, 'appMaps'),
+                        icon: '🗺️',
+                        tone: 'teal',
+                      },
+                    ]
+                  : []),
                 { id: 'caisse', label: t(lang, 'appCaisse'), icon: '💵', tone: 'amber' },
                 {
                   id: 'products',
@@ -2322,7 +2333,6 @@ function HomePage({
                   tone: 'blue',
                   badge: stats.lowStock,
                 },
-                { id: 'history', label: mcopy.historyLabel, icon: '📜', tone: 'slate' },
               ]
             : [
                 {
@@ -2347,7 +2357,6 @@ function HomePage({
   }> = [
     ...(depot
       ? [
-          { id: 'delivery' as Screen, label: t(lang, 'appMaps'), icon: '🗺️', tone: 'teal' },
           ...(state.team.multiPosteEnabled
             ? [
                 {
@@ -2369,6 +2378,10 @@ function HomePage({
           },
           { id: 'arrivages' as Screen, label: t(lang, 'appArrivals'), icon: '🆕', tone: 'lime' },
         ]
+      : []),
+    // En gros : Historique passe ici (la Carte est sur la grille principale)
+    ...(isWholesale(mode)
+      ? [{ id: 'history' as Screen, label: mcopy.historyLabel, icon: '📜', tone: 'slate' }]
       : []),
     ...(state.settings.showGallery !== false && showGallery(state.settings.commerceMode, domainId)
       ? [{ id: 'gallery' as Screen, label: t(lang, 'appGallery'), icon: '🖼️', tone: 'blue' }]
@@ -5196,9 +5209,19 @@ function ClientEditCard({
         ) : null}
       </div>
       {typeof client.lat === 'number' && typeof client.lng === 'number' ? (
-        <div className="muted" style={{ marginBottom: 10 }}>
-          GPS : {client.lat}, {client.lng}
-        </div>
+        <>
+          <div className="muted" style={{ marginBottom: 10 }}>
+            GPS : {client.lat}, {client.lng}
+          </div>
+          <div className="map-embed" style={{ marginBottom: 12 }}>
+            <iframe
+              title={t(lang, 'mapPreview')}
+              src={mapsEmbedUrl(client.lat, client.lng)}
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+          </div>
+        </>
       ) : null}
       <button
         className="btn block"
