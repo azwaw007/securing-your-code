@@ -2662,11 +2662,26 @@ export function findProductByBarcode(
   state: AppState,
   code: string,
 ): Product | undefined {
-  const q = code.trim()
+  const q = normalizeBarcode(code)
   if (!q) return undefined
   return state.products.find(
-    (p) => p.barcode && p.barcode.trim().toLowerCase() === q.toLowerCase(),
+    (p) => p.barcode && barcodesMatch(p.barcode, q),
   )
+}
+
+/** Compare codes (espaces, tirets, zéros devant EAN). */
+export function normalizeBarcode(code: string): string {
+  return code.trim().replace(/[\s_-]+/g, '')
+}
+
+export function barcodesMatch(a: string, b: string): boolean {
+  const x = normalizeBarcode(a)
+  const y = normalizeBarcode(b)
+  if (!x || !y) return false
+  if (x.toLowerCase() === y.toLowerCase()) return true
+  const nx = x.replace(/^0+/, '') || '0'
+  const ny = y.replace(/^0+/, '') || '0'
+  return /^\d+$/.test(nx) && /^\d+$/.test(ny) && nx === ny
 }
 
 export function addSupplier(
