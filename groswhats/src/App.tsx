@@ -306,6 +306,9 @@ const CATEGORIES: ProductCategory[] = [
   'autre',
 ]
 
+/** Filtre caisse : produits sans code-barres (bouton / rayon « Autre ») */
+const NO_BARCODE_FILTER = '__no_barcode__'
+
 export default function App() {
   const [state, setState] = useState<AppState>(() => loadState())
   const [screen, setScreen] = useState<Screen>('home')
@@ -5349,9 +5352,12 @@ function OrderPage({
   }, [state.clients, clientQuery, clientDateFrom, clientDateTo])
   const filteredProducts = useMemo(() => {
     const q = productQuery.trim().toLowerCase()
+    const noBarcodeOnly = categoryFilter === NO_BARCODE_FILTER
     return state.products.filter((p) => {
       if (!inDateRange(p.createdAt, productDateFrom, productDateTo)) return false
-      if (categoryFilter !== 'all') {
+      if (noBarcodeOnly) {
+        if ((p.barcode || '').trim()) return false
+      } else if (categoryFilter !== 'all') {
         const aisle = p.aisleId || p.category
         if (aisle !== categoryFilter) return false
       }
@@ -5371,6 +5377,11 @@ function OrderPage({
     categoryFilter,
     lang,
   ])
+
+  const noBarcodeCount = useMemo(
+    () => state.products.filter((p) => !(p.barcode || '').trim()).length,
+    [state.products],
+  )
 
   const retailRayonChips = useMemo(() => {
     if (!isShopRetail(mode)) return []
@@ -5913,6 +5924,18 @@ function OrderPage({
         <div className="btn-row" style={{ marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
           <button
             type="button"
+            className={`btn ${categoryFilter === NO_BARCODE_FILTER ? '' : 'secondary'}`}
+            onClick={() => {
+              setCategoryFilter(NO_BARCODE_FILTER)
+              setProductQuery('')
+              setShowFlash(false)
+            }}
+          >
+            🏷️ {t(lang, 'noBarcodeBtn')}
+            {noBarcodeCount > 0 ? ` (${noBarcodeCount})` : ''}
+          </button>
+          <button
+            type="button"
             className="btn secondary"
             onClick={() => setShowFlash((v) => !v)}
           >
@@ -5979,7 +6002,9 @@ function OrderPage({
             ))}
           </div>
         ) : null}
-        {isShopRetail(mode) && retailRayonChips.length > 0 ? (
+        {(isShopRetail(mode) && retailRayonChips.length > 0) ||
+        noBarcodeCount > 0 ||
+        categoryFilter === NO_BARCODE_FILTER ? (
           <div className="chip-row retail-cat-chips" role="tablist" aria-label={t(lang, 'retailCategories')}>
             <button
               type="button"
@@ -5988,22 +6013,41 @@ function OrderPage({
             >
               {t(lang, 'cat_all')}
             </button>
-            {retailRayonChips.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                className={`chip ${categoryFilter === c.id ? 'active' : ''}`}
-                onClick={() => setCategoryFilter(c.id)}
-              >
-                {c.emoji ? `${c.emoji} ` : ''}
-                {c.label}
-              </button>
-            ))}
+            <button
+              type="button"
+              className={`chip ${categoryFilter === NO_BARCODE_FILTER ? 'active' : ''}`}
+              onClick={() => {
+                setCategoryFilter(NO_BARCODE_FILTER)
+                setProductQuery('')
+              }}
+            >
+              🏷️ {t(lang, 'noBarcodeRayon')}
+              {noBarcodeCount > 0 ? ` (${noBarcodeCount})` : ''}
+            </button>
+            {isShopRetail(mode)
+              ? retailRayonChips.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className={`chip ${categoryFilter === c.id ? 'active' : ''}`}
+                    onClick={() => setCategoryFilter(c.id)}
+                  >
+                    {c.emoji ? `${c.emoji} ` : ''}
+                    {c.label}
+                  </button>
+                ))
+              : null}
           </div>
         ) : null}
         {filteredProducts.length === 0 ? (
           <div className="empty">
-            <div>{state.products.length === 0 ? mt(state.settings.commerceMode, lang, 'emptyCatalogHint') : t(lang, 'noProductFound')}</div>
+            <div>
+              {state.products.length === 0
+                ? mt(state.settings.commerceMode, lang, 'emptyCatalogHint')
+                : categoryFilter === NO_BARCODE_FILTER
+                  ? t(lang, 'noBarcodeEmpty')
+                  : t(lang, 'noProductFound')}
+            </div>
             {state.products.length === 0 ? (
               <button
                 type="button"
@@ -6012,6 +6056,15 @@ function OrderPage({
                 onClick={() => onGo('products', t(lang, 'newProduct'))}
               >
                 ➕ {t(lang, 'newProduct')}
+              </button>
+            ) : categoryFilter === NO_BARCODE_FILTER ? (
+              <button
+                type="button"
+                className="btn secondary block"
+                style={{ marginTop: 12 }}
+                onClick={() => setCategoryFilter('all')}
+              >
+                {t(lang, 'cat_all')}
               </button>
             ) : null}
           </div>
