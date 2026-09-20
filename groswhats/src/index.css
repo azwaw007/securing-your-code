@@ -3333,3 +3333,41 @@ html[data-theme='night'] option {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
+
+.cart-line-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cart-line-remove {
+  flex-shrink: 0;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0 10px;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: #b91c1c;
+}
+
+.total-override-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.total-override-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.total-override-clear {
+  flex-shrink: 0;
+  min-width: 48px;
+  min-height: 52px;
+  padding: 0 12px;
+  font-size: 1.15rem;
+  line-height: 1;
+  color: #b91c1c;
+}

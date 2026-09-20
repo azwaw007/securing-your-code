@@ -5284,8 +5284,10 @@ function OrderPage({
   const [flashName, setFlashName] = useState('')
   const [flashPrice, setFlashPrice] = useState('')
   const [flashQty, setFlashQty] = useState('1')
-  /** Total forcé avant encaissement */
+  /** Total forcé avant encaissement (vide = suivre le calculé) */
   const [totalOverride, setTotalOverride] = useState('')
+  /** true si le caissier a saisi un montant négocié */
+  const [totalDirty, setTotalDirty] = useState(false)
   const [tierMap, setTierMap] = useState<Record<string, PriceTier>>({})
   /** Pack sélectionné à la caisse (œufs ×10 / ×15 / ×30) — 0 = pièce */
   const [packSizeMap, setPackSizeMap] = useState<Record<string, number>>({})
@@ -5459,10 +5461,17 @@ function OrderPage({
   const computedTotal = Math.max(0, +(subtotal - discountDa).toFixed(2))
   const overrideParsed = Number(String(totalOverride).replace(',', '.'))
   const hasTotalOverride =
+    totalDirty &&
     totalOverride.trim() !== '' &&
     Number.isFinite(overrideParsed) &&
     overrideParsed >= 0
   const total = hasTotalOverride ? +overrideParsed.toFixed(2) : computedTotal
+  /** Valeur affichée : calculée (toujours visible) ou saisie en cours / négociée */
+  const totalFieldValue = totalDirty
+    ? totalOverride
+    : lines.length > 0
+      ? String(computedTotal)
+      : ''
   const client = state.clients.find((c) => c.id === clientId)
   const clientDebt = client ? clientCreditDa(state, client.id) : 0
   const canValidate = lines.length > 0 && (isQuick || !!client)
@@ -5482,6 +5491,7 @@ function OrderPage({
     setFlashPrice('')
     setFlashQty('1')
     setTotalOverride('')
+    setTotalDirty(false)
     setTierMap({})
     setPackSizeMap({})
     setImeiMap({})
@@ -5489,6 +5499,11 @@ function OrderPage({
     setPayStep(false)
     setVerseInput('')
     setDueDays(15)
+  }
+
+  function resetTotalOverride() {
+    setTotalOverride('')
+    setTotalDirty(false)
   }
 
   function addFlashLine() {
@@ -5546,9 +5561,10 @@ function OrderPage({
     setDiscountPercent(h.discountPercent ? String(h.discountPercent) : '')
     setPriceOverrides({ ...(h.priceOverrides || {}) })
     setFlashLines([...(h.flashLines || [])])
-    setTotalOverride(
-      typeof h.totalOverrideDa === 'number' ? String(h.totalOverrideDa) : '',
-    )
+    const restoredOverride =
+      typeof h.totalOverrideDa === 'number' ? String(h.totalOverrideDa) : ''
+    setTotalOverride(restoredOverride)
+    setTotalDirty(restoredOverride !== '')
     setClientId(h.clientId || QUICK)
     setShowClientBook(!!h.clientId)
     setPayStep(false)
@@ -6367,12 +6383,16 @@ function OrderPage({
                       />
                     </label>
                   </div>
-                  <div className="muted" style={{ marginTop: 2 }}>
-                    = {formatDa(l.lineTotalDa)}
+                  <div
+                    className="cart-line-total"
+                    style={{ marginTop: 2 }}
+                  >
+                    <span className="muted">= {formatDa(l.lineTotalDa)}</span>
                     <button
                       type="button"
-                      className="btn ghost"
-                      style={{ marginInlineStart: 8 }}
+                      className="btn ghost cart-line-remove"
+                      title={t(lang, 'removeCartLine')}
+                      aria-label={t(lang, 'removeCartLine')}
                       onClick={() => {
                         if (l.flash) {
                           setFlashLines((prev) =>
@@ -6395,9 +6415,11 @@ function OrderPage({
                             return n
                           })
                         }
+                        // Ne pas effacer un total négocié : le montant
+                        // à encaisser reste visible (recalcul auto si non forcé).
                       }}
                     >
-                      ×
+                      ✕
                     </button>
                   </div>
                   {l.imei ? (
@@ -6411,14 +6433,49 @@ function OrderPage({
           </ul>
         ) : null}
 
-        <div className="field" style={{ marginTop: 8 }}>
+        <div className="field total-override-field" style={{ marginTop: 8 }}>
           <label>{t(lang, 'totalOverrideLabel')}</label>
-          <input
-            inputMode="decimal"
-            value={totalOverride}
-            onChange={(e) => setTotalOverride(e.target.value)}
-            placeholder={String(computedTotal)}
-          />
+          <div className="total-override-row">
+            <input
+              inputMode="decimal"
+              value={totalFieldValue}
+              onChange={(e) => {
+                setTotalDirty(true)
+                setTotalOverride(e.target.value)
+              }}
+              onFocus={(e) => {
+                // Sélectionner le montant calculé pour le remplacer sans
+                // le voir « disparaître » (ancien comportement placeholder).
+                requestAnimationFrame(() => e.target.select())
+              }}
+              onBlur={() => {
+                if (!totalDirty) return
+                if (totalOverride.trim() === '') {
+                  resetTotalOverride()
+                  return
+                }
+                const n = Number(String(totalOverride).replace(',', '.'))
+                if (
+                  Number.isFinite(n) &&
+                  Math.abs(n - computedTotal) < 0.001
+                ) {
+                  resetTotalOverride()
+                }
+              }}
+              placeholder={t(lang, 'totalOverridePlaceholder')}
+            />
+            {totalDirty && totalOverride.trim() !== '' ? (
+              <button
+                type="button"
+                className="btn ghost total-override-clear"
+                title={t(lang, 'totalOverrideClear')}
+                aria-label={t(lang, 'totalOverrideClear')}
+                onClick={() => resetTotalOverride()}
+              >
+                ✕
+              </button>
+            ) : null}
+          </div>
           <div className="muted" style={{ marginTop: 4 }}>
             {t(lang, 'totalOverrideHint')}
           </div>

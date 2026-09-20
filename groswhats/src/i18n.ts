@@ -620,9 +620,12 @@ const fr: Dict = {
   unitPriceEdit: 'Prix unit. (DA)',
   totalOverrideLabel: 'Total à encaisser (modifiable)',
   totalOverrideHint:
-    'Laisse vide pour le total calculé. Ou tape le montant final négocié.',
+    'Le montant calculé s’affiche ici. Modifie-le pour un prix négocié.',
+  totalOverridePlaceholder: 'Montant négocié…',
+  totalOverrideClear: 'Revenir au total calculé',
   totalOverrideActive: 'Total forcé',
   totalOverrideNote: 'Total forcé en caisse',
+  removeCartLine: 'Retirer cet article',
   orderReviseBtn: 'Modifier la facture',
   orderReviseTitle: 'Corriger la facture',
   orderReviseHint:
@@ -1703,9 +1706,12 @@ const ar: Dict = {
   unitPriceEdit: 'سعر الوحدة (دج)',
   totalOverrideLabel: 'المبلغ للتحصيل (قابل للتعديل)',
   totalOverrideHint:
-    'اتركه فارغاً للمجموع المحسوب، أو اكتب المبلغ النهائي المتفق عليه.',
+    'يظهر هنا المبلغ المحسوب. عدّله لسعر متفق عليه.',
+  totalOverridePlaceholder: 'مبلغ متفق عليه…',
+  totalOverrideClear: 'العودة للمجموع المحسوب',
   totalOverrideActive: 'مجموع مفروض',
   totalOverrideNote: 'مجموع مفروض في الصندوق',
+  removeCartLine: 'إزالة هذا المنتج',
   orderReviseBtn: 'تعديل الفاتورة',
   orderReviseTitle: 'تصحيح الفاتورة',
   orderReviseHint:
