@@ -39,6 +39,7 @@ import type {
   PriceTier,
   FloorTable,
   RepairOrder,
+  InvoiceProductAlias,
 } from './types'
 import {
   DEFAULT_AGENT_PERMISSIONS,
@@ -100,6 +101,7 @@ function defaultSettings(): ShopSettings {
     clinicStation: undefined,
     clinicStationChosen: false,
     appointmentAutoRemind: true,
+    purchaseMarginPct: 20,
   }
 }
 
@@ -364,6 +366,7 @@ function seedState(): AppState {
     appointments: [],
     tables: [],
     repairOrders: [],
+    invoiceAliases: [],
   }
 }
 
@@ -394,6 +397,7 @@ export function migrate(raw: unknown): AppState {
     appointments?: Appointment[]
     tables?: FloorTable[]
     repairOrders?: RepairOrder[]
+    invoiceAliases?: InvoiceProductAlias[]
   }
   const incoming = data.settings ?? {}
   const defaults = defaultSettings()
@@ -468,6 +472,13 @@ export function migrate(raw: unknown): AppState {
                 : undefined,
           }))
       : undefined,
+    purchaseMarginPct:
+      typeof incoming.purchaseMarginPct === 'number' &&
+      Number.isFinite(incoming.purchaseMarginPct) &&
+      incoming.purchaseMarginPct >= 0 &&
+      incoming.purchaseMarginPct <= 200
+        ? incoming.purchaseMarginPct
+        : 20,
   }
   const teamDefaults = defaultTeam()
   const team: TeamSettings = {
@@ -893,6 +904,24 @@ export function migrate(raw: unknown): AppState {
         createdAt: r.createdAt || new Date().toISOString(),
         updatedAt: r.updatedAt || r.createdAt || new Date().toISOString(),
       })),
+    invoiceAliases: Array.isArray(data.invoiceAliases)
+      ? data.invoiceAliases
+          .filter(
+            (a) =>
+              a &&
+              typeof a.key === 'string' &&
+              a.key.trim() &&
+              typeof a.productId === 'string' &&
+              a.productId,
+          )
+          .map((a) => ({
+            key: a.key.trim(),
+            productId: a.productId,
+            hits: typeof a.hits === 'number' && a.hits > 0 ? a.hits : 1,
+            updatedAt: a.updatedAt || new Date().toISOString(),
+          }))
+          .slice(0, 500)
+      : [],
   }
   return ensureDefaultLocation(base)
 }

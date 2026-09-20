@@ -8,11 +8,20 @@ import {
   mergeBrokenOcrLines,
   matchInvoiceLineToStock,
   nameScore,
+  normalizeInvoiceName,
   parseInvoiceText,
   sanitizeBarcodeToken,
   STOCK_MATCH_THRESHOLD,
 } from '../src/utils/invoiceParse.ts'
-import type { Product } from '../src/types.ts'
+import {
+  findAliasProductId,
+  findDuplicateProduct,
+  rememberInvoiceAlias,
+  suggestSalePriceDa,
+  supplierFrequentProducts,
+  supplierBoostMap,
+} from '../src/utils/invoiceMemory.ts'
+import type { AppState, Product, Purchase } from '../src/types.ts'
 
 function fakeProduct(partial: Partial<Product> & { id: string; name: string }): Product {
   return {
@@ -22,7 +31,7 @@ function fakeProduct(partial: Partial<Product> & { id: string; name: string }): 
     costDa: 80,
     stock: 10,
     lowStockAt: 2,
-    createdAt: Date.now(),
+    createdAt: new Date().toISOString(),
     ...partial,
   }
 }
@@ -76,6 +85,7 @@ assert.deepEqual(
 assert.ok(nameScore('Coca Cola 33cl', 'coca cola 33 cl') >= 0.8)
 assert.ok(nameScore('Lait Candia', 'Candia Lait') >= 0.5)
 assert.ok(nameScore('abc', 'zzzz') < 0.3)
+assert.equal(normalizeInvoiceName('Lait  Candia 1L'), 'lait candia 1l')
 
 // --- stock match barcode + fuzzy ---
 {
@@ -101,7 +111,6 @@ assert.ok(nameScore('abc', 'zzzz') < 0.3)
   assert.ok(byName.score >= STOCK_MATCH_THRESHOLD)
   assert.equal(byName.product?.id, 'p2')
 
-  // suffix barcode
   const bySuffix = matchInvoiceLineToStock(
     { raw: '', name: 'x', barcode: '123456789', qty: 1, unitCostDa: 1 },
     [
@@ -113,6 +122,66 @@ assert.ok(nameScore('abc', 'zzzz') < 0.3)
     ],
   )
   assert.equal(bySuffix.product?.id, 'p3')
+
+  const byAlias = matchInvoiceLineToStock(
+    { raw: '', name: 'LAIT CANDYA OCR', qty: 1, unitCostDa: 80 },
+    products,
+    { aliasProductId: 'p2' },
+  )
+  assert.equal(byAlias.product?.id, 'p2')
+  assert.equal(byAlias.fromAlias, true)
+}
+
+// --- margin + duplicate + supplier history ---
+assert.equal(suggestSalePriceDa(100, 20), 120)
+{
+  const products = [
+    fakeProduct({ id: 'p1', name: 'Coca Cola 33cl' }),
+    fakeProduct({ id: 'p2', name: 'Fanta 33cl' }),
+  ]
+  const dup = findDuplicateProduct('coca cola 33 cl', products)
+  assert.equal(dup?.product.id, 'p1')
+
+  const purchases: Purchase[] = [
+    {
+      id: 'pur1',
+      supplierId: 's1',
+      supplierName: 'Distrib',
+      lines: [
+        {
+          productId: 'p1',
+          name: 'Coca',
+          qty: 10,
+          unitCostDa: 50,
+          lineTotalDa: 500,
+        },
+        {
+          productId: 'p1',
+          name: 'Coca',
+          qty: 5,
+          unitCostDa: 50,
+          lineTotalDa: 250,
+        },
+      ],
+      totalDa: 750,
+      paidDa: 750,
+      note: '',
+      createdAt: '',
+    },
+  ]
+  const freq = supplierFrequentProducts(purchases, 's1', 'Distrib')
+  assert.equal(freq[0].productId, 'p1')
+  const boosts = supplierBoostMap(freq)
+  assert.ok((boosts.get('p1') || 0) > 0)
+
+  const state = {
+    invoiceAliases: [],
+  } as unknown as AppState
+  const next = rememberInvoiceAlias(state, 'Coca Cola OCR', 'p1')
+  assert.equal(
+    findAliasProductId('coca cola ocr', next.invoiceAliases),
+    'p1',
+  )
 }
 
 console.log('invoiceParse tests: OK')

@@ -38,6 +38,15 @@ export type InvoiceMatchedLine = InvoiceParsedLine & {
   selected: boolean
   matchScore?: number
   candidates?: InvoiceMatchCandidate[]
+  /** Prix de vente suggéré (nouveaux / marge) */
+  salePriceDa?: number
+  /** Alerte : nom trop proche d’un produit existant */
+  duplicateOfId?: string
+  duplicateOfName?: string
+  /** Lien issu de la mémoire des corrections */
+  fromAlias?: boolean
+  /** Boosté par historique fournisseur */
+  fromSupplierHistory?: boolean
 }
 
 /** Seuil auto-lien stock (code ou nom très proche). */
@@ -57,6 +66,11 @@ function norm(s: string): string {
     .replace(/(\d)\s*g(?:rammes?)?\b/gi, '$1g')
     .replace(/[^a-z0-9\u0600-\u06ff]+/g, ' ')
     .trim()
+}
+
+/** Clé normalisée pour mémoire alias / matching. */
+export function normalizeInvoiceName(s: string): string {
+  return norm(s)
 }
 
 function toNum(s: string): number {
@@ -420,12 +434,32 @@ function barcodeLooseEqual(a: string, b: string): boolean {
 export function matchInvoiceLineToStock(
   line: InvoiceParsedLine,
   products: Product[],
+  opts?: {
+    aliasProductId?: string
+    supplierBoosts?: Map<string, number>
+  },
 ): {
   product?: Product
   score: number
   candidates: InvoiceMatchCandidate[]
+  fromAlias?: boolean
+  fromSupplierHistory?: boolean
 } {
   const candidates: InvoiceMatchCandidate[] = []
+
+  if (opts?.aliasProductId) {
+    const aliased = products.find((p) => p.id === opts.aliasProductId)
+    if (aliased) {
+      return {
+        product: aliased,
+        score: 1,
+        fromAlias: true,
+        candidates: [
+          { productId: aliased.id, name: aliased.name, score: 1 },
+        ],
+      }
+    }
+  }
 
   if (line.barcode) {
     const byCode = products.find(
@@ -442,14 +476,31 @@ export function matchInvoiceLineToStock(
 
   let best: Product | undefined
   let bestScore = 0
+  let fromSupplierHistory = false
   for (const p of products) {
-    const s = nameScore(line.name, p.name)
+    let s = nameScore(line.name, p.name)
+    const boost = opts?.supplierBoosts?.get(p.id) ?? 0
+    if (boost > 0) s = Math.min(1, s + boost)
     if (s >= MAYBE_MATCH_THRESHOLD) {
       candidates.push({ productId: p.id, name: p.name, score: s })
     }
     if (s > bestScore) {
       bestScore = s
       best = p
+      fromSupplierHistory = boost > 0 && nameScore(line.name, p.name) < STOCK_MATCH_THRESHOLD
+    }
+  }
+
+  // Ajoute les habitués fournisseur même sans score nom élevé
+  if (opts?.supplierBoosts) {
+    for (const [pid, boost] of opts.supplierBoosts) {
+      if (candidates.some((c) => c.productId === pid)) continue
+      const p = products.find((x) => x.id === pid)
+      if (!p) continue
+      const s = Math.min(1, nameScore(line.name, p.name) + boost)
+      if (s >= MAYBE_MATCH_THRESHOLD) {
+        candidates.push({ productId: p.id, name: p.name, score: s })
+      }
     }
   }
 
@@ -457,9 +508,14 @@ export function matchInvoiceLineToStock(
   const top = candidates.slice(0, 5)
 
   if (best && bestScore >= STOCK_MATCH_THRESHOLD) {
-    return { product: best, score: bestScore, candidates: top }
+    return {
+      product: best,
+      score: bestScore,
+      candidates: top,
+      fromSupplierHistory,
+    }
   }
-  return { score: bestScore, candidates: top }
+  return { score: bestScore, candidates: top, fromSupplierHistory }
 }
 
 export function findSupplierMatch(
