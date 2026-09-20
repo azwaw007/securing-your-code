@@ -15,8 +15,8 @@ https://az-pos-dz.vercel.app/privacy.html
 
 Fichiers déjà générés sur cette machine :
 
-- `release/AZ POS Setup 1.0.0.exe` — installeur
-- `release/AZ POS 1.0.0.exe` — portable
+- `release/AZ-POS-Setup-1.1.0.exe` — installeur
+- `release/AZ-POS-Portable-1.1.0.exe` — portable
 
 Rebuild :
 
