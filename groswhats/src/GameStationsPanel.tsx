@@ -14,14 +14,13 @@ import {
   ensureGameStations,
   expireGameStations,
   freeGameStation,
-  hourRateDa,
-  matchRateDa,
   removeGameStation,
   resolveGameTariffs,
   setGameStationStandby,
   setGameStationCount,
   stationConsole,
   stationMatchMinutes,
+  tariffForConsole,
   updateGameStation,
 } from './store'
 import {
@@ -211,11 +210,17 @@ export function GameStationsPanel({
       </div>
 
       <div className="game-tariff-strip muted">
-        PS4 {tariffs.ps4HourDa} DA/h · {tariffs.ps4MatchDa} DA/{t(lang, 'gameMatchShort')}
-        {' · '}
-        PS5 {tariffs.ps5HourDa} DA/h · {tariffs.ps5MatchDa} DA/{t(lang, 'gameMatchShort')}
-        {' · '}
-        {t(lang, 'gameMatchDefault')}: {tariffs.matchMinutes} min
+        {tariffs.consoles.map((c) => (
+          <span key={c.id} className="game-tariff-chip">
+            {c.label} {c.hourDa} DA/h
+            {c.matchDa > 0
+              ? ` · ${c.matchDa} DA/${t(lang, 'gameMatchShort')}`
+              : ''}
+          </span>
+        ))}
+        <span className="game-tariff-chip">
+          {t(lang, 'gameMatchDefault')}: {tariffs.matchMinutes} min
+        </span>
       </div>
 
       <div className="game-count-row">
@@ -310,9 +315,8 @@ export function GameStationsPanel({
               }
               onSetConsole={(kind) => {
                 onState(updateGameStation(state, st.id, { consoleKind: kind }))
-                onFlash(
-                  `${st.name} → ${kind === 'ps5' ? 'PS5' : 'PS4'}`,
-                )
+                const label = tariffForConsole(state, kind).label
+                onFlash(`${st.name} → ${label}`)
               }}
               onSetMatchMinutes={(mins) => {
                 onState(
@@ -429,8 +433,10 @@ function StationTile({
   const kind = stationConsole(st)
   const matchMin = stationMatchMinutes(state, st)
   const [matchDraft, setMatchDraft] = useState(String(matchMin))
-  const hourDa = hourRateDa(state, kind)
-  const matchDa = matchRateDa(state, kind)
+  const tariff = tariffForConsole(state, kind)
+  const hourDa = tariff.hourDa
+  const matchDa = tariff.matchDa
+  const consoles = resolveGameTariffs(state).consoles
 
   useEffect(() => {
     setMatchDraft(String(matchMin))
@@ -440,7 +446,7 @@ function StationTile({
     'game-tile',
     `is-${st.status}`,
     warn ? 'is-warn' : '',
-    kind === 'ps5' ? 'is-ps5' : 'is-ps4',
+    `is-${kind}`,
   ]
     .filter(Boolean)
     .join(' ')
@@ -456,21 +462,19 @@ function StationTile({
         ) : null}
       </div>
 
-      <div className="game-console-toggle">
-        <button
-          type="button"
-          className={`game-console-btn ${kind === 'ps4' ? 'is-on' : ''}`}
-          onClick={() => onSetConsole('ps4')}
+      <div className="field" style={{ margin: '6px 0 4px' }}>
+        <select
+          className="game-console-select"
+          value={kind}
+          onChange={(e) => onSetConsole(e.target.value as GameConsoleKind)}
+          aria-label={t(lang, 'gameConsolePick')}
         >
-          PS4
-        </button>
-        <button
-          type="button"
-          className={`game-console-btn ${kind === 'ps5' ? 'is-on' : ''}`}
-          onClick={() => onSetConsole('ps5')}
-        >
-          PS5
-        </button>
+          {consoles.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="game-timer" aria-live="polite">
@@ -481,7 +485,12 @@ function StationTile({
             : t(lang, 'gameFree')}
       </div>
       <div className="muted game-tile-meta">
-        {st.clientLabel || `${hourDa} DA/h · ${matchDa} DA/${t(lang, 'gameMatchShort')}`}
+        {st.clientLabel ||
+          `${hourDa} DA/h${
+            matchDa > 0
+              ? ` · ${matchDa} DA/${t(lang, 'gameMatchShort')}`
+              : ''
+          }`}
       </div>
 
       <div className="game-presets">
@@ -528,13 +537,16 @@ function StationTile({
           <button
             type="button"
             className="btn"
+            disabled={matchDa <= 0}
             onClick={() => {
               const n = Math.max(1, Math.round(Number(matchDraft) || matchMin))
               onSetMatchMinutes(n)
               onMatch(n)
             }}
           >
-            +{t(lang, 'gameMatchShort')} ({matchDa} DA)
+            {matchDa > 0
+              ? `+${t(lang, 'gameMatchShort')} (${matchDa} DA)`
+              : t(lang, 'gameNoMatchTariff')}
           </button>
         </div>
       </div>

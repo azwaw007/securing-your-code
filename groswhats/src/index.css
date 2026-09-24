@@ -1579,9 +1579,25 @@ button {
 }
 
 .game-tariff-strip {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   margin: 0 0 8px;
-  line-height: 1.35;
+  line-height: 1.45;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+.game-tariff-chip {
+  white-space: nowrap;
+}
+.game-console-select {
+  width: 100%;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+.game-tariff-edit-row {
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line, #2a3a4d);
 }
 .game-console-toggle {
   display: flex;

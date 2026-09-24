@@ -290,10 +290,14 @@ export function GamePriceAdminCard({
   const tariffs = resolveGameTariffs(state)
   const [pin, setPin] = useState('')
   const [open, setOpen] = useState(false)
-  const [ps4Hour, setPs4Hour] = useState(String(tariffs.ps4HourDa))
-  const [ps5Hour, setPs5Hour] = useState(String(tariffs.ps5HourDa))
-  const [ps4Match, setPs4Match] = useState(String(tariffs.ps4MatchDa))
-  const [ps5Match, setPs5Match] = useState(String(tariffs.ps5MatchDa))
+  const [rows, setRows] = useState(
+    tariffs.consoles.map((c) => ({
+      id: c.id,
+      label: c.label,
+      hour: String(c.hourDa),
+      match: String(c.matchDa),
+    })),
+  )
   const [matchMin, setMatchMin] = useState(String(tariffs.matchMinutes))
 
   function unlock() {
@@ -312,25 +316,31 @@ export function GamePriceAdminCard({
   }
 
   function save() {
-    const a = num(ps4Hour)
-    const b = num(ps5Hour)
-    const c = num(ps4Match)
-    const d = num(ps5Match)
     const m = Math.round(Number(matchMin))
-    if (a === null || b === null || c === null || d === null || !Number.isFinite(m) || m < 1) {
+    if (!Number.isFinite(m) || m < 1) {
       onFlash(t(lang, 'gamePriceBad'))
       return
     }
+    const consoles = []
+    for (const r of rows) {
+      const hour = num(r.hour)
+      const match = num(r.match)
+      if (hour === null || match === null) {
+        onFlash(t(lang, 'gamePriceBad'))
+        return
+      }
+      consoles.push({
+        id: r.id,
+        label: r.label,
+        hourDa: hour,
+        matchDa: match,
+      })
+    }
+    const ps4 = consoles.find((c) => c.id === 'ps4')
     onState(
       updateSettings(state, {
-        gameTariffs: {
-          ps4HourDa: a,
-          ps5HourDa: b,
-          ps4MatchDa: c,
-          ps5MatchDa: d,
-          matchMinutes: m,
-        },
-        gamePricePerMinuteDa: +(a / 60).toFixed(2),
+        gameTariffs: { matchMinutes: m, consoles },
+        gamePricePerMinuteDa: ps4 ? +(ps4.hourDa / 60).toFixed(2) : undefined,
       }),
     )
     onFlash(t(lang, 'gamePriceSaved'))
@@ -342,17 +352,21 @@ export function GamePriceAdminCard({
       <p className="muted">{t(lang, 'gamePriceHint')}</p>
       {!open ? (
         <>
-          <div className="muted" style={{ marginBottom: 8 }}>
+          <div className="muted game-admin-preview" style={{ marginBottom: 8 }}>
+            {tariffs.consoles.map((c) => (
+              <div key={c.id}>
+                {c.label} : <strong>{c.hourDa} DA</strong>/h
+                {c.matchDa > 0 ? (
+                  <>
+                    {' '}
+                    · <strong>{c.matchDa} DA</strong>/{t(lang, 'gameMatchShort')}
+                  </>
+                ) : null}
+              </div>
+            ))}
             <div>
-              PS4 : <strong>{tariffs.ps4HourDa} DA</strong>/h ·{' '}
-              <strong>{tariffs.ps4MatchDa} DA</strong>/{t(lang, 'gameMatchShort')}
-            </div>
-            <div>
-              PS5 : <strong>{tariffs.ps5HourDa} DA</strong>/h ·{' '}
-              <strong>{tariffs.ps5MatchDa} DA</strong>/{t(lang, 'gameMatchShort')}
-            </div>
-            <div>
-              {t(lang, 'gameMatchDefault')}: <strong>{tariffs.matchMinutes} min</strong>
+              {t(lang, 'gameMatchDefault')}:{' '}
+              <strong>{tariffs.matchMinutes} min</strong>
             </div>
           </div>
           <div className="field">
@@ -372,47 +386,44 @@ export function GamePriceAdminCard({
         </>
       ) : (
         <>
-          <div className="grid-2">
-            <div className="field">
-              <label>{t(lang, 'gameTariffPs4Hour')}</label>
-              <input
-                type="number"
-                min={0}
-                step={10}
-                value={ps4Hour}
-                onChange={(e) => setPs4Hour(e.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label>{t(lang, 'gameTariffPs5Hour')}</label>
-              <input
-                type="number"
-                min={0}
-                step={10}
-                value={ps5Hour}
-                onChange={(e) => setPs5Hour(e.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label>{t(lang, 'gameTariffPs4Match')}</label>
-              <input
-                type="number"
-                min={0}
-                step={10}
-                value={ps4Match}
-                onChange={(e) => setPs4Match(e.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label>{t(lang, 'gameTariffPs5Match')}</label>
-              <input
-                type="number"
-                min={0}
-                step={10}
-                value={ps5Match}
-                onChange={(e) => setPs5Match(e.target.value)}
-              />
-            </div>
+          <div className="game-tariff-edit">
+            {rows.map((r, i) => (
+              <div key={r.id} className="game-tariff-edit-row">
+                <strong>{r.label}</strong>
+                <div className="grid-2">
+                  <div className="field">
+                    <label>{t(lang, 'gameTariffHour')}</label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={10}
+                      value={r.hour}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        setRows((prev) =>
+                          prev.map((x, j) => (j === i ? { ...x, hour: v } : x)),
+                        )
+                      }}
+                    />
+                  </div>
+                  <div className="field">
+                    <label>{t(lang, 'gameTariffMatch')}</label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={10}
+                      value={r.match}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        setRows((prev) =>
+                          prev.map((x, j) => (j === i ? { ...x, match: v } : x)),
+                        )
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
           <div className="field">
             <label>{t(lang, 'gameMatchDefault')}</label>
