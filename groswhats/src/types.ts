@@ -460,12 +460,35 @@ export type GameStationStatus = 'free' | 'active' | 'standby'
 /** Prise / TV Wi‑Fi sur le réseau local */
 export type TvControlKind = 'shelly' | 'tasmota' | 'custom'
 
+export type GameConsoleKind = 'ps4' | 'ps5'
+
+/** Tarifs salle de jeux (réglages admin) */
+export interface GameTariffs {
+  /** Tarif heure PS4 (DA) */
+  ps4HourDa: number
+  /** Tarif heure PS5 (DA) */
+  ps5HourDa: number
+  /** Tarif match / partie PS4 (DA) */
+  ps4MatchDa: number
+  /** Tarif match / partie PS5 (DA) */
+  ps5MatchDa: number
+  /** Durée d’un match par défaut (minutes) */
+  matchMinutes: number
+}
+
 export interface GameStation {
   id: string
   /** Affichage : Poste 1, Poste 2… */
   name: string
   number: number
   status: GameStationStatus
+  /** PS4 ou PS5 sur ce poste */
+  consoleKind?: GameConsoleKind
+  /**
+   * Durée match (minutes) pour ce poste — sinon tarif global matchMinutes.
+   * Ajustable directement sur la fenêtre du poste.
+   */
+  matchMinutes?: number
   /** Fin de session (ISO) — console active jusqu’à cette heure */
   endsAt?: string
   /** Début de session (ISO) */
@@ -633,13 +656,14 @@ export interface ShopSettings {
   enabledTools?: Partial<Record<OptionalToolId, boolean>>
   /** PIN caissier (4–6 chiffres) — outil cashierPin */
   cashierPin?: string
-  /**
-   * PIN admin (4–6 chiffres) — protège prix/minute jeux, gestion vendeurs, etc.
+  /** PIN admin (4–6 chiffres) — protège prix/minute jeux, gestion vendeurs, etc.
    * Défaut suggéré à la création : 1234
    */
   adminPin?: string
-  /** Prix PlayStation par minute (DA) — salle de jeux */
+  /** @deprecated préférer gameTariffs — gardé pour migration */
   gamePricePerMinuteDa?: number
+  /** Tarifs PS4 / PS5 — heure et match */
+  gameTariffs?: GameTariffs
   /** Vendeur / admin actuellement connecté sur cet appareil */
   currentSellerId?: string
   /** Identité fiscale magasin (outil fiscal) */

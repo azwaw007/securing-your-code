@@ -42,6 +42,8 @@ import type {
   PriceTier,
   FloorTable,
   GameStation,
+  GameConsoleKind,
+  GameTariffs,
   RepairOrder,
   InvoiceProductAlias,
 } from './types'
@@ -108,11 +110,20 @@ function defaultSettings(): ShopSettings {
     purchaseMarginPct: 20,
     adminPin: undefined,
     gamePricePerMinuteDa: 7,
+    gameTariffs: { ...DEFAULT_GAME_TARIFFS },
     currentSellerId: undefined,
   }
 }
 
 export const DEFAULT_GAME_PRICE_PER_MINUTE_DA = 7
+
+export const DEFAULT_GAME_TARIFFS: GameTariffs = {
+  ps4HourDa: 400,
+  ps5HourDa: 500,
+  ps4MatchDa: 100,
+  ps5MatchDa: 150,
+  matchMinutes: 15,
+}
 
 export function defaultSellers(): PosSeller[] {
   const now = new Date().toISOString()
@@ -483,6 +494,7 @@ export function migrate(raw: unknown): AppState {
       incoming.gamePricePerMinuteDa >= 0
         ? +incoming.gamePricePerMinuteDa.toFixed(2)
         : DEFAULT_GAME_PRICE_PER_MINUTE_DA,
+    gameTariffs: migrateGameTariffs(incoming.gameTariffs, incoming.gamePricePerMinuteDa),
     currentSellerId:
       typeof incoming.currentSellerId === 'string' && incoming.currentSellerId
         ? incoming.currentSellerId
@@ -1506,6 +1518,11 @@ function migrateGameStations(raw: GameStation[] | undefined): GameStation[] {
             : undefined,
         clientLabel: typeof g.clientLabel === 'string' ? g.clientLabel : undefined,
         note: typeof g.note === 'string' ? g.note : undefined,
+        consoleKind: g.consoleKind === 'ps5' ? 'ps5' : 'ps4',
+        matchMinutes:
+          typeof g.matchMinutes === 'number' && g.matchMinutes > 0
+            ? Math.round(g.matchMinutes)
+            : undefined,
         tvKind: kindOk ? g.tvKind : undefined,
         tvHost: typeof g.tvHost === 'string' ? g.tvHost : undefined,
         tvOnUrl: typeof g.tvOnUrl === 'string' ? g.tvOnUrl : undefined,
@@ -1522,6 +1539,7 @@ function buildDefaultGameStations(count = DEFAULT_GAME_STATION_COUNT): GameStati
       name: `Poste ${number}`,
       number,
       status: 'free' as const,
+      consoleKind: 'ps4' as const,
       tvKind: 'shelly' as const,
     }
   })
@@ -1544,6 +1562,8 @@ export function updateGameStation(
     Pick<
       GameStation,
       | 'name'
+      | 'consoleKind'
+      | 'matchMinutes'
       | 'tvKind'
       | 'tvHost'
       | 'tvOnUrl'
@@ -2798,6 +2818,7 @@ export function addGameStation(state: AppState, name?: string): AppState {
     name: (name || '').trim() || `Poste ${number}`,
     number,
     status: 'free',
+    consoleKind: 'ps4',
     tvKind: 'shelly',
   }
   return { ...state, gameStations: [...stations, station] }
@@ -2831,31 +2852,144 @@ export function setGameStationCount(state: AppState, count: number): AppState {
   return next
 }
 
-export function gamePricePerMinute(state: AppState): number {
-  const v = state.settings.gamePricePerMinuteDa
-  return typeof v === 'number' && v >= 0 ? v : DEFAULT_GAME_PRICE_PER_MINUTE_DA
+export function migrateGameTariffs(
+  raw: GameTariffs | undefined,
+  legacyPerMin?: number,
+): GameTariffs {
+  const base = { ...DEFAULT_GAME_TARIFFS }
+  if (raw && typeof raw === 'object') {
+    if (typeof raw.ps4HourDa === 'number' && raw.ps4HourDa >= 0) {
+      base.ps4HourDa = +raw.ps4HourDa.toFixed(2)
+    }
+    if (typeof raw.ps5HourDa === 'number' && raw.ps5HourDa >= 0) {
+      base.ps5HourDa = +raw.ps5HourDa.toFixed(2)
+    }
+    if (typeof raw.ps4MatchDa === 'number' && raw.ps4MatchDa >= 0) {
+      base.ps4MatchDa = +raw.ps4MatchDa.toFixed(2)
+    }
+    if (typeof raw.ps5MatchDa === 'number' && raw.ps5MatchDa >= 0) {
+      base.ps5MatchDa = +raw.ps5MatchDa.toFixed(2)
+    }
+    if (typeof raw.matchMinutes === 'number' && raw.matchMinutes > 0) {
+      base.matchMinutes = Math.round(raw.matchMinutes)
+    }
+    return base
+  }
+  // Migration depuis ancien prix/minute → heure PS4 ≈ 60 × min
+  if (typeof legacyPerMin === 'number' && legacyPerMin > 0) {
+    base.ps4HourDa = +(legacyPerMin * 60).toFixed(2)
+    base.ps5HourDa = +(legacyPerMin * 60 * 1.25).toFixed(2)
+  }
+  return base
 }
 
-/** Encaisser du temps PS (prix/minute) → caisse + ticket. */
-export function billGameMinutes(
+export function resolveGameTariffs(state: AppState): GameTariffs {
+  return migrateGameTariffs(
+    state.settings.gameTariffs,
+    state.settings.gamePricePerMinuteDa,
+  )
+}
+
+export function stationConsole(station: GameStation | undefined): GameConsoleKind {
+  return station?.consoleKind === 'ps5' ? 'ps5' : 'ps4'
+}
+
+export function stationMatchMinutes(
+  state: AppState,
+  station: GameStation | undefined,
+): number {
+  const tariffs = resolveGameTariffs(state)
+  if (station && typeof station.matchMinutes === 'number' && station.matchMinutes > 0) {
+    return Math.round(station.matchMinutes)
+  }
+  return tariffs.matchMinutes
+}
+
+export function hourRateDa(state: AppState, consoleKind: GameConsoleKind): number {
+  const t = resolveGameTariffs(state)
+  return consoleKind === 'ps5' ? t.ps5HourDa : t.ps4HourDa
+}
+
+export function matchRateDa(state: AppState, consoleKind: GameConsoleKind): number {
+  const t = resolveGameTariffs(state)
+  return consoleKind === 'ps5' ? t.ps5MatchDa : t.ps4MatchDa
+}
+
+/** @deprecated — dérivé du tarif heure / 60 */
+export function gamePricePerMinute(state: AppState): number {
+  return +(hourRateDa(state, 'ps4') / 60).toFixed(2)
+}
+
+export type GameBillMode = 'hour' | 'match'
+
+/** Encaisser heure ou match PS4/PS5 → timer + caisse. */
+export function billGameSession(
   state: AppState,
   input: {
     stationId: string
-    minutes: number
+    mode: GameBillMode
+    /** Minutes (mode heure) — ex. 15, 30, 60 */
+    minutes?: number
+    /** Nombre de matchs (mode match) */
+    matches?: number
+    /** Durée match override (min) pour ce lancement */
+    matchMinutes?: number
     clientLabel?: string
+    /** Encaisser en caisse (défaut true) */
+    billCash?: boolean
   },
-): AppState {
-  const mins = Math.max(1, Math.round(input.minutes))
-  let next = addGameStationTime(state, input.stationId, mins, input.clientLabel)
-  const station = next.gameStations.find((g) => g.id === input.stationId)
-  const price = gamePricePerMinute(next)
-  const totalDa = +(mins * price).toFixed(2)
+): { state: AppState; totalDa: number; minutes: number; label: string } {
+  const station = state.gameStations.find((g) => g.id === input.stationId)
+  const consoleKind = stationConsole(station)
+  const consoleLabel = consoleKind === 'ps5' ? 'PS5' : 'PS4'
+  const billCash = input.billCash !== false
+
+  let minutes = 0
+  let totalDa = 0
+  let label = ''
+
+  if (input.mode === 'match') {
+    const matchCount = Math.max(1, Math.round(input.matches || 1))
+    const matchMin =
+      input.matchMinutes && input.matchMinutes > 0
+        ? Math.round(input.matchMinutes)
+        : stationMatchMinutes(state, station)
+    minutes = matchMin * matchCount
+    totalDa = +(matchRateDa(state, consoleKind) * matchCount).toFixed(2)
+    label = station
+      ? `${station.name} ${consoleLabel} · ${matchCount} match (${matchMin} min)`
+      : `${consoleLabel} · ${matchCount} match`
+  } else {
+    minutes = Math.max(1, Math.round(input.minutes || 60))
+    const hourPrice = hourRateDa(state, consoleKind)
+    totalDa = +((hourPrice * minutes) / 60).toFixed(2)
+    label = station
+      ? `${station.name} ${consoleLabel} · ${minutes} min`
+      : `${consoleLabel} · ${minutes} min`
+  }
+
+  let next = addGameStationTime(
+    state,
+    input.stationId,
+    minutes,
+    input.clientLabel,
+  )
+
+  // Mémoriser durée match si fournie
+  if (input.mode === 'match' && input.matchMinutes && input.matchMinutes > 0) {
+    next = updateGameStation(next, input.stationId, {
+      matchMinutes: Math.round(input.matchMinutes),
+    })
+  }
+
+  if (!billCash || totalDa <= 0) {
+    return { state: next, totalDa, minutes, label }
+  }
+
   const seller = currentSeller(next)
-  const label = station
-    ? `${station.name} — ${mins} min`
-    : `PlayStation — ${mins} min`
+  const st = next.gameStations.find((g) => g.id === input.stationId)
   const line = {
-    productId: `flash_game_${mins}`,
+    productId: `flash_game_${input.mode}_${consoleKind}`,
     name: label,
     unit: 'piece' as const,
     qty: 1,
@@ -2866,7 +3000,7 @@ export function billGameMinutes(
   }
   next = createOrder(next, {
     clientId: '',
-    clientName: input.clientLabel?.trim() || station?.clientLabel || 'Passage',
+    clientName: input.clientLabel?.trim() || st?.clientLabel || 'Passage',
     clientPhone: '',
     lines: [line],
     totalDa,
@@ -2877,7 +3011,24 @@ export function billGameMinutes(
     sellerId: seller?.id,
     sellerName: seller?.name,
   })
-  return next
+  return { state: next, totalDa, minutes, label }
+}
+
+/** @deprecated utiliser billGameSession */
+export function billGameMinutes(
+  state: AppState,
+  input: {
+    stationId: string
+    minutes: number
+    clientLabel?: string
+  },
+): AppState {
+  return billGameSession(state, {
+    stationId: input.stationId,
+    mode: 'hour',
+    minutes: input.minutes,
+    clientLabel: input.clientLabel,
+  }).state
 }
 
 export function createMission(

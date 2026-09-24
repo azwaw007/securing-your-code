@@ -5,6 +5,7 @@ import {
   addSeller,
   currentSeller,
   deleteSeller,
+  resolveGameTariffs,
   setCurrentSeller,
   updateSettings,
   verifyAdminPin,
@@ -274,7 +275,7 @@ export function SellersPanel({
   )
 }
 
-/** Bloc réglages prix/minute jeux — protégé par PIN admin */
+/** Bloc réglages tarifs jeux — protégé par PIN admin */
 export function GamePriceAdminCard({
   state,
   lang,
@@ -286,11 +287,14 @@ export function GamePriceAdminCard({
   onState: (next: AppState) => void
   onFlash: (msg: string) => void
 }) {
+  const tariffs = resolveGameTariffs(state)
   const [pin, setPin] = useState('')
   const [open, setOpen] = useState(false)
-  const [price, setPrice] = useState(
-    String(state.settings.gamePricePerMinuteDa ?? 7),
-  )
+  const [ps4Hour, setPs4Hour] = useState(String(tariffs.ps4HourDa))
+  const [ps5Hour, setPs5Hour] = useState(String(tariffs.ps5HourDa))
+  const [ps4Match, setPs4Match] = useState(String(tariffs.ps4MatchDa))
+  const [ps5Match, setPs5Match] = useState(String(tariffs.ps5MatchDa))
+  const [matchMin, setMatchMin] = useState(String(tariffs.matchMinutes))
 
   function unlock() {
     if (!verifyAdminPin(state, pin)) {
@@ -301,13 +305,34 @@ export function GamePriceAdminCard({
     onFlash(t(lang, 'adminPinOk'))
   }
 
+  function num(v: string): number | null {
+    const n = Number(String(v).replace(',', '.'))
+    if (!Number.isFinite(n) || n < 0) return null
+    return +n.toFixed(2)
+  }
+
   function save() {
-    const n = Number(price.replace(',', '.'))
-    if (!Number.isFinite(n) || n < 0) {
+    const a = num(ps4Hour)
+    const b = num(ps5Hour)
+    const c = num(ps4Match)
+    const d = num(ps5Match)
+    const m = Math.round(Number(matchMin))
+    if (a === null || b === null || c === null || d === null || !Number.isFinite(m) || m < 1) {
       onFlash(t(lang, 'gamePriceBad'))
       return
     }
-    onState(updateSettings(state, { gamePricePerMinuteDa: +n.toFixed(2) }))
+    onState(
+      updateSettings(state, {
+        gameTariffs: {
+          ps4HourDa: a,
+          ps5HourDa: b,
+          ps4MatchDa: c,
+          ps5MatchDa: d,
+          matchMinutes: m,
+        },
+        gamePricePerMinuteDa: +(a / 60).toFixed(2),
+      }),
+    )
     onFlash(t(lang, 'gamePriceSaved'))
   }
 
@@ -318,8 +343,17 @@ export function GamePriceAdminCard({
       {!open ? (
         <>
           <div className="muted" style={{ marginBottom: 8 }}>
-            {t(lang, 'gamePriceCurrent')}:{' '}
-            <strong>{state.settings.gamePricePerMinuteDa ?? 7} DA</strong> / min
+            <div>
+              PS4 : <strong>{tariffs.ps4HourDa} DA</strong>/h ·{' '}
+              <strong>{tariffs.ps4MatchDa} DA</strong>/{t(lang, 'gameMatchShort')}
+            </div>
+            <div>
+              PS5 : <strong>{tariffs.ps5HourDa} DA</strong>/h ·{' '}
+              <strong>{tariffs.ps5MatchDa} DA</strong>/{t(lang, 'gameMatchShort')}
+            </div>
+            <div>
+              {t(lang, 'gameMatchDefault')}: <strong>{tariffs.matchMinutes} min</strong>
+            </div>
           </div>
           <div className="field">
             <label>{t(lang, 'adminPinLabel')}</label>
@@ -338,14 +372,56 @@ export function GamePriceAdminCard({
         </>
       ) : (
         <>
+          <div className="grid-2">
+            <div className="field">
+              <label>{t(lang, 'gameTariffPs4Hour')}</label>
+              <input
+                type="number"
+                min={0}
+                step={10}
+                value={ps4Hour}
+                onChange={(e) => setPs4Hour(e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label>{t(lang, 'gameTariffPs5Hour')}</label>
+              <input
+                type="number"
+                min={0}
+                step={10}
+                value={ps5Hour}
+                onChange={(e) => setPs5Hour(e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label>{t(lang, 'gameTariffPs4Match')}</label>
+              <input
+                type="number"
+                min={0}
+                step={10}
+                value={ps4Match}
+                onChange={(e) => setPs4Match(e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label>{t(lang, 'gameTariffPs5Match')}</label>
+              <input
+                type="number"
+                min={0}
+                step={10}
+                value={ps5Match}
+                onChange={(e) => setPs5Match(e.target.value)}
+              />
+            </div>
+          </div>
           <div className="field">
-            <label>{t(lang, 'gamePricePerMin')}</label>
+            <label>{t(lang, 'gameMatchDefault')}</label>
             <input
               type="number"
-              min={0}
-              step={0.5}
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
+              min={1}
+              max={180}
+              value={matchMin}
+              onChange={(e) => setMatchMin(e.target.value)}
             />
           </div>
           <button type="button" className="btn block" onClick={save}>

@@ -1578,6 +1578,55 @@ button {
   max-width: 200px;
 }
 
+.game-tariff-strip {
+  font-size: 0.8rem;
+  margin: 0 0 8px;
+  line-height: 1.35;
+}
+.game-console-toggle {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  margin: 6px 0 4px;
+}
+.game-console-btn {
+  border: 1px solid var(--line, #2a3a4d);
+  background: transparent;
+  color: inherit;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.game-console-btn.is-on {
+  border-color: var(--brand, #00a3e0);
+  background: rgba(0, 163, 224, 0.22);
+}
+.game-tile.is-ps5 .game-console-btn.is-on {
+  border-color: #7c3aed;
+  background: rgba(124, 58, 237, 0.22);
+}
+.game-match-box {
+  margin: 8px 0 4px;
+  text-align: start;
+}
+.game-match-box label {
+  display: block;
+  font-size: 0.75rem;
+  margin-bottom: 4px;
+}
+.game-match-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+.game-match-row input {
+  width: 64px;
+  padding: 6px;
+}
+
 .seller-switcher {
   margin-bottom: 10px;
   padding: 10px 12px;
