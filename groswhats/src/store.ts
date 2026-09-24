@@ -4,6 +4,8 @@ import type {
   CashEntry,
   CashSession,
   Cashier,
+  PosSeller,
+  PosSellerRole,
   Client,
   Driver,
   Expense,
@@ -39,6 +41,9 @@ import type {
   ZakatRecord,
   PriceTier,
   FloorTable,
+  GameStation,
+  GameConsoleKind,
+  GameTariffs,
   RepairOrder,
   InvoiceProductAlias,
 } from './types'
@@ -103,7 +108,31 @@ function defaultSettings(): ShopSettings {
     clinicStationChosen: false,
     appointmentAutoRemind: true,
     purchaseMarginPct: 20,
+    adminPin: undefined,
+    gamePricePerMinuteDa: 7,
+    gameTariffs: { ...DEFAULT_GAME_TARIFFS },
+    currentSellerId: undefined,
   }
+}
+
+export const DEFAULT_GAME_PRICE_PER_MINUTE_DA = 7
+
+export const DEFAULT_GAME_TARIFFS: GameTariffs = {
+  ps4HourDa: 400,
+  ps5HourDa: 500,
+  ps4MatchDa: 100,
+  ps5MatchDa: 150,
+  matchMinutes: 15,
+}
+
+export function defaultSellers(): PosSeller[] {
+  const now = new Date().toISOString()
+  return [
+    { id: 'seller_admin', name: 'Admin', role: 'admin', pin: '', active: true, createdAt: now },
+    { id: 'seller_v1', name: 'Vendeur 1', role: 'vendeur', pin: '', active: true, createdAt: now },
+    { id: 'seller_v2', name: 'Vendeur 2', role: 'vendeur', pin: '', active: true, createdAt: now },
+    { id: 'seller_v3', name: 'Vendeur 3', role: 'vendeur', pin: '', active: true, createdAt: now },
+  ]
 }
 
 /** Stock d’un produit dans un dépôt */
@@ -353,6 +382,7 @@ function seedState(): AppState {
     cashEntries: [],
     drivers: [],
     cashiers: [],
+    sellers: defaultSellers(),
     missions: [],
     team: {
       ...defaultTeam(),
@@ -372,6 +402,7 @@ function seedState(): AppState {
     heldSales: [],
     appointments: [],
     tables: [],
+    gameStations: [],
     repairOrders: [],
     invoiceAliases: [],
   }
@@ -403,6 +434,7 @@ export function migrate(raw: unknown): AppState {
     staffLedger?: StaffLedgerEntry[]
     appointments?: Appointment[]
     tables?: FloorTable[]
+    gameStations?: GameStation[]
     repairOrders?: RepairOrder[]
     invoiceAliases?: InvoiceProductAlias[]
   }
@@ -451,6 +483,21 @@ export function migrate(raw: unknown): AppState {
       typeof incoming.cashierPin === 'string' &&
       /^\d{4,6}$/.test(incoming.cashierPin.trim())
         ? incoming.cashierPin.trim()
+        : undefined,
+    adminPin:
+      typeof incoming.adminPin === 'string' &&
+      /^\d{4,6}$/.test(incoming.adminPin.trim())
+        ? incoming.adminPin.trim()
+        : undefined,
+    gamePricePerMinuteDa:
+      typeof incoming.gamePricePerMinuteDa === 'number' &&
+      incoming.gamePricePerMinuteDa >= 0
+        ? +incoming.gamePricePerMinuteDa.toFixed(2)
+        : DEFAULT_GAME_PRICE_PER_MINUTE_DA,
+    gameTariffs: migrateGameTariffs(incoming.gameTariffs, incoming.gamePricePerMinuteDa),
+    currentSellerId:
+      typeof incoming.currentSellerId === 'string' && incoming.currentSellerId
+        ? incoming.currentSellerId
         : undefined,
     fiscalNif:
       typeof incoming.fiscalNif === 'string' && incoming.fiscalNif.trim()
@@ -713,6 +760,7 @@ export function migrate(raw: unknown): AppState {
       pin: String(c.pin || '0000').replace(/\D/g, '').slice(0, 4).padStart(4, '0'),
       createdAt: c.createdAt || new Date().toISOString(),
     })),
+    sellers: migrateSellers((data as AppState).sellers),
     missions: (data.missions ?? []).map((m) => ({
       ...m,
       stops: (m.stops ?? []).map((s, i) => ({
@@ -957,6 +1005,7 @@ export function migrate(raw: unknown): AppState {
         heldSaleId: typeof tb.heldSaleId === 'string' ? tb.heldSaleId : undefined,
         note: typeof tb.note === 'string' ? tb.note : undefined,
       })),
+    gameStations: migrateGameStations(data.gameStations),
     repairOrders: (data.repairOrders ?? [])
       .filter((r) => r && typeof r.title === 'string')
       .map((r) => ({
@@ -1442,6 +1491,184 @@ export function setTableStatus(
         : tb,
     ),
   }
+}
+
+const DEFAULT_GAME_STATION_COUNT = 15
+const MAX_GAME_STATIONS = 30
+
+function migrateGameStations(raw: GameStation[] | undefined): GameStation[] {
+  const list = Array.isArray(raw) ? raw : []
+  return list
+    .filter((g) => g && typeof g.number === 'number')
+    .slice(0, MAX_GAME_STATIONS)
+    .map((g, i) => {
+      const num = g.number > 0 ? g.number : i + 1
+      const kindOk = g.tvKind === 'tasmota' || g.tvKind === 'custom' || g.tvKind === 'shelly'
+      return {
+        id: g.id || uid('gs'),
+        name: typeof g.name === 'string' && g.name.trim() ? g.name : `Poste ${num}`,
+        number: num,
+        status:
+          g.status === 'active' || g.status === 'standby' ? g.status : 'free',
+        endsAt: typeof g.endsAt === 'string' ? g.endsAt : undefined,
+        startedAt: typeof g.startedAt === 'string' ? g.startedAt : undefined,
+        paidMinutes:
+          typeof g.paidMinutes === 'number' && g.paidMinutes > 0
+            ? g.paidMinutes
+            : undefined,
+        clientLabel: typeof g.clientLabel === 'string' ? g.clientLabel : undefined,
+        note: typeof g.note === 'string' ? g.note : undefined,
+        consoleKind: g.consoleKind === 'ps5' ? 'ps5' : 'ps4',
+        matchMinutes:
+          typeof g.matchMinutes === 'number' && g.matchMinutes > 0
+            ? Math.round(g.matchMinutes)
+            : undefined,
+        tvKind: kindOk ? g.tvKind : undefined,
+        tvHost: typeof g.tvHost === 'string' ? g.tvHost : undefined,
+        tvOnUrl: typeof g.tvOnUrl === 'string' ? g.tvOnUrl : undefined,
+        tvOffUrl: typeof g.tvOffUrl === 'string' ? g.tvOffUrl : undefined,
+      }
+    })
+}
+
+function buildDefaultGameStations(count = DEFAULT_GAME_STATION_COUNT): GameStation[] {
+  return Array.from({ length: count }, (_, i) => {
+    const number = i + 1
+    return {
+      id: uid('gs'),
+      name: `Poste ${number}`,
+      number,
+      status: 'free' as const,
+      consoleKind: 'ps4' as const,
+      tvKind: 'shelly' as const,
+    }
+  })
+}
+
+/** Crée les 15 postes PS si absents. */
+export function ensureGameStations(
+  state: AppState,
+  count = DEFAULT_GAME_STATION_COUNT,
+): AppState {
+  const existing = state.gameStations ?? []
+  if (existing.length > 0) return state
+  return { ...state, gameStations: buildDefaultGameStations(count) }
+}
+
+export function updateGameStation(
+  state: AppState,
+  id: string,
+  patch: Partial<
+    Pick<
+      GameStation,
+      | 'name'
+      | 'consoleKind'
+      | 'matchMinutes'
+      | 'tvKind'
+      | 'tvHost'
+      | 'tvOnUrl'
+      | 'tvOffUrl'
+      | 'clientLabel'
+      | 'note'
+    >
+  >,
+): AppState {
+  return {
+    ...state,
+    gameStations: (state.gameStations ?? []).map((g) =>
+      g.id === id ? { ...g, ...patch } : g,
+    ),
+  }
+}
+
+/** Démarre ou prolonge une session (minutes payées). */
+export function addGameStationTime(
+  state: AppState,
+  id: string,
+  minutes: number,
+  clientLabel?: string,
+): AppState {
+  const mins = Math.max(1, Math.round(minutes))
+  const now = Date.now()
+  return {
+    ...state,
+    gameStations: (state.gameStations ?? []).map((g) => {
+      if (g.id !== id) return g
+      const base =
+        g.status === 'active' && g.endsAt
+          ? Math.max(now, new Date(g.endsAt).getTime())
+          : now
+      const endsAt = new Date(base + mins * 60_000).toISOString()
+      return {
+        ...g,
+        status: 'active' as const,
+        startedAt: g.status === 'active' && g.startedAt ? g.startedAt : new Date(now).toISOString(),
+        endsAt,
+        paidMinutes: (g.status === 'active' ? g.paidMinutes || 0 : 0) + mins,
+        clientLabel:
+          clientLabel !== undefined
+            ? clientLabel
+            : g.status === 'active'
+              ? g.clientLabel
+              : g.clientLabel,
+      }
+    }),
+  }
+}
+
+/** Fin de temps → veille (TV à couper côté UI). */
+export function setGameStationStandby(state: AppState, id: string): AppState {
+  return {
+    ...state,
+    gameStations: (state.gameStations ?? []).map((g) =>
+      g.id === id
+        ? {
+            ...g,
+            status: 'standby' as const,
+            endsAt: undefined,
+          }
+        : g,
+    ),
+  }
+}
+
+/** Libère le poste pour un nouveau client. */
+export function freeGameStation(state: AppState, id: string): AppState {
+  return {
+    ...state,
+    gameStations: (state.gameStations ?? []).map((g) =>
+      g.id === id
+        ? {
+            ...g,
+            status: 'free' as const,
+            endsAt: undefined,
+            startedAt: undefined,
+            paidMinutes: undefined,
+            clientLabel: undefined,
+          }
+        : g,
+    ),
+  }
+}
+
+/** Passe en veille tous les postes dont le temps est écoulé. */
+export function expireGameStations(
+  state: AppState,
+  nowMs = Date.now(),
+): { state: AppState; expiredIds: string[] } {
+  const expiredIds: string[] = []
+  const gameStations = (state.gameStations ?? []).map((g) => {
+    if (g.status !== 'active' || !g.endsAt) return g
+    if (new Date(g.endsAt).getTime() > nowMs) return g
+    expiredIds.push(g.id)
+    return {
+      ...g,
+      status: 'standby' as const,
+      endsAt: undefined,
+    }
+  })
+  if (expiredIds.length === 0) return { state, expiredIds }
+  return { state: { ...state, gameStations }, expiredIds }
 }
 
 export function addRepairOrder(
@@ -2483,6 +2710,325 @@ export function deleteCashier(state: AppState, id: string): AppState {
         ? { ...state.team, currentCashierId: null }
         : state.team,
   }
+}
+
+function migrateSellers(raw: PosSeller[] | undefined): PosSeller[] {
+  const list = Array.isArray(raw) ? raw : []
+  const mapped = list
+    .filter((s) => s && typeof s.name === 'string' && s.name.trim())
+    .map((s) => ({
+      id: s.id || uid('sel'),
+      name: s.name.trim(),
+      role: (s.role === 'admin' ? 'admin' : 'vendeur') as PosSellerRole,
+      pin: String(s.pin || '').replace(/\D/g, '').slice(0, 6),
+      active: s.active !== false,
+      createdAt: s.createdAt || new Date().toISOString(),
+    }))
+  return mapped.length > 0 ? mapped : defaultSellers()
+}
+
+export function currentSeller(state: AppState): PosSeller | undefined {
+  const id = state.settings.currentSellerId
+  const list = (state.sellers || []).filter((s) => s.active !== false)
+  if (id) {
+    const found = list.find((s) => s.id === id)
+    if (found) return found
+  }
+  return list.find((s) => s.role === 'admin') || list[0]
+}
+
+export function setCurrentSeller(state: AppState, sellerId: string): AppState {
+  const s = (state.sellers || []).find((x) => x.id === sellerId && x.active !== false)
+  if (!s) return state
+  return updateSettings(state, { currentSellerId: sellerId })
+}
+
+export function addSeller(
+  state: AppState,
+  input: { name: string; role?: PosSellerRole; pin?: string },
+): AppState {
+  const name = input.name.trim()
+  if (!name) return state
+  const pin = String(input.pin || '').replace(/\D/g, '').slice(0, 6)
+  const seller: PosSeller = {
+    id: uid('sel'),
+    name,
+    role: input.role === 'admin' ? 'admin' : 'vendeur',
+    pin,
+    active: true,
+    createdAt: new Date().toISOString(),
+  }
+  return { ...state, sellers: [...(state.sellers || []), seller] }
+}
+
+export function updateSeller(
+  state: AppState,
+  id: string,
+  patch: Partial<Omit<PosSeller, 'id' | 'createdAt'>>,
+): AppState {
+  return {
+    ...state,
+    sellers: (state.sellers || []).map((s) =>
+      s.id === id
+        ? {
+            ...s,
+            ...patch,
+            name: patch.name !== undefined ? patch.name.trim() || s.name : s.name,
+            pin:
+              patch.pin !== undefined
+                ? String(patch.pin).replace(/\D/g, '').slice(0, 6)
+                : s.pin,
+            role: patch.role === 'admin' || patch.role === 'vendeur' ? patch.role : s.role,
+          }
+        : s,
+    ),
+  }
+}
+
+export function deleteSeller(state: AppState, id: string): AppState {
+  const list = state.sellers || []
+  if (list.length <= 1) return state
+  const next = list.filter((s) => s.id !== id)
+  const cur = state.settings.currentSellerId
+  return {
+    ...state,
+    sellers: next,
+    settings: {
+      ...state.settings,
+      currentSellerId: cur === id ? next[0]?.id : cur,
+    },
+  }
+}
+
+export function verifyAdminPin(state: AppState, pin: string): boolean {
+  const expected = state.settings.adminPin
+  if (!expected) {
+    return pin.trim() === '1234'
+  }
+  return pin.trim() === expected
+}
+
+export function addGameStation(state: AppState, name?: string): AppState {
+  const stations = state.gameStations ?? []
+  if (stations.length >= MAX_GAME_STATIONS) return state
+  const number =
+    stations.reduce((m, g) => Math.max(m, g.number), 0) + 1 || stations.length + 1
+  const station: GameStation = {
+    id: uid('gs'),
+    name: (name || '').trim() || `Poste ${number}`,
+    number,
+    status: 'free',
+    consoleKind: 'ps4',
+    tvKind: 'shelly',
+  }
+  return { ...state, gameStations: [...stations, station] }
+}
+
+export function removeGameStation(state: AppState, id: string): AppState {
+  const st = (state.gameStations ?? []).find((g) => g.id === id)
+  if (!st) return state
+  if (st.status === 'active') return state
+  return {
+    ...state,
+    gameStations: (state.gameStations ?? []).filter((g) => g.id !== id),
+  }
+}
+
+/** Fixe le nombre de postes (ajoute ou retire les libres en fin de liste). */
+export function setGameStationCount(state: AppState, count: number): AppState {
+  const target = Math.max(1, Math.min(MAX_GAME_STATIONS, Math.round(count)))
+  let next = ensureGameStations(state, Math.min(target, DEFAULT_GAME_STATION_COUNT))
+  let stations = [...(next.gameStations ?? [])]
+  while (stations.length < target) {
+    next = addGameStation(next)
+    stations = [...(next.gameStations ?? [])]
+  }
+  while (stations.length > target) {
+    const removable = [...stations].reverse().find((g) => g.status !== 'active')
+    if (!removable) break
+    next = removeGameStation(next, removable.id)
+    stations = [...(next.gameStations ?? [])]
+  }
+  return next
+}
+
+export function migrateGameTariffs(
+  raw: GameTariffs | undefined,
+  legacyPerMin?: number,
+): GameTariffs {
+  const base = { ...DEFAULT_GAME_TARIFFS }
+  if (raw && typeof raw === 'object') {
+    if (typeof raw.ps4HourDa === 'number' && raw.ps4HourDa >= 0) {
+      base.ps4HourDa = +raw.ps4HourDa.toFixed(2)
+    }
+    if (typeof raw.ps5HourDa === 'number' && raw.ps5HourDa >= 0) {
+      base.ps5HourDa = +raw.ps5HourDa.toFixed(2)
+    }
+    if (typeof raw.ps4MatchDa === 'number' && raw.ps4MatchDa >= 0) {
+      base.ps4MatchDa = +raw.ps4MatchDa.toFixed(2)
+    }
+    if (typeof raw.ps5MatchDa === 'number' && raw.ps5MatchDa >= 0) {
+      base.ps5MatchDa = +raw.ps5MatchDa.toFixed(2)
+    }
+    if (typeof raw.matchMinutes === 'number' && raw.matchMinutes > 0) {
+      base.matchMinutes = Math.round(raw.matchMinutes)
+    }
+    return base
+  }
+  // Migration depuis ancien prix/minute → heure PS4 ≈ 60 × min
+  if (typeof legacyPerMin === 'number' && legacyPerMin > 0) {
+    base.ps4HourDa = +(legacyPerMin * 60).toFixed(2)
+    base.ps5HourDa = +(legacyPerMin * 60 * 1.25).toFixed(2)
+  }
+  return base
+}
+
+export function resolveGameTariffs(state: AppState): GameTariffs {
+  return migrateGameTariffs(
+    state.settings.gameTariffs,
+    state.settings.gamePricePerMinuteDa,
+  )
+}
+
+export function stationConsole(station: GameStation | undefined): GameConsoleKind {
+  return station?.consoleKind === 'ps5' ? 'ps5' : 'ps4'
+}
+
+export function stationMatchMinutes(
+  state: AppState,
+  station: GameStation | undefined,
+): number {
+  const tariffs = resolveGameTariffs(state)
+  if (station && typeof station.matchMinutes === 'number' && station.matchMinutes > 0) {
+    return Math.round(station.matchMinutes)
+  }
+  return tariffs.matchMinutes
+}
+
+export function hourRateDa(state: AppState, consoleKind: GameConsoleKind): number {
+  const t = resolveGameTariffs(state)
+  return consoleKind === 'ps5' ? t.ps5HourDa : t.ps4HourDa
+}
+
+export function matchRateDa(state: AppState, consoleKind: GameConsoleKind): number {
+  const t = resolveGameTariffs(state)
+  return consoleKind === 'ps5' ? t.ps5MatchDa : t.ps4MatchDa
+}
+
+/** @deprecated — dérivé du tarif heure / 60 */
+export function gamePricePerMinute(state: AppState): number {
+  return +(hourRateDa(state, 'ps4') / 60).toFixed(2)
+}
+
+export type GameBillMode = 'hour' | 'match'
+
+/** Encaisser heure ou match PS4/PS5 → timer + caisse. */
+export function billGameSession(
+  state: AppState,
+  input: {
+    stationId: string
+    mode: GameBillMode
+    /** Minutes (mode heure) — ex. 15, 30, 60 */
+    minutes?: number
+    /** Nombre de matchs (mode match) */
+    matches?: number
+    /** Durée match override (min) pour ce lancement */
+    matchMinutes?: number
+    clientLabel?: string
+    /** Encaisser en caisse (défaut true) */
+    billCash?: boolean
+  },
+): { state: AppState; totalDa: number; minutes: number; label: string } {
+  const station = state.gameStations.find((g) => g.id === input.stationId)
+  const consoleKind = stationConsole(station)
+  const consoleLabel = consoleKind === 'ps5' ? 'PS5' : 'PS4'
+  const billCash = input.billCash !== false
+
+  let minutes = 0
+  let totalDa = 0
+  let label = ''
+
+  if (input.mode === 'match') {
+    const matchCount = Math.max(1, Math.round(input.matches || 1))
+    const matchMin =
+      input.matchMinutes && input.matchMinutes > 0
+        ? Math.round(input.matchMinutes)
+        : stationMatchMinutes(state, station)
+    minutes = matchMin * matchCount
+    totalDa = +(matchRateDa(state, consoleKind) * matchCount).toFixed(2)
+    label = station
+      ? `${station.name} ${consoleLabel} · ${matchCount} match (${matchMin} min)`
+      : `${consoleLabel} · ${matchCount} match`
+  } else {
+    minutes = Math.max(1, Math.round(input.minutes || 60))
+    const hourPrice = hourRateDa(state, consoleKind)
+    totalDa = +((hourPrice * minutes) / 60).toFixed(2)
+    label = station
+      ? `${station.name} ${consoleLabel} · ${minutes} min`
+      : `${consoleLabel} · ${minutes} min`
+  }
+
+  let next = addGameStationTime(
+    state,
+    input.stationId,
+    minutes,
+    input.clientLabel,
+  )
+
+  // Mémoriser durée match si fournie
+  if (input.mode === 'match' && input.matchMinutes && input.matchMinutes > 0) {
+    next = updateGameStation(next, input.stationId, {
+      matchMinutes: Math.round(input.matchMinutes),
+    })
+  }
+
+  if (!billCash || totalDa <= 0) {
+    return { state: next, totalDa, minutes, label }
+  }
+
+  const seller = currentSeller(next)
+  const st = next.gameStations.find((g) => g.id === input.stationId)
+  const line = {
+    productId: `flash_game_${input.mode}_${consoleKind}`,
+    name: label,
+    unit: 'piece' as const,
+    qty: 1,
+    unitPriceDa: totalDa,
+    unitCostDa: 0,
+    lineTotalDa: totalDa,
+    flash: true as const,
+  }
+  next = createOrder(next, {
+    clientId: '',
+    clientName: input.clientLabel?.trim() || st?.clientLabel || 'Passage',
+    clientPhone: '',
+    lines: [line],
+    totalDa,
+    paidDa: totalDa,
+    remainingDa: 0,
+    payment: 'paye',
+    note: `Salle de jeux · ${label}`,
+    sellerId: seller?.id,
+    sellerName: seller?.name,
+  })
+  return { state: next, totalDa, minutes, label }
+}
+
+/** @deprecated utiliser billGameSession */
+export function billGameMinutes(
+  state: AppState,
+  input: {
+    stationId: string
+    minutes: number
+    clientLabel?: string
+  },
+): AppState {
+  return billGameSession(state, {
+    stationId: input.stationId,
+    mode: 'hour',
+    minutes: input.minutes,
+    clientLabel: input.clientLabel,
+  }).state
 }
 
 export function createMission(

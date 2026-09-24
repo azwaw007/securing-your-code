@@ -175,6 +175,7 @@ export const DOMAINS: ShopDomain[] = [
   d('svc-securite', 'services', '🛡️', 'Sécurité / gardiennage', 'حراسة', 'generic-service', SVC),
   d('svc-transport', 'services', '🚚', 'Transport / livraison', 'نقل وتوصيل', 'transport', SVC),
   d('svc-info', 'services', '🖥️', 'Dépannage informatique', 'إعلام آلي', 'generic-service', SVC),
+  d('svc-jeux', 'services', '🎮', 'Salle de jeux / PlayStation', 'قاعة ألعاب / بلاي ستيشن', 'jeux-ps', SVC),
   d('svc-sport', 'services', '🏋️', 'Salle de sport / fitness', 'قاعة رياضة', 'sport-gym', SVC),
   d('svc-boxe', 'services', '🥊', 'Club de boxe', 'نادي ملاكمة', 'sport-boxe', SVC),
   d('svc-football', 'services', '⚽', 'Club de football', 'نادي كرة قدم', 'sport-foot', SVC),

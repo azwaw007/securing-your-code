@@ -213,6 +213,13 @@ export function showTableService(
   return featuresFor(domainId, mode).tableService
 }
 
+export function showGameStations(
+  mode: CommerceMode | undefined,
+  domainId?: string,
+): boolean {
+  return featuresFor(domainId, mode).gameStations
+}
+
 export function showRepairOrder(
   mode: CommerceMode | undefined,
   domainId?: string,

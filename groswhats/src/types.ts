@@ -46,6 +46,7 @@ export type Screen =
   | 'creditLimit'
   | 'fiscal'
   | 'tpe'
+  | 'sellers'
 
 /** Mode d’encaissement DZ (outil optionnel « Paiements DZ ») */
 export type PaymentMethod = 'cash' | 'baridimob' | 'ccp' | 'card' | 'cheque'
@@ -453,6 +454,63 @@ export interface FloorTable {
   note?: string
 }
 
+/** Poste PlayStation / console (salle de jeux) */
+export type GameStationStatus = 'free' | 'active' | 'standby'
+
+/** Prise / TV Wi‑Fi sur le réseau local */
+export type TvControlKind = 'shelly' | 'tasmota' | 'custom'
+
+export type GameConsoleKind = 'ps4' | 'ps5'
+
+/** Tarifs salle de jeux (réglages admin) */
+export interface GameTariffs {
+  /** Tarif heure PS4 (DA) */
+  ps4HourDa: number
+  /** Tarif heure PS5 (DA) */
+  ps5HourDa: number
+  /** Tarif match / partie PS4 (DA) */
+  ps4MatchDa: number
+  /** Tarif match / partie PS5 (DA) */
+  ps5MatchDa: number
+  /** Durée d’un match par défaut (minutes) */
+  matchMinutes: number
+}
+
+export interface GameStation {
+  id: string
+  /** Affichage : Poste 1, Poste 2… */
+  name: string
+  number: number
+  status: GameStationStatus
+  /** PS4 ou PS5 sur ce poste */
+  consoleKind?: GameConsoleKind
+  /**
+   * Durée match (minutes) pour ce poste — sinon tarif global matchMinutes.
+   * Ajustable directement sur la fenêtre du poste.
+   */
+  matchMinutes?: number
+  /** Fin de session (ISO) — console active jusqu’à cette heure */
+  endsAt?: string
+  /** Début de session (ISO) */
+  startedAt?: string
+  /** Minutes payées / ajoutées sur la session courante */
+  paidMinutes?: number
+  /** Nom joueur / ticket (optionnel) */
+  clientLabel?: string
+  note?: string
+  /**
+   * Contrôle TV / prise Wi‑Fi (réseau local).
+   * Ex. Shelly Plug sur l’alimentation TV : host = 192.168.1.50
+   */
+  tvKind?: TvControlKind
+  /** Adresse IP ou hostname local (ex. 192.168.1.50) */
+  tvHost?: string
+  /** URL HTTP complète ON (si kind = custom) */
+  tvOnUrl?: string
+  /** URL HTTP complète OFF (si kind = custom) */
+  tvOffUrl?: string
+}
+
 export type RepairStatus = 'devis' | 'or' | 'done' | 'cancelled'
 
 /** Ordre de réparation (garage, atelier, électro…) */
@@ -519,6 +577,9 @@ export interface Order {
   payment: 'paye' | 'credit'
   /** Mode d’encaissement DZ (espèce, BaridiMob…) — outil optionnel */
   paymentMethod?: PaymentMethod
+  /** Vendeur qui a encaissé (attribution) */
+  sellerId?: string
+  sellerName?: string
   /** Date d’échéance (YYYY-MM-DD) si reste dû > 0 */
   dueDate?: string
   /** Note libre (acte cabinet, etc.) */
@@ -595,6 +656,16 @@ export interface ShopSettings {
   enabledTools?: Partial<Record<OptionalToolId, boolean>>
   /** PIN caissier (4–6 chiffres) — outil cashierPin */
   cashierPin?: string
+  /** PIN admin (4–6 chiffres) — protège prix/minute jeux, gestion vendeurs, etc.
+   * Défaut suggéré à la création : 1234
+   */
+  adminPin?: string
+  /** @deprecated préférer gameTariffs — gardé pour migration */
+  gamePricePerMinuteDa?: number
+  /** Tarifs PS4 / PS5 — heure et match */
+  gameTariffs?: GameTariffs
+  /** Vendeur / admin actuellement connecté sur cet appareil */
+  currentSellerId?: string
   /** Identité fiscale magasin (outil fiscal) */
   fiscalNif?: string
   fiscalRc?: string
@@ -692,6 +763,22 @@ export interface Cashier {
   createdAt: string
 }
 
+/**
+ * Vendeur / admin sur le même appareil (tous métiers AZ POS).
+ * Ex. Admin, Vendeur 1, Vendeur 2… — crée autant que tu veux.
+ */
+export type PosSellerRole = 'admin' | 'vendeur'
+
+export interface PosSeller {
+  id: string
+  name: string
+  role: PosSellerRole
+  /** PIN optionnel pour basculer vers ce profil */
+  pin: string
+  active: boolean
+  createdAt: string
+}
+
 export type MissionStatus = 'draft' | 'assigned' | 'in_progress' | 'done'
 export type StopStatus = 'todo' | 'done' | 'skipped'
 
@@ -756,6 +843,8 @@ export interface AppState {
   cashEntries: CashEntry[]
   drivers: Driver[]
   cashiers: Cashier[]
+  /** Vendeurs / admin (tous métiers) */
+  sellers: PosSeller[]
   missions: Mission[]
   team: TeamSettings
   suppliers: Supplier[]
@@ -778,6 +867,8 @@ export interface AppState {
   appointments: Appointment[]
   /** Tables de salle (resto) */
   tables: FloorTable[]
+  /** Postes PlayStation (salle de jeux) */
+  gameStations: GameStation[]
   /** Ordres de réparation (garage, atelier…) */
   repairOrders: RepairOrder[]
   /** Mémoire scan facture : nom OCR → produit (corrections utilisateur) */
