@@ -48,6 +48,7 @@ export type MetierFamily =
   | 'musculation'
   | 'creche'
   | 'events'
+  | 'game_room'
   | 'photo'
   | 'print'
   | 'artisan'
@@ -76,6 +77,8 @@ export type MetierFeatures = {
   gymCheckin: boolean
   /** Plan de salle / tables (resto) */
   tableService: boolean
+  /** Postes PlayStation + contrôle TV LAN */
+  gameStations: boolean
   /** Ordre de réparation / devis atelier */
   repairOrder: boolean
   /** Preférer client obligatoire à l’encaissement */
@@ -130,6 +133,7 @@ const FEAT = {
     clinicShare: false,
     gymCheckin: false,
     tableService: false,
+    gameStations: false,
     repairOrder: false,
     requireClient: false,
     homeScan: true,
@@ -148,6 +152,7 @@ const FEAT = {
     clinicShare: false,
     gymCheckin: false,
     tableService: false,
+    gameStations: false,
     repairOrder: false,
     requireClient: false,
     homeScan: true,
@@ -166,6 +171,7 @@ const FEAT = {
     clinicShare: true,
     gymCheckin: false,
     tableService: false,
+    gameStations: false,
     repairOrder: false,
     requireClient: true,
     homeScan: false,
@@ -184,6 +190,7 @@ const FEAT = {
     clinicShare: false,
     gymCheckin: false,
     tableService: false,
+    gameStations: false,
     repairOrder: false,
     requireClient: true,
     homeScan: false,
@@ -1628,6 +1635,53 @@ const PACKS: Record<MetierFamily, MetierPack> = {
       primaryCta: 'حجز جديد',
     },
   ),
+  game_room: pack(
+    'game_room',
+    theme(
+      'Salle de jeux',
+      'قاعة ألعاب',
+      {
+        '--bg': '#0f1419',
+        '--bg-2': '#1a2330',
+        '--ink': '#e8eef6',
+        '--muted': '#8b9bb0',
+        '--card': '#16202c',
+        '--line': '#2a3a4d',
+        '--brand': '#00a3e0',
+        '--brand-2': '#0070ad',
+        '--glow': 'rgba(0, 163, 224, 0.22)',
+      },
+      'dim',
+    ),
+    {
+      ...FEAT.service,
+      gameStations: true,
+      requireClient: false,
+      homeScan: false,
+      specialtyDossier: false,
+      gallery: false,
+    },
+    {
+      client: 'Joueur',
+      product: 'Temps PS',
+      sell: 'Encaisser',
+      sellHint: 'Heures PlayStation, boissons',
+      homeTitle: 'Salle de jeux',
+      homeHint: '15 postes PS — temps et TV Wi‑Fi',
+      historyLabel: 'Sessions',
+      primaryCta: 'Nouvelle session',
+    },
+    {
+      client: 'لاعب',
+      product: 'وقت PS',
+      sell: 'تحصيل',
+      sellHint: 'ساعات بلاي ستيشن، مشروبات',
+      homeTitle: 'قاعة الألعاب',
+      homeHint: '15 جهاز PS — الوقت والتلفزيون',
+      historyLabel: 'الجلسات',
+      primaryCta: 'جلسة جديدة',
+    },
+  ),
   photo: pack(
     'photo',
     THEME_SERVICE,
@@ -1940,6 +1994,7 @@ const DOMAIN_FAMILY: Record<string, MetierFamily> = {
   'svc-danse': 'danse',
   'svc-musculation': 'musculation',
   'svc-fetes': 'events',
+  'svc-jeux': 'game_room',
   'svc-photo': 'photo',
   'svc-print': 'print',
   'svc-couture': 'salon',

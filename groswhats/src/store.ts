@@ -39,6 +39,7 @@ import type {
   ZakatRecord,
   PriceTier,
   FloorTable,
+  GameStation,
   RepairOrder,
   InvoiceProductAlias,
 } from './types'
@@ -372,6 +373,7 @@ function seedState(): AppState {
     heldSales: [],
     appointments: [],
     tables: [],
+    gameStations: [],
     repairOrders: [],
     invoiceAliases: [],
   }
@@ -403,6 +405,7 @@ export function migrate(raw: unknown): AppState {
     staffLedger?: StaffLedgerEntry[]
     appointments?: Appointment[]
     tables?: FloorTable[]
+    gameStations?: GameStation[]
     repairOrders?: RepairOrder[]
     invoiceAliases?: InvoiceProductAlias[]
   }
@@ -957,6 +960,7 @@ export function migrate(raw: unknown): AppState {
         heldSaleId: typeof tb.heldSaleId === 'string' ? tb.heldSaleId : undefined,
         note: typeof tb.note === 'string' ? tb.note : undefined,
       })),
+    gameStations: migrateGameStations(data.gameStations),
     repairOrders: (data.repairOrders ?? [])
       .filter((r) => r && typeof r.title === 'string')
       .map((r) => ({
@@ -1442,6 +1446,176 @@ export function setTableStatus(
         : tb,
     ),
   }
+}
+
+const DEFAULT_GAME_STATION_COUNT = 15
+const MAX_GAME_STATIONS = 30
+
+function migrateGameStations(raw: GameStation[] | undefined): GameStation[] {
+  const list = Array.isArray(raw) ? raw : []
+  return list
+    .filter((g) => g && typeof g.number === 'number')
+    .slice(0, MAX_GAME_STATIONS)
+    .map((g, i) => {
+      const num = g.number > 0 ? g.number : i + 1
+      const kindOk = g.tvKind === 'tasmota' || g.tvKind === 'custom' || g.tvKind === 'shelly'
+      return {
+        id: g.id || uid('gs'),
+        name: typeof g.name === 'string' && g.name.trim() ? g.name : `Poste ${num}`,
+        number: num,
+        status:
+          g.status === 'active' || g.status === 'standby' ? g.status : 'free',
+        endsAt: typeof g.endsAt === 'string' ? g.endsAt : undefined,
+        startedAt: typeof g.startedAt === 'string' ? g.startedAt : undefined,
+        paidMinutes:
+          typeof g.paidMinutes === 'number' && g.paidMinutes > 0
+            ? g.paidMinutes
+            : undefined,
+        clientLabel: typeof g.clientLabel === 'string' ? g.clientLabel : undefined,
+        note: typeof g.note === 'string' ? g.note : undefined,
+        tvKind: kindOk ? g.tvKind : undefined,
+        tvHost: typeof g.tvHost === 'string' ? g.tvHost : undefined,
+        tvOnUrl: typeof g.tvOnUrl === 'string' ? g.tvOnUrl : undefined,
+        tvOffUrl: typeof g.tvOffUrl === 'string' ? g.tvOffUrl : undefined,
+      }
+    })
+}
+
+function buildDefaultGameStations(count = DEFAULT_GAME_STATION_COUNT): GameStation[] {
+  return Array.from({ length: count }, (_, i) => {
+    const number = i + 1
+    return {
+      id: uid('gs'),
+      name: `Poste ${number}`,
+      number,
+      status: 'free' as const,
+      tvKind: 'shelly' as const,
+    }
+  })
+}
+
+/** Crée les 15 postes PS si absents. */
+export function ensureGameStations(
+  state: AppState,
+  count = DEFAULT_GAME_STATION_COUNT,
+): AppState {
+  const existing = state.gameStations ?? []
+  if (existing.length > 0) return state
+  return { ...state, gameStations: buildDefaultGameStations(count) }
+}
+
+export function updateGameStation(
+  state: AppState,
+  id: string,
+  patch: Partial<
+    Pick<
+      GameStation,
+      | 'name'
+      | 'tvKind'
+      | 'tvHost'
+      | 'tvOnUrl'
+      | 'tvOffUrl'
+      | 'clientLabel'
+      | 'note'
+    >
+  >,
+): AppState {
+  return {
+    ...state,
+    gameStations: (state.gameStations ?? []).map((g) =>
+      g.id === id ? { ...g, ...patch } : g,
+    ),
+  }
+}
+
+/** Démarre ou prolonge une session (minutes payées). */
+export function addGameStationTime(
+  state: AppState,
+  id: string,
+  minutes: number,
+  clientLabel?: string,
+): AppState {
+  const mins = Math.max(1, Math.round(minutes))
+  const now = Date.now()
+  return {
+    ...state,
+    gameStations: (state.gameStations ?? []).map((g) => {
+      if (g.id !== id) return g
+      const base =
+        g.status === 'active' && g.endsAt
+          ? Math.max(now, new Date(g.endsAt).getTime())
+          : now
+      const endsAt = new Date(base + mins * 60_000).toISOString()
+      return {
+        ...g,
+        status: 'active' as const,
+        startedAt: g.status === 'active' && g.startedAt ? g.startedAt : new Date(now).toISOString(),
+        endsAt,
+        paidMinutes: (g.status === 'active' ? g.paidMinutes || 0 : 0) + mins,
+        clientLabel:
+          clientLabel !== undefined
+            ? clientLabel
+            : g.status === 'active'
+              ? g.clientLabel
+              : g.clientLabel,
+      }
+    }),
+  }
+}
+
+/** Fin de temps → veille (TV à couper côté UI). */
+export function setGameStationStandby(state: AppState, id: string): AppState {
+  return {
+    ...state,
+    gameStations: (state.gameStations ?? []).map((g) =>
+      g.id === id
+        ? {
+            ...g,
+            status: 'standby' as const,
+            endsAt: undefined,
+          }
+        : g,
+    ),
+  }
+}
+
+/** Libère le poste pour un nouveau client. */
+export function freeGameStation(state: AppState, id: string): AppState {
+  return {
+    ...state,
+    gameStations: (state.gameStations ?? []).map((g) =>
+      g.id === id
+        ? {
+            ...g,
+            status: 'free' as const,
+            endsAt: undefined,
+            startedAt: undefined,
+            paidMinutes: undefined,
+            clientLabel: undefined,
+          }
+        : g,
+    ),
+  }
+}
+
+/** Passe en veille tous les postes dont le temps est écoulé. */
+export function expireGameStations(
+  state: AppState,
+  nowMs = Date.now(),
+): { state: AppState; expiredIds: string[] } {
+  const expiredIds: string[] = []
+  const gameStations = (state.gameStations ?? []).map((g) => {
+    if (g.status !== 'active' || !g.endsAt) return g
+    if (new Date(g.endsAt).getTime() > nowMs) return g
+    expiredIds.push(g.id)
+    return {
+      ...g,
+      status: 'standby' as const,
+      endsAt: undefined,
+    }
+  })
+  if (expiredIds.length === 0) return { state, expiredIds }
+  return { state: { ...state, gameStations }, expiredIds }
 }
 
 export function addRepairOrder(

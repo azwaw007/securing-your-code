@@ -725,6 +725,17 @@ const CATALOGS: Record<string, SeedSpec[]> = {
     s('Spectacle / billet', 1500, 200, '🎟️', 'autre'),
     s('Cours particulier', 3000, 0, '👤', 'autre'),
   ],
+  'jeux-ps': [
+    s('1 heure PlayStation', 400, 0, '⏱️', 'autre'),
+    s('30 minutes PlayStation', 250, 0, '⏳', 'autre'),
+    s('2 heures PlayStation', 700, 0, '🕹️', 'autre'),
+    s('3 heures PlayStation', 1000, 0, '🎮', 'autre'),
+    s('Forfait soirée (5 h)', 1500, 0, '🌙', 'autre'),
+    s('Manette supplémentaire', 100, 0, '🎛️', 'autre'),
+    s('Eau 50 cl', 50, 25, '💧', 'alimentaire'),
+    s('Boisson 33 cl', 120, 70, '🧃', 'alimentaire'),
+    s('Snack / chips', 150, 80, '🍟', 'alimentaire'),
+  ],
   fete: [
     s('Location salle / soirée', 40000, 8000, '🎉', 'autre'),
     s('Traiteur / pers.', 2500, 900, '🍽️', 'alimentaire'),

@@ -453,6 +453,40 @@ export interface FloorTable {
   note?: string
 }
 
+/** Poste PlayStation / console (salle de jeux) */
+export type GameStationStatus = 'free' | 'active' | 'standby'
+
+/** Prise / TV Wi‑Fi sur le réseau local */
+export type TvControlKind = 'shelly' | 'tasmota' | 'custom'
+
+export interface GameStation {
+  id: string
+  /** Affichage : Poste 1, Poste 2… */
+  name: string
+  number: number
+  status: GameStationStatus
+  /** Fin de session (ISO) — console active jusqu’à cette heure */
+  endsAt?: string
+  /** Début de session (ISO) */
+  startedAt?: string
+  /** Minutes payées / ajoutées sur la session courante */
+  paidMinutes?: number
+  /** Nom joueur / ticket (optionnel) */
+  clientLabel?: string
+  note?: string
+  /**
+   * Contrôle TV / prise Wi‑Fi (réseau local).
+   * Ex. Shelly Plug sur l’alimentation TV : host = 192.168.1.50
+   */
+  tvKind?: TvControlKind
+  /** Adresse IP ou hostname local (ex. 192.168.1.50) */
+  tvHost?: string
+  /** URL HTTP complète ON (si kind = custom) */
+  tvOnUrl?: string
+  /** URL HTTP complète OFF (si kind = custom) */
+  tvOffUrl?: string
+}
+
 export type RepairStatus = 'devis' | 'or' | 'done' | 'cancelled'
 
 /** Ordre de réparation (garage, atelier, électro…) */
@@ -778,6 +812,8 @@ export interface AppState {
   appointments: Appointment[]
   /** Tables de salle (resto) */
   tables: FloorTable[]
+  /** Postes PlayStation (salle de jeux) */
+  gameStations: GameStation[]
   /** Ordres de réparation (garage, atelier…) */
   repairOrders: RepairOrder[]
   /** Mémoire scan facture : nom OCR → produit (corrections utilisateur) */

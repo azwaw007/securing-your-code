@@ -1461,6 +1461,108 @@ button {
 .table-tile.is-bill { border-color: #dc2626; background: rgba(220,38,38,0.12); }
 .table-tile strong { display: block; font-size: 1.05rem; }
 .table-tile .muted { font-size: 0.8rem; }
+
+.game-stations { margin-bottom: 12px; }
+.game-stations-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.game-stations-stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.game-tv-note {
+  font-size: 0.8rem;
+  margin: 0 0 8px;
+}
+.game-label-field { margin-bottom: 8px; }
+.game-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+  margin: 10px 0;
+}
+.game-tile {
+  border-radius: 14px;
+  padding: 12px 10px;
+  border: 2px solid var(--line, #2a3a4d);
+  background: rgba(255, 255, 255, 0.04);
+  text-align: center;
+}
+.game-tile.is-free {
+  border-color: #16a34a;
+  background: rgba(22, 163, 74, 0.12);
+}
+.game-tile.is-active {
+  border-color: #00a3e0;
+  background: rgba(0, 163, 224, 0.14);
+}
+.game-tile.is-standby {
+  border-color: #64748b;
+  background: rgba(100, 116, 139, 0.18);
+}
+.game-tile.is-warn {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.35);
+  animation: game-pulse 1.2s ease-in-out infinite;
+}
+@keyframes game-pulse {
+  50% { box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.15); }
+}
+.game-tile-top {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.game-tv-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: rgba(0, 163, 224, 0.25);
+  color: var(--brand, #00a3e0);
+}
+.game-timer {
+  font-variant-numeric: tabular-nums;
+  font-size: 1.45rem;
+  font-weight: 700;
+  margin: 6px 0 2px;
+  letter-spacing: 0.02em;
+}
+.game-tile-meta { font-size: 0.78rem; min-height: 1.1em; }
+.game-presets {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin: 8px 0 6px;
+}
+.game-preset-btn {
+  padding: 6px 4px !important;
+  font-size: 0.8rem !important;
+  min-height: 0 !important;
+}
+.game-tile-actions {
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.game-tv-form {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line, #2a3a4d);
+  text-align: start;
+}
+.game-tv-form .field { margin-bottom: 6px; }
+
 .repair-panel { margin-bottom: 12px; }
 .repair-status-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
 .repair-item { padding: 10px 0; border-top: 1px solid var(--line, #ddd); }

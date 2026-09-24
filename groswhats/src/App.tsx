@@ -118,6 +118,7 @@ import {
   showClinicAgenda,
   showHomeScan,
   showTableService,
+  showGameStations,
   showRepairOrder,
   showMedicalDossier,
   showReturns,
@@ -231,6 +232,7 @@ import { ReceptionCashQueue, SendToCashForm } from './ClinicSharePanels'
 import { GymCheckinPanel } from './GymCheckinPanel'
 import { ClinicAgendaPanel } from './ClinicAgendaPanel'
 import { TableFloorPanel } from './TableFloorPanel'
+import { GameStationsPanel } from './GameStationsPanel'
 import { RepairOrderPanel } from './RepairOrderPanel'
 import { StaffPanel } from './StaffPanel'
 import { ExpertComptableCard } from './ExpertComptableCard'
@@ -2645,6 +2647,15 @@ function HomePage({
           onState={onState}
           onFlash={onFlash}
           onOpenTable={(tableId, heldSaleId) => onOpenTableOrder(tableId, heldSaleId)}
+        />
+      ) : null}
+
+      {showGameStations(mode, domainId) ? (
+        <GameStationsPanel
+          state={state}
+          lang={lang}
+          onState={onState}
+          onFlash={onFlash}
         />
       ) : null}
 
