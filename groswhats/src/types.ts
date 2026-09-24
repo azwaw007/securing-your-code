@@ -468,19 +468,23 @@ export type GameConsoleKind =
   | 'xbox_360'
   | 'xbox_series_s'
 
-/** Une ligne de tarif console (heure + match) */
+/** Une ligne de tarif console (heure + match + شوط إضافي) */
 export interface GameConsoleTariff {
   id: GameConsoleKind
   label: string
   hourDa: number
   /** 0 = pas de tarif match (ex. Xbox 360) */
   matchDa: number
+  /** Prolongation = les 2 manches de temps additionnel — 0 = pas proposé */
+  extraRoundDa: number
 }
 
 /** Tarifs salle de jeux (réglages admin) */
 export interface GameTariffs {
   /** Durée d’un match par défaut (minutes) */
   matchMinutes: number
+  /** Durée totale prolongation (2 manches) en minutes */
+  extraRoundMinutes: number
   /** Grille consoles */
   consoles: GameConsoleTariff[]
   /** @deprecated migration — préférer consoles[] */

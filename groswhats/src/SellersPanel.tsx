@@ -296,9 +296,11 @@ export function GamePriceAdminCard({
       label: c.label,
       hour: String(c.hourDa),
       match: String(c.matchDa),
+      extra: String(c.extraRoundDa),
     })),
   )
   const [matchMin, setMatchMin] = useState(String(tariffs.matchMinutes))
+  const [extraMin, setExtraMin] = useState(String(tariffs.extraRoundMinutes))
 
   function unlock() {
     if (!verifyAdminPin(state, pin)) {
@@ -317,7 +319,8 @@ export function GamePriceAdminCard({
 
   function save() {
     const m = Math.round(Number(matchMin))
-    if (!Number.isFinite(m) || m < 1) {
+    const em = Math.round(Number(extraMin))
+    if (!Number.isFinite(m) || m < 1 || !Number.isFinite(em) || em < 1) {
       onFlash(t(lang, 'gamePriceBad'))
       return
     }
@@ -325,7 +328,8 @@ export function GamePriceAdminCard({
     for (const r of rows) {
       const hour = num(r.hour)
       const match = num(r.match)
-      if (hour === null || match === null) {
+      const extra = num(r.extra)
+      if (hour === null || match === null || extra === null) {
         onFlash(t(lang, 'gamePriceBad'))
         return
       }
@@ -334,12 +338,17 @@ export function GamePriceAdminCard({
         label: r.label,
         hourDa: hour,
         matchDa: match,
+        extraRoundDa: extra,
       })
     }
     const ps4 = consoles.find((c) => c.id === 'ps4')
     onState(
       updateSettings(state, {
-        gameTariffs: { matchMinutes: m, consoles },
+        gameTariffs: {
+          matchMinutes: m,
+          extraRoundMinutes: em,
+          consoles,
+        },
         gamePricePerMinuteDa: ps4 ? +(ps4.hourDa / 60).toFixed(2) : undefined,
       }),
     )
@@ -350,6 +359,9 @@ export function GamePriceAdminCard({
     <div className="card">
       <h2>{t(lang, 'gamePriceTitle')}</h2>
       <p className="muted">{t(lang, 'gamePriceHint')}</p>
+      <p className="muted" style={{ marginTop: 0 }}>
+        {t(lang, 'gameExtraHint')}
+      </p>
       {!open ? (
         <>
           <div className="muted game-admin-preview" style={{ marginBottom: 8 }}>
@@ -362,11 +374,21 @@ export function GamePriceAdminCard({
                     · <strong>{c.matchDa} DA</strong>/{t(lang, 'gameMatchShort')}
                   </>
                 ) : null}
+                {c.extraRoundDa > 0 ? (
+                  <>
+                    {' '}
+                    · <strong>{c.extraRoundDa} DA</strong>/{t(lang, 'gameExtraShort')}
+                  </>
+                ) : null}
               </div>
             ))}
             <div>
               {t(lang, 'gameMatchDefault')}:{' '}
               <strong>{tariffs.matchMinutes} min</strong>
+            </div>
+            <div>
+              {t(lang, 'gameExtraDefault')}:{' '}
+              <strong>{tariffs.extraRoundMinutes} min</strong>
             </div>
           </div>
           <div className="field">
@@ -421,6 +443,21 @@ export function GamePriceAdminCard({
                       }}
                     />
                   </div>
+                  <div className="field">
+                    <label>{t(lang, 'gameTariffExtra')}</label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={5}
+                      value={r.extra}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        setRows((prev) =>
+                          prev.map((x, j) => (j === i ? { ...x, extra: v } : x)),
+                        )
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
             ))}
@@ -433,6 +470,16 @@ export function GamePriceAdminCard({
               max={180}
               value={matchMin}
               onChange={(e) => setMatchMin(e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label>{t(lang, 'gameExtraDefault')}</label>
+            <input
+              type="number"
+              min={1}
+              max={60}
+              value={extraMin}
+              onChange={(e) => setExtraMin(e.target.value)}
             />
           </div>
           <button type="button" className="btn block" onClick={save}>

@@ -124,7 +124,7 @@ export function GameStationsPanel({
 
   async function applyStart(
     st: GameStation,
-    mode: 'hour' | 'match',
+    mode: 'hour' | 'match' | 'extra',
     opts: { minutes?: number; matches?: number; matchMinutes?: number },
   ) {
     const wasFree = st.status !== 'active'
@@ -148,8 +148,11 @@ export function GameStationsPanel({
       minutes = res.minutes
     } else {
       const mins =
-        mode === 'match'
-          ? (opts.matchMinutes || stationMatchMinutes(state, st)) *
+        mode === 'match' || mode === 'extra'
+          ? (opts.matchMinutes ||
+              (mode === 'extra'
+                ? tariffs.extraRoundMinutes
+                : stationMatchMinutes(state, st))) *
             Math.max(1, opts.matches || 1)
           : Math.max(1, opts.minutes || 60)
       nextState = addGameStationTime(state, st.id, mins, label)
@@ -216,10 +219,16 @@ export function GameStationsPanel({
             {c.matchDa > 0
               ? ` · ${c.matchDa} DA/${t(lang, 'gameMatchShort')}`
               : ''}
+            {c.extraRoundDa > 0
+              ? ` · ${c.extraRoundDa} DA/${t(lang, 'gameExtraShort')}`
+              : ''}
           </span>
         ))}
         <span className="game-tariff-chip">
           {t(lang, 'gameMatchDefault')}: {tariffs.matchMinutes} min
+        </span>
+        <span className="game-tariff-chip">
+          {t(lang, 'gameExtraDefault')}: {tariffs.extraRoundMinutes} min
         </span>
       </div>
 
@@ -313,6 +322,12 @@ export function GameStationsPanel({
               onMatch={(matchMinutes) =>
                 void applyStart(st, 'match', { matches: 1, matchMinutes })
               }
+              onExtra={() =>
+                void applyStart(st, 'extra', {
+                  matches: 1,
+                  matchMinutes: tariffs.extraRoundMinutes,
+                })
+              }
               onSetConsole={(kind) => {
                 onState(updateGameStation(state, st.id, { consoleKind: kind }))
                 const label = tariffForConsole(state, kind).label
@@ -395,6 +410,7 @@ function StationTile({
   onToggleConfig,
   onHour,
   onMatch,
+  onExtra,
   onSetConsole,
   onSetMatchMinutes,
   onStandby,
@@ -413,6 +429,7 @@ function StationTile({
   onToggleConfig: () => void
   onHour: (minutes: number) => void
   onMatch: (matchMinutes: number) => void
+  onExtra: () => void
   onSetConsole: (kind: GameConsoleKind) => void
   onSetMatchMinutes: (mins: number) => void
   onStandby: () => void | Promise<void>
@@ -436,6 +453,7 @@ function StationTile({
   const tariff = tariffForConsole(state, kind)
   const hourDa = tariff.hourDa
   const matchDa = tariff.matchDa
+  const extraDa = tariff.extraRoundDa
   const consoles = resolveGameTariffs(state).consoles
 
   useEffect(() => {
@@ -549,6 +567,16 @@ function StationTile({
               : t(lang, 'gameNoMatchTariff')}
           </button>
         </div>
+        {extraDa > 0 ? (
+          <button
+            type="button"
+            className="btn secondary block"
+            style={{ marginTop: 6 }}
+            onClick={onExtra}
+          >
+            +{t(lang, 'gameExtraShort')} ({extraDa} DA)
+          </button>
+        ) : null}
       </div>
 
       <div className="btn-row game-tile-actions">

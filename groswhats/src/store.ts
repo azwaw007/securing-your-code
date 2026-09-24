@@ -118,18 +118,19 @@ function defaultSettings(): ShopSettings {
 
 export const DEFAULT_GAME_PRICE_PER_MINUTE_DA = 7
 
-/** Grille par défaut — alignée sur la liste prix salle + Xbox Series S */
+/** Grille par défaut — liste prix + Xbox Series S + أشواط إضافية */
 export const DEFAULT_GAME_CONSOLES: GameConsoleTariff[] = [
-  { id: 'xbox_one', label: 'XBOX ONE', hourDa: 200, matchDa: 50 },
-  { id: 'ps4', label: 'PS4', hourDa: 200, matchDa: 50 },
-  { id: 'ps4_pro', label: 'PS4 PRO', hourDa: 250, matchDa: 70 },
-  { id: 'ps5', label: 'PS5', hourDa: 300, matchDa: 100 },
-  { id: 'xbox_360', label: 'XBOX 360', hourDa: 100, matchDa: 0 },
-  { id: 'xbox_series_s', label: 'XBOX Series S', hourDa: 300, matchDa: 70 },
+  { id: 'xbox_one', label: 'XBOX ONE', hourDa: 200, matchDa: 50, extraRoundDa: 30 },
+  { id: 'ps4', label: 'PS4', hourDa: 200, matchDa: 50, extraRoundDa: 30 },
+  { id: 'ps4_pro', label: 'PS4 PRO', hourDa: 250, matchDa: 70, extraRoundDa: 30 },
+  { id: 'ps5', label: 'PS5', hourDa: 300, matchDa: 100, extraRoundDa: 50 },
+  { id: 'xbox_360', label: 'XBOX 360', hourDa: 100, matchDa: 0, extraRoundDa: 0 },
+  { id: 'xbox_series_s', label: 'XBOX Series S', hourDa: 300, matchDa: 70, extraRoundDa: 40 },
 ]
 
 export const DEFAULT_GAME_TARIFFS: GameTariffs = {
   matchMinutes: 15,
+  extraRoundMinutes: 10,
   consoles: DEFAULT_GAME_CONSOLES.map((c) => ({ ...c })),
 }
 
@@ -2891,6 +2892,10 @@ export function migrateGameTariffs(
     raw && typeof raw.matchMinutes === 'number' && raw.matchMinutes > 0
       ? Math.round(raw.matchMinutes)
       : DEFAULT_GAME_TARIFFS.matchMinutes
+  const extraRoundMinutes =
+    raw && typeof raw.extraRoundMinutes === 'number' && raw.extraRoundMinutes > 0
+      ? Math.round(raw.extraRoundMinutes)
+      : DEFAULT_GAME_TARIFFS.extraRoundMinutes
 
   const byId = new Map<GameConsoleKind, GameConsoleTariff>()
   for (const c of DEFAULT_GAME_CONSOLES) {
@@ -2924,6 +2929,7 @@ export function migrateGameTariffs(
           label: consoleLabelOf(id),
           hourDa: 0,
           matchDa: 0,
+          extraRoundDa: 0,
         }
         const hour =
           typeof (item as GameConsoleTariff).hourDa === 'number' &&
@@ -2935,12 +2941,23 @@ export function migrateGameTariffs(
           (item as GameConsoleTariff).matchDa >= 0
             ? +(item as GameConsoleTariff).matchDa.toFixed(2)
             : prev.matchDa
+        const extra =
+          typeof (item as GameConsoleTariff).extraRoundDa === 'number' &&
+          (item as GameConsoleTariff).extraRoundDa >= 0
+            ? +(item as GameConsoleTariff).extraRoundDa.toFixed(2)
+            : prev.extraRoundDa
         const label =
           typeof (item as GameConsoleTariff).label === 'string' &&
           (item as GameConsoleTariff).label.trim()
             ? (item as GameConsoleTariff).label.trim()
             : prev.label
-        byId.set(id, { id, label, hourDa: hour, matchDa: match })
+        byId.set(id, {
+          id,
+          label,
+          hourDa: hour,
+          matchDa: match,
+          extraRoundDa: extra,
+        })
       }
     }
   } else if (typeof legacyPerMin === 'number' && legacyPerMin > 0) {
@@ -2950,10 +2967,9 @@ export function migrateGameTariffs(
     ps5.hourDa = +(legacyPerMin * 60 * 1.25).toFixed(2)
   }
 
-  // Toujours conserver l’ordre de la grille + Series S
   const consoles = CONSOLE_IDS.map((id) => byId.get(id)!).filter(Boolean)
 
-  return { matchMinutes, consoles }
+  return { matchMinutes, extraRoundMinutes, consoles }
 }
 
 export function resolveGameTariffs(state: AppState): GameTariffs {
@@ -2990,6 +3006,13 @@ export function stationMatchMinutes(
   return tariffs.matchMinutes
 }
 
+export function stationExtraRoundMinutes(
+  state: AppState,
+): number {
+  const tariffs = resolveGameTariffs(state)
+  return Math.max(1, tariffs.extraRoundMinutes || DEFAULT_GAME_TARIFFS.extraRoundMinutes)
+}
+
 export function hourRateDa(state: AppState, consoleKind: GameConsoleKind): number {
   return tariffForConsole(state, consoleKind).hourDa
 }
@@ -2998,14 +3021,21 @@ export function matchRateDa(state: AppState, consoleKind: GameConsoleKind): numb
   return tariffForConsole(state, consoleKind).matchDa
 }
 
+export function extraRoundRateDa(
+  state: AppState,
+  consoleKind: GameConsoleKind,
+): number {
+  return tariffForConsole(state, consoleKind).extraRoundDa
+}
+
 /** @deprecated — dérivé du tarif heure PS4 / 60 */
 export function gamePricePerMinute(state: AppState): number {
   return +(hourRateDa(state, 'ps4') / 60).toFixed(2)
 }
 
-export type GameBillMode = 'hour' | 'match'
+export type GameBillMode = 'hour' | 'match' | 'extra'
 
-/** Encaisser heure ou match (PS / Xbox) → timer + caisse. */
+/** Encaisser heure, match ou شوط إضافي → timer + caisse. */
 export function billGameSession(
   state: AppState,
   input: {
@@ -3013,9 +3043,9 @@ export function billGameSession(
     mode: GameBillMode
     /** Minutes (mode heure) — ex. 15, 30, 60 */
     minutes?: number
-    /** Nombre de matchs (mode match) */
+    /** Nombre de matchs / ashawt (mode match | extra) */
     matches?: number
-    /** Durée match override (min) pour ce lancement */
+    /** Durée override (min) pour match / extra */
     matchMinutes?: number
     clientLabel?: string
     /** Encaisser en caisse (défaut true) */
@@ -3027,14 +3057,25 @@ export function billGameSession(
   const consoleLabel = tariffForConsole(state, consoleKind).label
   const billCash = input.billCash !== false
   const matchPrice = matchRateDa(state, consoleKind)
+  const extraPrice = extraRoundRateDa(state, consoleKind)
 
   let minutes = 0
   let totalDa = 0
   let label = ''
 
-  if (input.mode === 'match') {
+  if (input.mode === 'extra') {
+    const count = Math.max(1, Math.round(input.matches || 1))
+    const extraMin =
+      input.matchMinutes && input.matchMinutes > 0
+        ? Math.round(input.matchMinutes)
+        : stationExtraRoundMinutes(state)
+    minutes = extraMin * count
+    totalDa = +(Math.max(0, extraPrice) * count).toFixed(2)
+    label = station
+      ? `${station.name} ${consoleLabel} · Prolongation 2 manches (${extraMin} min)`
+      : `${consoleLabel} · Prolongation 2 manches`
+  } else if (input.mode === 'match') {
     if (matchPrice <= 0) {
-      // Pas de tarif match → bascule en durée match au prorata heure
       const matchMin =
         input.matchMinutes && input.matchMinutes > 0
           ? Math.round(input.matchMinutes)
