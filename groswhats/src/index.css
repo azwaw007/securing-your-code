@@ -1563,6 +1563,58 @@ button {
 }
 .game-tv-form .field { margin-bottom: 6px; }
 
+.game-count-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+  margin: 8px 0 10px;
+}
+.game-custom-min {
+  margin-bottom: 8px;
+}
+.game-custom-min input {
+  width: 100%;
+  max-width: 200px;
+}
+
+.seller-switcher {
+  margin-bottom: 10px;
+  padding: 10px 12px;
+}
+.seller-switcher-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.seller-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.seller-chip {
+  border: 1px solid var(--line, #2a3a4d);
+  background: transparent;
+  color: inherit;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.seller-chip.is-active {
+  border-color: var(--brand, #00a3e0);
+  background: rgba(0, 163, 224, 0.18);
+  font-weight: 700;
+}
+.seller-chip.is-admin {
+  border-style: dashed;
+}
+.sellers-panel .list-item {
+  align-items: center;
+}
+
 .repair-panel { margin-bottom: 12px; }
 .repair-status-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
 .repair-item { padding: 10px 0; border-top: 1px solid var(--line, #ddd); }

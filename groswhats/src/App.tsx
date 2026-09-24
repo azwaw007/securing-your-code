@@ -233,6 +233,11 @@ import { GymCheckinPanel } from './GymCheckinPanel'
 import { ClinicAgendaPanel } from './ClinicAgendaPanel'
 import { TableFloorPanel } from './TableFloorPanel'
 import { GameStationsPanel } from './GameStationsPanel'
+import {
+  GamePriceAdminCard,
+  SellerSwitcherBar,
+  SellersPanel,
+} from './SellersPanel'
 import { RepairOrderPanel } from './RepairOrderPanel'
 import { StaffPanel } from './StaffPanel'
 import { ExpertComptableCard } from './ExpertComptableCard'
@@ -1246,6 +1251,20 @@ export default function App() {
           />
         </div>
       ) : null}
+      {isAlive('sellers') && !isDriverMode ? (
+        <div
+          className={`screen-pane ${screen === 'sellers' ? 'is-active' : 'is-cached'}`}
+          aria-hidden={screen !== 'sellers'}
+          inert={screen !== 'sellers' ? true : undefined}
+        >
+          <SellersPanel
+            state={state}
+            lang={lang}
+            onState={setState}
+            onFlash={(msg) => setToast(msg)}
+          />
+        </div>
+      ) : null}
       {OPTIONAL_TOOL_SCREENS.map((toolScreen) =>
         isAlive(toolScreen) && !isDriverMode ? (
           <div
@@ -1602,6 +1621,14 @@ function SettingsPage({
       <div className="card">
         <h2>{t(lang, 'settingsTitle')}</h2>
         <div className="notice">{t(lang, 'oneAppHint')}</div>
+        <button
+          type="button"
+          className="btn block"
+          style={{ marginBottom: 10 }}
+          onClick={() => onGo('sellers')}
+        >
+          🧍 {t(lang, 'sellersTitle')}
+        </button>
         <div className="settings-brand">
           <img
             src={APP_BRAND.logoHeader}
@@ -2279,6 +2306,15 @@ function SettingsPage({
         </div>
       ) : null}
 
+      {showGameStations(state.settings.commerceMode, state.settings.domainId) ? (
+        <GamePriceAdminCard
+          state={state}
+          lang={lang}
+          onState={(next) => onState(() => next)}
+          onFlash={(msg) => onFlash(msg)}
+        />
+      ) : null}
+
       <div className="card">
         <h2>{t(lang, 'shopInfo')}</h2>
         <div className="field">
@@ -2491,7 +2527,20 @@ function HomePage({
             { id: 'history', label: mcopy.historyLabel, icon: '📜', tone: 'slate' },
           ]
         : mode === 'services'
-          ? [
+          ? feats.gameStations
+            ? [
+                { id: 'order', label: vocab.sell, icon: '🎮', tone: 'amber' },
+                {
+                  id: 'products',
+                  label: vocab.product,
+                  icon: '📦',
+                  tone: 'blue',
+                  badge: stats.lowStock,
+                },
+                { id: 'caisse', label: t(lang, 'appCaisse'), icon: '💵', tone: 'amber' },
+                { id: 'history', label: mcopy.historyLabel, icon: '📜', tone: 'slate' },
+              ]
+            : [
               {
                 id: 'products',
                 label: vocab.product,
@@ -2593,6 +2642,7 @@ function HomePage({
     ...(feats.staffHr || showStaffHr(mode, domainId)
       ? [{ id: 'staff' as Screen, label: t(lang, 'staffTitle'), icon: '👥', tone: 'navy' }]
       : []),
+    { id: 'sellers' as Screen, label: t(lang, 'sellersTitle'), icon: '🧍', tone: 'navy' },
     { id: 'settings', label: t(lang, 'appSettings'), icon: '⚙️', tone: 'charcoal' },
   ]
   const optionalApps: Array<{
@@ -2613,6 +2663,13 @@ function HomePage({
 
   return (
     <div className="home-screen">
+      <SellerSwitcherBar
+        state={state}
+        lang={lang}
+        onState={onState}
+        onFlash={onFlash}
+        onManage={() => onGo('sellers', t(lang, 'sellersTitle'))}
+      />
       <StockAlertCard
         products={low}
         lang={lang}

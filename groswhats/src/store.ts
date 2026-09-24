@@ -4,6 +4,8 @@ import type {
   CashEntry,
   CashSession,
   Cashier,
+  PosSeller,
+  PosSellerRole,
   Client,
   Driver,
   Expense,
@@ -104,7 +106,22 @@ function defaultSettings(): ShopSettings {
     clinicStationChosen: false,
     appointmentAutoRemind: true,
     purchaseMarginPct: 20,
+    adminPin: undefined,
+    gamePricePerMinuteDa: 7,
+    currentSellerId: undefined,
   }
+}
+
+export const DEFAULT_GAME_PRICE_PER_MINUTE_DA = 7
+
+export function defaultSellers(): PosSeller[] {
+  const now = new Date().toISOString()
+  return [
+    { id: 'seller_admin', name: 'Admin', role: 'admin', pin: '', active: true, createdAt: now },
+    { id: 'seller_v1', name: 'Vendeur 1', role: 'vendeur', pin: '', active: true, createdAt: now },
+    { id: 'seller_v2', name: 'Vendeur 2', role: 'vendeur', pin: '', active: true, createdAt: now },
+    { id: 'seller_v3', name: 'Vendeur 3', role: 'vendeur', pin: '', active: true, createdAt: now },
+  ]
 }
 
 /** Stock d’un produit dans un dépôt */
@@ -354,6 +371,7 @@ function seedState(): AppState {
     cashEntries: [],
     drivers: [],
     cashiers: [],
+    sellers: defaultSellers(),
     missions: [],
     team: {
       ...defaultTeam(),
@@ -454,6 +472,20 @@ export function migrate(raw: unknown): AppState {
       typeof incoming.cashierPin === 'string' &&
       /^\d{4,6}$/.test(incoming.cashierPin.trim())
         ? incoming.cashierPin.trim()
+        : undefined,
+    adminPin:
+      typeof incoming.adminPin === 'string' &&
+      /^\d{4,6}$/.test(incoming.adminPin.trim())
+        ? incoming.adminPin.trim()
+        : undefined,
+    gamePricePerMinuteDa:
+      typeof incoming.gamePricePerMinuteDa === 'number' &&
+      incoming.gamePricePerMinuteDa >= 0
+        ? +incoming.gamePricePerMinuteDa.toFixed(2)
+        : DEFAULT_GAME_PRICE_PER_MINUTE_DA,
+    currentSellerId:
+      typeof incoming.currentSellerId === 'string' && incoming.currentSellerId
+        ? incoming.currentSellerId
         : undefined,
     fiscalNif:
       typeof incoming.fiscalNif === 'string' && incoming.fiscalNif.trim()
@@ -716,6 +748,7 @@ export function migrate(raw: unknown): AppState {
       pin: String(c.pin || '0000').replace(/\D/g, '').slice(0, 4).padStart(4, '0'),
       createdAt: c.createdAt || new Date().toISOString(),
     })),
+    sellers: migrateSellers((data as AppState).sellers),
     missions: (data.missions ?? []).map((m) => ({
       ...m,
       stops: (m.stops ?? []).map((s, i) => ({
@@ -2657,6 +2690,194 @@ export function deleteCashier(state: AppState, id: string): AppState {
         ? { ...state.team, currentCashierId: null }
         : state.team,
   }
+}
+
+function migrateSellers(raw: PosSeller[] | undefined): PosSeller[] {
+  const list = Array.isArray(raw) ? raw : []
+  const mapped = list
+    .filter((s) => s && typeof s.name === 'string' && s.name.trim())
+    .map((s) => ({
+      id: s.id || uid('sel'),
+      name: s.name.trim(),
+      role: (s.role === 'admin' ? 'admin' : 'vendeur') as PosSellerRole,
+      pin: String(s.pin || '').replace(/\D/g, '').slice(0, 6),
+      active: s.active !== false,
+      createdAt: s.createdAt || new Date().toISOString(),
+    }))
+  return mapped.length > 0 ? mapped : defaultSellers()
+}
+
+export function currentSeller(state: AppState): PosSeller | undefined {
+  const id = state.settings.currentSellerId
+  const list = (state.sellers || []).filter((s) => s.active !== false)
+  if (id) {
+    const found = list.find((s) => s.id === id)
+    if (found) return found
+  }
+  return list.find((s) => s.role === 'admin') || list[0]
+}
+
+export function setCurrentSeller(state: AppState, sellerId: string): AppState {
+  const s = (state.sellers || []).find((x) => x.id === sellerId && x.active !== false)
+  if (!s) return state
+  return updateSettings(state, { currentSellerId: sellerId })
+}
+
+export function addSeller(
+  state: AppState,
+  input: { name: string; role?: PosSellerRole; pin?: string },
+): AppState {
+  const name = input.name.trim()
+  if (!name) return state
+  const pin = String(input.pin || '').replace(/\D/g, '').slice(0, 6)
+  const seller: PosSeller = {
+    id: uid('sel'),
+    name,
+    role: input.role === 'admin' ? 'admin' : 'vendeur',
+    pin,
+    active: true,
+    createdAt: new Date().toISOString(),
+  }
+  return { ...state, sellers: [...(state.sellers || []), seller] }
+}
+
+export function updateSeller(
+  state: AppState,
+  id: string,
+  patch: Partial<Omit<PosSeller, 'id' | 'createdAt'>>,
+): AppState {
+  return {
+    ...state,
+    sellers: (state.sellers || []).map((s) =>
+      s.id === id
+        ? {
+            ...s,
+            ...patch,
+            name: patch.name !== undefined ? patch.name.trim() || s.name : s.name,
+            pin:
+              patch.pin !== undefined
+                ? String(patch.pin).replace(/\D/g, '').slice(0, 6)
+                : s.pin,
+            role: patch.role === 'admin' || patch.role === 'vendeur' ? patch.role : s.role,
+          }
+        : s,
+    ),
+  }
+}
+
+export function deleteSeller(state: AppState, id: string): AppState {
+  const list = state.sellers || []
+  if (list.length <= 1) return state
+  const next = list.filter((s) => s.id !== id)
+  const cur = state.settings.currentSellerId
+  return {
+    ...state,
+    sellers: next,
+    settings: {
+      ...state.settings,
+      currentSellerId: cur === id ? next[0]?.id : cur,
+    },
+  }
+}
+
+export function verifyAdminPin(state: AppState, pin: string): boolean {
+  const expected = state.settings.adminPin
+  if (!expected) {
+    return pin.trim() === '1234'
+  }
+  return pin.trim() === expected
+}
+
+export function addGameStation(state: AppState, name?: string): AppState {
+  const stations = state.gameStations ?? []
+  if (stations.length >= MAX_GAME_STATIONS) return state
+  const number =
+    stations.reduce((m, g) => Math.max(m, g.number), 0) + 1 || stations.length + 1
+  const station: GameStation = {
+    id: uid('gs'),
+    name: (name || '').trim() || `Poste ${number}`,
+    number,
+    status: 'free',
+    tvKind: 'shelly',
+  }
+  return { ...state, gameStations: [...stations, station] }
+}
+
+export function removeGameStation(state: AppState, id: string): AppState {
+  const st = (state.gameStations ?? []).find((g) => g.id === id)
+  if (!st) return state
+  if (st.status === 'active') return state
+  return {
+    ...state,
+    gameStations: (state.gameStations ?? []).filter((g) => g.id !== id),
+  }
+}
+
+/** Fixe le nombre de postes (ajoute ou retire les libres en fin de liste). */
+export function setGameStationCount(state: AppState, count: number): AppState {
+  const target = Math.max(1, Math.min(MAX_GAME_STATIONS, Math.round(count)))
+  let next = ensureGameStations(state, Math.min(target, DEFAULT_GAME_STATION_COUNT))
+  let stations = [...(next.gameStations ?? [])]
+  while (stations.length < target) {
+    next = addGameStation(next)
+    stations = [...(next.gameStations ?? [])]
+  }
+  while (stations.length > target) {
+    const removable = [...stations].reverse().find((g) => g.status !== 'active')
+    if (!removable) break
+    next = removeGameStation(next, removable.id)
+    stations = [...(next.gameStations ?? [])]
+  }
+  return next
+}
+
+export function gamePricePerMinute(state: AppState): number {
+  const v = state.settings.gamePricePerMinuteDa
+  return typeof v === 'number' && v >= 0 ? v : DEFAULT_GAME_PRICE_PER_MINUTE_DA
+}
+
+/** Encaisser du temps PS (prix/minute) → caisse + ticket. */
+export function billGameMinutes(
+  state: AppState,
+  input: {
+    stationId: string
+    minutes: number
+    clientLabel?: string
+  },
+): AppState {
+  const mins = Math.max(1, Math.round(input.minutes))
+  let next = addGameStationTime(state, input.stationId, mins, input.clientLabel)
+  const station = next.gameStations.find((g) => g.id === input.stationId)
+  const price = gamePricePerMinute(next)
+  const totalDa = +(mins * price).toFixed(2)
+  const seller = currentSeller(next)
+  const label = station
+    ? `${station.name} — ${mins} min`
+    : `PlayStation — ${mins} min`
+  const line = {
+    productId: `flash_game_${mins}`,
+    name: label,
+    unit: 'piece' as const,
+    qty: 1,
+    unitPriceDa: totalDa,
+    unitCostDa: 0,
+    lineTotalDa: totalDa,
+    flash: true as const,
+  }
+  next = createOrder(next, {
+    clientId: '',
+    clientName: input.clientLabel?.trim() || station?.clientLabel || 'Passage',
+    clientPhone: '',
+    lines: [line],
+    totalDa,
+    paidDa: totalDa,
+    remainingDa: 0,
+    payment: 'paye',
+    note: `Salle de jeux · ${label}`,
+    sellerId: seller?.id,
+    sellerName: seller?.name,
+  })
+  return next
 }
 
 export function createMission(

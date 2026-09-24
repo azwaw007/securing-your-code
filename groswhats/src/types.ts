@@ -46,6 +46,7 @@ export type Screen =
   | 'creditLimit'
   | 'fiscal'
   | 'tpe'
+  | 'sellers'
 
 /** Mode d’encaissement DZ (outil optionnel « Paiements DZ ») */
 export type PaymentMethod = 'cash' | 'baridimob' | 'ccp' | 'card' | 'cheque'
@@ -553,6 +554,9 @@ export interface Order {
   payment: 'paye' | 'credit'
   /** Mode d’encaissement DZ (espèce, BaridiMob…) — outil optionnel */
   paymentMethod?: PaymentMethod
+  /** Vendeur qui a encaissé (attribution) */
+  sellerId?: string
+  sellerName?: string
   /** Date d’échéance (YYYY-MM-DD) si reste dû > 0 */
   dueDate?: string
   /** Note libre (acte cabinet, etc.) */
@@ -629,6 +633,15 @@ export interface ShopSettings {
   enabledTools?: Partial<Record<OptionalToolId, boolean>>
   /** PIN caissier (4–6 chiffres) — outil cashierPin */
   cashierPin?: string
+  /**
+   * PIN admin (4–6 chiffres) — protège prix/minute jeux, gestion vendeurs, etc.
+   * Défaut suggéré à la création : 1234
+   */
+  adminPin?: string
+  /** Prix PlayStation par minute (DA) — salle de jeux */
+  gamePricePerMinuteDa?: number
+  /** Vendeur / admin actuellement connecté sur cet appareil */
+  currentSellerId?: string
   /** Identité fiscale magasin (outil fiscal) */
   fiscalNif?: string
   fiscalRc?: string
@@ -726,6 +739,22 @@ export interface Cashier {
   createdAt: string
 }
 
+/**
+ * Vendeur / admin sur le même appareil (tous métiers AZ POS).
+ * Ex. Admin, Vendeur 1, Vendeur 2… — crée autant que tu veux.
+ */
+export type PosSellerRole = 'admin' | 'vendeur'
+
+export interface PosSeller {
+  id: string
+  name: string
+  role: PosSellerRole
+  /** PIN optionnel pour basculer vers ce profil */
+  pin: string
+  active: boolean
+  createdAt: string
+}
+
 export type MissionStatus = 'draft' | 'assigned' | 'in_progress' | 'done'
 export type StopStatus = 'todo' | 'done' | 'skipped'
 
@@ -790,6 +819,8 @@ export interface AppState {
   cashEntries: CashEntry[]
   drivers: Driver[]
   cashiers: Cashier[]
+  /** Vendeurs / admin (tous métiers) */
+  sellers: PosSeller[]
   missions: Mission[]
   team: TeamSettings
   suppliers: Supplier[]

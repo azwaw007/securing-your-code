@@ -2,11 +2,16 @@ import { useEffect, useRef, useState } from 'react'
 import type { AppState, GameStation, Language, TvControlKind } from './types'
 import { t } from './i18n'
 import {
+  addGameStation,
   addGameStationTime,
+  billGameMinutes,
   ensureGameStations,
   expireGameStations,
   freeGameStation,
+  gamePricePerMinute,
+  removeGameStation,
   setGameStationStandby,
+  setGameStationCount,
   updateGameStation,
 } from './store'
 import {
@@ -50,17 +55,24 @@ export function GameStationsPanel({
   const [now, setNow] = useState(() => Date.now())
   const [configId, setConfigId] = useState<string | null>(null)
   const [labelDraft, setLabelDraft] = useState('')
+  const [billCash, setBillCash] = useState(true)
+  const [countDraft, setCountDraft] = useState(
+    String((state.gameStations ?? []).length || 15),
+  )
+  const [customMin, setCustomMin] = useState('')
   const expiredHandled = useRef<Set<string>>(new Set())
   const stateRef = useRef(state)
   stateRef.current = state
 
-  // Assure 15 postes
   useEffect(() => {
     const next = ensureGameStations(stateRef.current)
     if (next !== stateRef.current) onState(next)
   }, [onState])
 
-  // Tick 1s + expiration → veille TV
+  useEffect(() => {
+    setCountDraft(String((state.gameStations ?? []).length || 0))
+  }, [state.gameStations])
+
   useEffect(() => {
     const tick = window.setInterval(() => {
       setNow(Date.now())
@@ -76,18 +88,11 @@ export function GameStationsPanel({
         const st = next.gameStations.find((g) => g.id === id)
         if (!st) continue
         playBarcodeError()
-        onFlash(
-          t(lang, 'gameStationExpired').replace('{name}', st.name),
-        )
+        onFlash(t(lang, 'gameStationExpired').replace('{name}', st.name))
         void turnTvOff(st).then((res) => {
-          if (res.ok) {
-            onFlash(
-              t(lang, 'gameTvOffOk').replace('{name}', st.name),
-            )
-          } else if (res.reason === 'network') {
-            onFlash(
-              t(lang, 'gameTvOffFail').replace('{name}', st.name),
-            )
+          if (res.ok) onFlash(t(lang, 'gameTvOffOk').replace('{name}', st.name))
+          else if (res.reason === 'network') {
+            onFlash(t(lang, 'gameTvOffFail').replace('{name}', st.name))
           }
         })
       }
@@ -95,7 +100,6 @@ export function GameStationsPanel({
     return () => window.clearInterval(tick)
   }, [lang, onFlash, onState])
 
-  // Reset handled set when station becomes active again
   useEffect(() => {
     for (const g of state.gameStations ?? []) {
       if (g.status === 'active') expiredHandled.current.delete(g.id)
@@ -103,62 +107,10 @@ export function GameStationsPanel({
   }, [state.gameStations])
 
   const stations = state.gameStations ?? []
-
-  async function startOrAdd(station: GameStation, minutes: number) {
-    const wasFree = station.status !== 'active'
-    const next = addGameStationTime(
-      state,
-      station.id,
-      minutes,
-      labelDraft.trim() || station.clientLabel,
-    )
-    onState(next)
-    playCash()
-    onFlash(
-      t(lang, 'gameTimeAdded')
-        .replace('{name}', station.name)
-        .replace('{min}', String(minutes)),
-    )
-    setLabelDraft('')
-    if (wasFree && stationHasTvControl(station)) {
-      const updated = next.gameStations.find((g) => g.id === station.id) || station
-      const res = await turnTvOn(updated)
-      if (res.ok) onFlash(t(lang, 'gameTvOnOk').replace('{name}', station.name))
-      else if (res.reason === 'network') {
-        onFlash(t(lang, 'gameTvOnFail').replace('{name}', station.name))
-      }
-    }
-  }
-
-  async function toStandby(station: GameStation) {
-    onState(setGameStationStandby(state, station.id))
-    onFlash(t(lang, 'gameStandbyOk').replace('{name}', station.name))
-    if (stationHasTvControl(station)) {
-      const res = await turnTvOff(station)
-      if (res.ok) onFlash(t(lang, 'gameTvOffOk').replace('{name}', station.name))
-      else if (res.reason === 'network') {
-        onFlash(t(lang, 'gameTvOffFail').replace('{name}', station.name))
-      }
-    }
-  }
-
-  function liberate(station: GameStation) {
-    onState(freeGameStation(state, station.id))
-    onFlash(t(lang, 'gameFreeOk').replace('{name}', station.name))
-  }
-
-  function saveTvConfig(station: GameStation, patch: {
-    tvKind?: TvControlKind
-    tvHost?: string
-    tvOnUrl?: string
-    tvOffUrl?: string
-  }) {
-    onState(updateGameStation(state, station.id, patch))
-    onFlash(t(lang, 'gameTvSaved'))
-  }
-
+  const priceMin = gamePricePerMinute(state)
   const activeCount = stations.filter((g) => g.status === 'active').length
   const standbyCount = stations.filter((g) => g.status === 'standby').length
+  const tvCount = stations.filter((g) => stationHasTvControl(g)).length
 
   return (
     <section className="card game-stations">
@@ -171,6 +123,12 @@ export function GameStationsPanel({
         </div>
         <div className="game-stations-stats" aria-live="polite">
           <span>
+            {stations.length} {t(lang, 'gamePosts')}
+          </span>
+          <span>
+            {tvCount} {t(lang, 'gameTvPlugs')}
+          </span>
+          <span>
             {activeCount} {t(lang, 'gameActive')}
           </span>
           <span>
@@ -179,7 +137,56 @@ export function GameStationsPanel({
         </div>
       </div>
 
-      <p className="muted game-tv-note">{t(lang, 'gameTvLanNote')}</p>
+      <div className="game-count-row">
+        <div className="field" style={{ flex: 1, margin: 0 }}>
+          <label>{t(lang, 'gameStationCount')}</label>
+          <input
+            type="number"
+            min={1}
+            max={30}
+            value={countDraft}
+            onChange={(e) => setCountDraft(e.target.value)}
+          />
+        </div>
+        <button
+          type="button"
+          className="btn"
+          onClick={() => {
+            const n = Number(countDraft)
+            if (!Number.isFinite(n) || n < 1) {
+              onFlash(t(lang, 'gameCountBad'))
+              return
+            }
+            onState(setGameStationCount(state, n))
+            onFlash(t(lang, 'gameCountSaved').replace('{n}', String(Math.round(n))))
+          }}
+        >
+          {t(lang, 'gameApplyCount')}
+        </button>
+        <button
+          type="button"
+          className="btn secondary"
+          onClick={() => {
+            onState(addGameStation(state))
+            onFlash(t(lang, 'gameStationAdded'))
+          }}
+        >
+          + {t(lang, 'gameAddStation')}
+        </button>
+      </div>
+
+      <p className="muted game-tv-note">
+        {t(lang, 'gameTvLanNote')} · {priceMin} DA/{t(lang, 'gameMinShort')}
+      </p>
+
+      <label className="field check-row">
+        <input
+          type="checkbox"
+          checked={billCash}
+          onChange={(e) => setBillCash(e.target.checked)}
+        />
+        <span>{t(lang, 'gameBillCash')}</span>
+      </label>
 
       <div className="field game-label-field">
         <label>{t(lang, 'gameClientLabel')}</label>
@@ -190,120 +197,250 @@ export function GameStationsPanel({
         />
       </div>
 
+      <div className="game-custom-min">
+        <input
+          type="number"
+          min={1}
+          placeholder={t(lang, 'gameCustomMin')}
+          value={customMin}
+          onChange={(e) => setCustomMin(e.target.value)}
+        />
+      </div>
+
       {stations.length === 0 ? (
         <div className="empty">{t(lang, 'gameStationsEmpty')}</div>
       ) : (
         <div className="game-grid">
-          {stations.map((st) => {
-            const rem = remainingMs(st.endsAt, now)
-            const warn = st.status === 'active' && rem > 0 && rem <= 5 * 60_000
-            const tileClass = [
-              'game-tile',
-              `is-${st.status}`,
-              warn ? 'is-warn' : '',
-            ]
-              .filter(Boolean)
-              .join(' ')
-            const configuring = configId === st.id
-
-            return (
-              <div key={st.id} className={tileClass}>
-                <div className="game-tile-top">
-                  <strong>{st.name}</strong>
-                  {stationHasTvControl(st) ? (
-                    <span className="game-tv-badge" title={st.tvHost || ''}>
-                      TV
-                    </span>
-                  ) : null}
-                </div>
-                <div className="game-timer" aria-live="polite">
-                  {st.status === 'active'
-                    ? formatRemaining(st.endsAt, now)
-                    : st.status === 'standby'
-                      ? t(lang, 'gameStandby')
-                      : t(lang, 'gameFree')}
-                </div>
-                <div className="muted game-tile-meta">
-                  {st.clientLabel
-                    ? st.clientLabel
-                    : st.paidMinutes
-                      ? `${st.paidMinutes} min`
-                      : 'PS + TV'}
-                </div>
-
-                <div className="game-presets">
-                  {TIME_PRESETS.map((m) => (
-                    <button
-                      key={m}
-                      type="button"
-                      className="btn secondary game-preset-btn"
-                      onClick={() => void startOrAdd(st, m)}
-                    >
-                      +{m < 60 ? `${m}m` : `${m / 60}h`}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="btn-row game-tile-actions">
-                  {st.status === 'active' ? (
-                    <button
-                      type="button"
-                      className="btn"
-                      onClick={() => void toStandby(st)}
-                    >
-                      {t(lang, 'gameToStandby')}
-                    </button>
-                  ) : null}
-                  {st.status === 'standby' ? (
-                    <button
-                      type="button"
-                      className="btn"
-                      onClick={() => liberate(st)}
-                    >
-                      {t(lang, 'gameFreeBtn')}
-                    </button>
-                  ) : null}
-                  <button
-                    type="button"
-                    className="btn secondary"
-                    onClick={() =>
-                      setConfigId(configuring ? null : st.id)
-                    }
-                  >
-                    {t(lang, 'gameTvConfig')}
-                  </button>
-                </div>
-
-                {configuring ? (
-                  <TvConfigForm
-                    lang={lang}
-                    station={st}
-                    onSave={(patch) => {
-                      saveTvConfig(st, patch)
-                      setConfigId(null)
-                    }}
-                    onTestOff={() => void turnTvOff(st).then((res) => {
-                      onFlash(
-                        res.ok
-                          ? t(lang, 'gameTvOffOk').replace('{name}', st.name)
-                          : t(lang, 'gameTvOffFail').replace('{name}', st.name),
-                      )
-                    })}
-                    onTestOn={() => void turnTvOn(st).then((res) => {
-                      onFlash(
-                        res.ok
-                          ? t(lang, 'gameTvOnOk').replace('{name}', st.name)
-                          : t(lang, 'gameTvOnFail').replace('{name}', st.name),
-                      )
-                    })}
-                  />
-                ) : null}
-              </div>
-            )
-          })}
+          {stations.map((st) => (
+            <StationTile
+              key={st.id}
+              st={st}
+              now={now}
+              lang={lang}
+              priceMin={priceMin}
+              configuring={configId === st.id}
+              customMin={customMin}
+              onToggleConfig={() =>
+                setConfigId(configId === st.id ? null : st.id)
+              }
+              onStart={async (minutes) => {
+                const wasFree = st.status !== 'active'
+                const label = labelDraft.trim() || st.clientLabel
+                const next = billCash
+                  ? billGameMinutes(state, {
+                      stationId: st.id,
+                      minutes,
+                      clientLabel: label,
+                    })
+                  : addGameStationTime(state, st.id, minutes, label)
+                onState(next)
+                playCash()
+                const total = +(minutes * priceMin).toFixed(2)
+                onFlash(
+                  billCash
+                    ? t(lang, 'gameTimeBilled')
+                        .replace('{name}', st.name)
+                        .replace('{min}', String(minutes))
+                        .replace('{da}', String(total))
+                    : t(lang, 'gameTimeAdded')
+                        .replace('{name}', st.name)
+                        .replace('{min}', String(minutes)),
+                )
+                setLabelDraft('')
+                if (wasFree && stationHasTvControl(st)) {
+                  const updated =
+                    next.gameStations.find((g) => g.id === st.id) || st
+                  const res = await turnTvOn(updated)
+                  if (res.ok) {
+                    onFlash(t(lang, 'gameTvOnOk').replace('{name}', st.name))
+                  } else if (res.reason === 'network') {
+                    onFlash(t(lang, 'gameTvOnFail').replace('{name}', st.name))
+                  }
+                }
+              }}
+              onStandby={async () => {
+                onState(setGameStationStandby(state, st.id))
+                onFlash(t(lang, 'gameStandbyOk').replace('{name}', st.name))
+                if (stationHasTvControl(st)) {
+                  const res = await turnTvOff(st)
+                  if (res.ok) {
+                    onFlash(t(lang, 'gameTvOffOk').replace('{name}', st.name))
+                  } else if (res.reason === 'network') {
+                    onFlash(t(lang, 'gameTvOffFail').replace('{name}', st.name))
+                  }
+                }
+              }}
+              onFree={() => {
+                onState(freeGameStation(state, st.id))
+                onFlash(t(lang, 'gameFreeOk').replace('{name}', st.name))
+              }}
+              onRemove={() => {
+                if (st.status === 'active') {
+                  onFlash(t(lang, 'gameCantRemoveActive'))
+                  return
+                }
+                onState(removeGameStation(state, st.id))
+                onFlash(t(lang, 'gameStationRemoved'))
+              }}
+              onSaveTv={(patch) => {
+                onState(updateGameStation(state, st.id, patch))
+                onFlash(t(lang, 'gameTvSaved'))
+                setConfigId(null)
+              }}
+              onTestOn={() =>
+                void turnTvOn(st).then((res) => {
+                  onFlash(
+                    res.ok
+                      ? t(lang, 'gameTvOnOk').replace('{name}', st.name)
+                      : t(lang, 'gameTvOnFail').replace('{name}', st.name),
+                  )
+                })
+              }
+              onTestOff={() =>
+                void turnTvOff(st).then((res) => {
+                  onFlash(
+                    res.ok
+                      ? t(lang, 'gameTvOffOk').replace('{name}', st.name)
+                      : t(lang, 'gameTvOffFail').replace('{name}', st.name),
+                  )
+                })
+              }
+            />
+          ))}
         </div>
       )}
     </section>
+  )
+}
+
+function StationTile({
+  st,
+  now,
+  lang,
+  priceMin,
+  configuring,
+  customMin,
+  onToggleConfig,
+  onStart,
+  onStandby,
+  onFree,
+  onRemove,
+  onSaveTv,
+  onTestOn,
+  onTestOff,
+}: {
+  st: GameStation
+  now: number
+  lang: Language
+  priceMin: number
+  configuring: boolean
+  customMin: string
+  onToggleConfig: () => void
+  onStart: (minutes: number) => void | Promise<void>
+  onStandby: () => void | Promise<void>
+  onFree: () => void
+  onRemove: () => void
+  onSaveTv: (patch: {
+    tvKind?: TvControlKind
+    tvHost?: string
+    tvOnUrl?: string
+    tvOffUrl?: string
+  }) => void
+  onTestOn: () => void
+  onTestOff: () => void
+}) {
+  const rem = remainingMs(st.endsAt, now)
+  const warn = st.status === 'active' && rem > 0 && rem <= 5 * 60_000
+  const tileClass = [
+    'game-tile',
+    `is-${st.status}`,
+    warn ? 'is-warn' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  return (
+    <div className={tileClass}>
+      <div className="game-tile-top">
+        <strong>{st.name}</strong>
+        {stationHasTvControl(st) ? (
+          <span className="game-tv-badge" title={st.tvHost || ''}>
+            TV
+          </span>
+        ) : null}
+      </div>
+      <div className="game-timer" aria-live="polite">
+        {st.status === 'active'
+          ? formatRemaining(st.endsAt, now)
+          : st.status === 'standby'
+            ? t(lang, 'gameStandby')
+            : t(lang, 'gameFree')}
+      </div>
+      <div className="muted game-tile-meta">
+        {st.clientLabel
+          ? st.clientLabel
+          : st.paidMinutes
+            ? `${st.paidMinutes} min`
+            : `${priceMin} DA/min`}
+      </div>
+
+      <div className="game-presets">
+        {TIME_PRESETS.map((m) => (
+          <button
+            key={m}
+            type="button"
+            className="btn secondary game-preset-btn"
+            onClick={() => void onStart(m)}
+          >
+            +{m < 60 ? `${m}m` : `${m / 60}h`}
+          </button>
+        ))}
+      </div>
+      {customMin ? (
+        <button
+          type="button"
+          className="btn block"
+          style={{ marginTop: 4 }}
+          onClick={() => {
+            const m = Math.round(Number(customMin))
+            if (m >= 1) void onStart(m)
+          }}
+        >
+          +{customMin} min
+        </button>
+      ) : null}
+
+      <div className="btn-row game-tile-actions">
+        {st.status === 'active' ? (
+          <button type="button" className="btn" onClick={() => void onStandby()}>
+            {t(lang, 'gameToStandby')}
+          </button>
+        ) : null}
+        {st.status === 'standby' ? (
+          <button type="button" className="btn" onClick={onFree}>
+            {t(lang, 'gameFreeBtn')}
+          </button>
+        ) : null}
+        <button type="button" className="btn secondary" onClick={onToggleConfig}>
+          {t(lang, 'gameTvConfig')}
+        </button>
+        {st.status !== 'active' ? (
+          <button type="button" className="btn ghost" onClick={onRemove}>
+            ✕
+          </button>
+        ) : null}
+      </div>
+
+      {configuring ? (
+        <TvConfigForm
+          lang={lang}
+          station={st}
+          onSave={onSaveTv}
+          onTestOn={onTestOn}
+          onTestOff={onTestOff}
+        />
+      ) : null}
+    </div>
   )
 }
 
