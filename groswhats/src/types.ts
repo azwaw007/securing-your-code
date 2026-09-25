@@ -49,6 +49,7 @@ export type Screen =
   | 'fiscal'
   | 'tpe'
   | 'sellers'
+  | 'production'
 
 /** Mode d’encaissement DZ (outil optionnel « Paiements DZ ») */
 export type PaymentMethod = 'cash' | 'baridimob' | 'ccp' | 'card' | 'cheque'
@@ -991,6 +992,10 @@ export interface AppState {
   repairOrders: RepairOrder[]
   /** Mémoire scan facture : nom OCR → produit (corrections utilisateur) */
   invoiceAliases: InvoiceProductAlias[]
+  /** Recettes de production (MP → produit fini) */
+  recipes: Recipe[]
+  /** Historique des fabrications */
+  productionRuns: ProductionRun[]
 }
 
 /** Lien mémorisé entre un libellé facture et un produit stock. */
@@ -1000,6 +1005,43 @@ export interface InvoiceProductAlias {
   productId: string
   hits: number
   updatedAt: string
+}
+
+/** Ingrédient : qty de matière première pour 1 unité de produit fini */
+export interface RecipeIngredient {
+  productId: string
+  qtyPerUnit: number
+}
+
+/** Recette de fabrication */
+export interface Recipe {
+  id: string
+  name: string
+  /** Produit fini (stock +) */
+  outputProductId: string
+  ingredients: RecipeIngredient[]
+  note?: string
+  createdAt: string
+  updatedAt?: string
+}
+
+/** Une fabrication enregistrée */
+export interface ProductionRun {
+  id: string
+  recipeId: string
+  recipeName: string
+  outputProductId: string
+  outputName: string
+  qtyProduced: number
+  consumed: {
+    productId: string
+    name: string
+    qty: number
+  }[]
+  /** Coût unitaire estimé (somme MP) au moment de la prod */
+  unitCostDa?: number
+  locationId: string
+  createdAt: string
 }
 
 export const ALL_UNITS: Unit[] = [

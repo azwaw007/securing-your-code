@@ -107,6 +107,10 @@ export type MetierFeatures = {
    * hors fiches dédiées patient (medicalDossier) et athlète (gymCheckin).
    */
   specialtyDossier: boolean
+  /**
+   * Production / recettes : MP → produit fini (boulangerie, resto, atelier…).
+   */
+  production: boolean
 }
 
 export type MetierCopy = DomainVocab & {
@@ -145,6 +149,7 @@ const FEAT = {
     doctorNoCash: false,
     staffHr: true,
     specialtyDossier: false,
+    production: false,
   } satisfies MetierFeatures,
   depot: {
     medicalDossier: false,
@@ -164,6 +169,7 @@ const FEAT = {
     doctorNoCash: false,
     staffHr: true,
     specialtyDossier: false,
+    production: false,
   } satisfies MetierFeatures,
   clinic: {
     medicalDossier: true,
@@ -183,6 +189,7 @@ const FEAT = {
     doctorNoCash: true,
     staffHr: true,
     specialtyDossier: true,
+    production: false,
   } satisfies MetierFeatures,
   service: {
     medicalDossier: false,
@@ -202,6 +209,7 @@ const FEAT = {
     doctorNoCash: false,
     staffHr: true,
     specialtyDossier: true,
+    production: false,
   } satisfies MetierFeatures,
 }
 
@@ -620,7 +628,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
   grocery: pack(
     'grocery',
     THEME_RETAIL,
-    FEAT.shop,
+    { ...FEAT.shop, production: true },
     {
       client: 'Client',
       product: 'Rayon',
@@ -645,7 +653,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
   bakery: pack(
     'bakery',
     THEME_BAKERY,
-    { ...FEAT.shop, gallery: true },
+    { ...FEAT.shop, gallery: true, production: true },
     {
       client: 'Client',
       product: 'Produit',
@@ -684,7 +692,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
         '--glow': 'rgba(155, 44, 44, 0.14)',
       },
     ),
-    FEAT.shop,
+    { ...FEAT.shop, production: true },
     {
       client: 'Client',
       product: 'Coupe',
@@ -716,6 +724,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
       gallery: true,
       noSaleWording: true,
       specialtyDossier: true,
+      production: true,
     },
     {
       client: 'Client',
@@ -741,7 +750,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
   cafe: pack(
     'cafe',
     THEME_CAFE,
-    { ...FEAT.shop, noSaleWording: true },
+    { ...FEAT.shop, noSaleWording: true, production: true },
     {
       client: 'Client',
       product: 'Carte',
@@ -1738,7 +1747,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
   artisan: pack(
     'artisan',
     THEME_SERVICE,
-    { ...FEAT.service, repairOrder: true, gallery: true },
+    { ...FEAT.service, repairOrder: true, gallery: true, production: true },
     {
       client: 'Client',
       product: 'Intervention',
