@@ -7,13 +7,16 @@ export function isDecimalUnit(unit: Unit): boolean {
     unit === 'g' ||
     unit === 'm' ||
     unit === 'cm' ||
+    unit === 'm2' ||
+    unit === 'm3' ||
     unit === 'ml' ||
     unit === 'L'
   )
 }
 
 export function qtyStep(unit: Unit): number {
-  if (unit === 'kg' || unit === 'm' || unit === 'L') return 0.5
+  if (unit === 'kg' || unit === 'm' || unit === 'm2' || unit === 'm3' || unit === 'L')
+    return 0.5
   if (unit === 'g' || unit === 'cm' || unit === 'ml') return 10
   return 1
 }
@@ -710,6 +713,8 @@ const fr: Dict = {
   unit_g: 'Gramme (g)',
   unit_m: 'Mètre (m)',
   unit_cm: 'Centimètre (cm)',
+  unit_m2: 'Mètre carré (m²)',
+  unit_m3: 'Mètre cube (m³)',
   unit_ml: 'Millilitre (ml)',
   unit_L: 'Litre (L)',
   french: 'Français',
@@ -2056,6 +2061,8 @@ const ar: Dict = {
   unit_g: 'غرام (غ)',
   unit_m: 'متر (م)',
   unit_cm: 'سنتيمتر (سم)',
+  unit_m2: 'متر مربع (م²)',
+  unit_m3: 'متر مكعب (م³)',
   unit_ml: 'مليلتر (مل)',
   unit_L: 'لتر (ل)',
   french: 'Français',
@@ -2726,6 +2733,8 @@ export function unitLabel(lang: Language, unit: Unit): string {
     g: { fr: 'g', ar: 'غ', en: 'g' },
     m: { fr: 'm', ar: 'م', en: 'm' },
     cm: { fr: 'cm', ar: 'سم', en: 'cm' },
+    m2: { fr: 'm²', ar: 'م²', en: 'm²' },
+    m3: { fr: 'm³', ar: 'م³', en: 'm³' },
     ml: { fr: 'ml', ar: 'مل', en: 'ml' },
     L: { fr: 'L', ar: 'ل', en: 'L' },
   }

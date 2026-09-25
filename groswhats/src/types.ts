@@ -9,6 +9,8 @@ export type Unit =
   | 'g'
   | 'm'
   | 'cm'
+  | 'm2'
+  | 'm3'
   | 'ml'
   | 'L'
 
@@ -1007,6 +1009,8 @@ export const ALL_UNITS: Unit[] = [
   'g',
   'm',
   'cm',
+  'm2',
+  'm3',
   'ml',
   'L',
 ]
