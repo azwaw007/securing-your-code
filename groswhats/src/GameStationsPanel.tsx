@@ -1,25 +1,34 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type {
   AppState,
   GameStation,
   Language,
   TvControlKind,
 } from './types'
+import { formatDa, formatQty } from './utils/format'
 import { t } from './i18n'
 import {
   addGameStation,
+  addGameStationProduct,
   addGameStationTime,
   billGameSession,
+  displayStock,
   ensureGameStations,
   expireGameStations,
   freeGameStation,
   gameFreeMaxMinutes,
+  gameStationTabGameDa,
+  gameStationTabProductDa,
+  gameStationTabTotalDa,
   grantGameFreeMinutes,
+  match4RateDa,
   removeGameStation,
+  removeGameStationTabLine,
   resolveGameTariffs,
   setGameStationStandby,
   setGameStationCount,
   sellerCanGrantFreeMinutes,
+  settleGameStation,
   stationConsole,
   stationMatchMinutes,
   tariffForConsole,
@@ -127,7 +136,7 @@ export function GameStationsPanel({
 
   async function applyStart(
     st: GameStation,
-    mode: 'hour' | 'match' | 'extra',
+    mode: 'hour' | 'match' | 'match4' | 'extra',
     opts: { minutes?: number; matches?: number; matchMinutes?: number },
   ) {
     const wasFree = st.status !== 'active'
@@ -151,7 +160,7 @@ export function GameStationsPanel({
       minutes = res.minutes
     } else {
       const mins =
-        mode === 'match' || mode === 'extra'
+        mode === 'match' || mode === 'match4' || mode === 'extra'
           ? (opts.matchMinutes ||
               (mode === 'extra'
                 ? tariffs.extraRoundMinutes
@@ -159,7 +168,7 @@ export function GameStationsPanel({
             Math.max(1, opts.matches || 1)
           : Math.max(1, opts.minutes || 60)
       nextState = addGameStationTime(state, st.id, mins, label)
-      if (mode === 'match' && opts.matchMinutes) {
+      if ((mode === 'match' || mode === 'match4') && opts.matchMinutes) {
         nextState = updateGameStation(nextState, st.id, {
           matchMinutes: opts.matchMinutes,
         })
@@ -171,7 +180,7 @@ export function GameStationsPanel({
     playCash()
     onFlash(
       billCash
-        ? t(lang, 'gameTimeBilled')
+        ? t(lang, 'gameTimeOnTab')
             .replace('{name}', st.name)
             .replace('{min}', String(minutes))
             .replace('{da}', String(totalDa))
@@ -192,7 +201,7 @@ export function GameStationsPanel({
 
   async function applyFree(
     st: GameStation,
-    mode: 'hour' | 'match' | 'extra',
+    mode: 'hour' | 'match' | 'match4' | 'extra',
     opts: { minutes?: number; matches?: number; matchMinutes?: number },
   ) {
     if (!sellerCanGrantFreeMinutes(state)) {
@@ -274,6 +283,9 @@ export function GameStationsPanel({
             {c.matchDa > 0
               ? ` · ${c.matchDa} DA/${t(lang, 'gameMatchShort')}`
               : ''}
+            {(c.match4Da ?? (c.matchDa > 0 ? c.matchDa * 2 : 0)) > 0
+              ? ` · ${c.match4Da ?? c.matchDa * 2} DA/${t(lang, 'gameMatch4Short')}`
+              : ''}
             {c.extraRoundDa > 0
               ? ` · ${c.extraRoundDa} DA/${t(lang, 'gameExtraShort')}`
               : ''}
@@ -337,6 +349,9 @@ export function GameStationsPanel({
         />
         <span>{t(lang, 'gameBillCash')}</span>
       </label>
+      <p className="muted" style={{ marginTop: 0 }}>
+        {t(lang, 'gameTabHint')}
+      </p>
 
       <div className="field game-label-field">
         <label>{t(lang, 'gameClientLabel')}</label>
@@ -380,6 +395,12 @@ export function GameStationsPanel({
                   matchMinutes: stationMatchMinutes(state, st),
                 })
               }
+              onMatch4={() =>
+                void applyStart(st, 'match4', {
+                  matches: 1,
+                  matchMinutes: stationMatchMinutes(state, st),
+                })
+              }
               onExtra={() =>
                 void applyStart(st, 'extra', {
                   matches: 1,
@@ -391,6 +412,12 @@ export function GameStationsPanel({
               onFreeHour={(minutes) => void applyFree(st, 'hour', { minutes })}
               onFreeMatch={() =>
                 void applyFree(st, 'match', {
+                  matches: 1,
+                  matchMinutes: stationMatchMinutes(state, st),
+                })
+              }
+              onFreeMatch4={() =>
+                void applyFree(st, 'match4', {
                   matches: 1,
                   matchMinutes: stationMatchMinutes(state, st),
                 })
@@ -417,9 +444,62 @@ export function GameStationsPanel({
                 onState(freeGameStation(state, st.id))
                 onFlash(t(lang, 'gameFreeOk').replace('{name}', st.name))
               }}
+              onAddProduct={(productId) => {
+                const res = addGameStationProduct(state, st.id, productId, 1)
+                if (!res.ok) {
+                  onFlash(
+                    res.reason === 'nostock'
+                      ? t(lang, 'gameProductNoStock')
+                      : t(lang, 'gamePriceBad'),
+                  )
+                  return
+                }
+                onState(res.state)
+                playCash()
+                const p = state.products.find((x) => x.id === productId)
+                onFlash(
+                  t(lang, 'gameProductAdded')
+                    .replace('{name}', st.name)
+                    .replace('{product}', p?.name || ''),
+                )
+              }}
+              onRemoveTabLine={(lineId) => {
+                onState(removeGameStationTabLine(state, st.id, lineId))
+              }}
+              onSettle={() => {
+                const res = settleGameStation(state, st.id, {
+                  freeStation: true,
+                })
+                if (!res.ok) {
+                  onFlash(
+                    res.reason === 'empty'
+                      ? t(lang, 'gameTabEmpty')
+                      : t(lang, 'gamePriceBad'),
+                  )
+                  return
+                }
+                onState(res.state)
+                playCash()
+                onFlash(
+                  t(lang, 'gameSettled')
+                    .replace('{name}', st.name)
+                    .replace('{da}', String(res.totalDa)),
+                )
+                if (stationHasTvControl(st)) {
+                  void turnTvOff(st).then((tv) => {
+                    if (tv.ok) {
+                      onFlash(t(lang, 'gameTvOffOk').replace('{name}', st.name))
+                    }
+                  })
+                }
+              }}
               onRemove={() => {
                 if (st.status === 'active') {
                   onFlash(t(lang, 'gameCantRemoveActive'))
+                  return
+                }
+                if ((st.tabLines?.length ?? 0) > 0) {
+                  onFlash(t(lang, 'gameCantRemoveTab'))
                   return
                 }
                 onState(removeGameStation(state, st.id))
@@ -466,14 +546,19 @@ function StationTile({
   onToggleConfig,
   onHour,
   onMatch,
+  onMatch4,
   onExtra,
   canFree,
   freeCap,
   onFreeHour,
   onFreeMatch,
+  onFreeMatch4,
   onFreeExtra,
   onStandby,
   onFree,
+  onAddProduct,
+  onRemoveTabLine,
+  onSettle,
   onRemove,
   onSaveTv,
   onTestOn,
@@ -488,14 +573,19 @@ function StationTile({
   onToggleConfig: () => void
   onHour: (minutes: number) => void
   onMatch: () => void
+  onMatch4: () => void
   onExtra: () => void
   canFree: boolean
   freeCap: number
   onFreeHour: (minutes: number) => void
   onFreeMatch: () => void
+  onFreeMatch4: () => void
   onFreeExtra: () => void
   onStandby: () => void | Promise<void>
   onFree: () => void
+  onAddProduct: (productId: string) => void
+  onRemoveTabLine: (lineId: string) => void
+  onSettle: () => void
   onRemove: () => void
   onSaveTv: (patch: {
     tvKind?: TvControlKind
@@ -516,8 +606,30 @@ function StationTile({
   const tariff = tariffForConsole(state, kind)
   const hourDa = tariff.hourDa
   const matchDa = tariff.matchDa
+  const match4Da = match4RateDa(state, kind)
   const extraDa = tariff.extraRoundDa
   const freePresets = FREE_MIN_PRESETS.filter((m) => m <= freeCap)
+  const [showProducts, setShowProducts] = useState(false)
+  const [productQuery, setProductQuery] = useState('')
+  const tabTotal = gameStationTabTotalDa(st)
+  const tabGame = gameStationTabGameDa(st)
+  const tabProducts = gameStationTabProductDa(st)
+  const tabLines = st.tabLines ?? []
+
+  const productHits = useMemo(() => {
+    const q = productQuery.trim().toLowerCase()
+    return [...state.products]
+      .filter((p) => {
+        if (displayStock(state, p) <= 0) return false
+        if (!q) return true
+        return (
+          p.name.toLowerCase().includes(q) ||
+          (p.barcode || '').toLowerCase().includes(q)
+        )
+      })
+      .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+      .slice(0, 12)
+  }, [state, productQuery])
 
   const tileClass = [
     'game-tile',
@@ -553,6 +665,10 @@ function StationTile({
           : `${hourDa} DA/h${
               matchDa > 0
                 ? ` · ${matchDa} DA/${t(lang, 'gameMatchShort')} (${matchMin} min)`
+                : ''
+            }${
+              match4Da > 0
+                ? ` · ${match4Da} DA/${t(lang, 'gameMatch4Short')}`
                 : ''
             }${
               extraDa > 0
@@ -596,12 +712,102 @@ function StationTile({
             +{t(lang, 'gameMatchShort')} {matchMin}′ ({matchDa} DA)
           </button>
         ) : null}
+        {match4Da > 0 ? (
+          <button type="button" className="btn secondary" onClick={onMatch4}>
+            +{t(lang, 'gameMatch4Short')} {matchMin}′ ({match4Da} DA)
+          </button>
+        ) : null}
         {extraDa > 0 ? (
           <button type="button" className="btn secondary" onClick={onExtra}>
             +{t(lang, 'gameExtraShort')} ({extraDa} DA)
           </button>
         ) : null}
       </div>
+
+      <div className="btn-row game-tile-actions" style={{ marginTop: 6 }}>
+        <button
+          type="button"
+          className="btn secondary"
+          onClick={() => setShowProducts((v) => !v)}
+        >
+          {showProducts ? t(lang, 'gameProductsHide') : t(lang, 'gameProductsBtn')}
+          {tabProducts > 0 ? ` · ${formatDa(tabProducts)}` : ''}
+        </button>
+        <button
+          type="button"
+          className="btn"
+          disabled={tabTotal <= 0}
+          onClick={onSettle}
+        >
+          {t(lang, 'gameSettleBtn')}
+          {tabTotal > 0 ? ` · ${formatDa(tabTotal)}` : ''}
+        </button>
+      </div>
+
+      {tabLines.length > 0 ? (
+        <div className="game-tab-summary">
+          <div className="muted">
+            {t(lang, 'gameTabGame')}: <strong>{formatDa(tabGame)}</strong>
+            {' · '}
+            {t(lang, 'gameTabProducts')}:{' '}
+            <strong>{formatDa(tabProducts)}</strong>
+            {' · '}
+            {t(lang, 'gameTabTotal')}: <strong>{formatDa(tabTotal)}</strong>
+          </div>
+          <ul className="game-tab-lines">
+            {tabLines.map((l) => (
+              <li key={l.id}>
+                <span>
+                  {l.kind === 'product' ? '🥤' : '🎮'} {l.name}
+                  {l.qty !== 1 ? ` ×${formatQty(l.qty)}` : ''}
+                  {' — '}
+                  {formatDa(+(l.qty * l.unitPriceDa).toFixed(2))}
+                </span>
+                <button
+                  type="button"
+                  className="btn ghost"
+                  aria-label={t(lang, 'delete')}
+                  onClick={() => onRemoveTabLine(l.id)}
+                >
+                  ✕
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {showProducts ? (
+        <div className="game-product-picker">
+          <input
+            type="search"
+            value={productQuery}
+            onChange={(e) => setProductQuery(e.target.value)}
+            placeholder={t(lang, 'searchProduct')}
+            autoFocus
+          />
+          {productHits.length === 0 ? (
+            <div className="empty muted">{t(lang, 'noProductFound')}</div>
+          ) : (
+            <div className="game-product-hits">
+              {productHits.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className="btn secondary game-product-hit"
+                  onClick={() => {
+                    onAddProduct(p.id)
+                    setProductQuery('')
+                  }}
+                >
+                  <span>{p.name}</span>
+                  <strong>{formatDa(p.priceDa)}</strong>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : null}
 
       {canFree ? (
         <div className="game-free-actions">
@@ -638,6 +844,15 @@ function StationTile({
                 onClick={onFreeMatch}
               >
                 {t(lang, 'gameFreeMatch')}
+              </button>
+            ) : null}
+            {match4Da > 0 ? (
+              <button
+                type="button"
+                className="btn ghost game-free-btn"
+                onClick={onFreeMatch4}
+              >
+                {t(lang, 'gameFreeMatch4')}
               </button>
             ) : null}
             {extraDa > 0 ? (

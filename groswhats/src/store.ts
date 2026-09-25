@@ -42,6 +42,7 @@ import type {
   PriceTier,
   FloorTable,
   GameStation,
+  GameStationTabLine,
   GameConsoleKind,
   GameConsoleTariff,
   GameTariffs,
@@ -127,12 +128,12 @@ export const DEFAULT_GAME_PRICE_PER_MINUTE_DA = 7
 
 /** Grille par défaut — liste prix + Xbox Series S + أشواط إضافية */
 export const DEFAULT_GAME_CONSOLES: GameConsoleTariff[] = [
-  { id: 'xbox_one', label: 'XBOX ONE', hourDa: 200, matchDa: 50, extraRoundDa: 30 },
-  { id: 'ps4', label: 'PS4', hourDa: 200, matchDa: 50, extraRoundDa: 30 },
-  { id: 'ps4_pro', label: 'PS4 PRO', hourDa: 250, matchDa: 70, extraRoundDa: 30 },
-  { id: 'ps5', label: 'PS5', hourDa: 300, matchDa: 100, extraRoundDa: 50 },
-  { id: 'xbox_360', label: 'XBOX 360', hourDa: 100, matchDa: 0, extraRoundDa: 0 },
-  { id: 'xbox_series_s', label: 'XBOX Series S', hourDa: 300, matchDa: 70, extraRoundDa: 40 },
+  { id: 'xbox_one', label: 'XBOX ONE', hourDa: 200, matchDa: 50, match4Da: 100, extraRoundDa: 30 },
+  { id: 'ps4', label: 'PS4', hourDa: 200, matchDa: 50, match4Da: 100, extraRoundDa: 30 },
+  { id: 'ps4_pro', label: 'PS4 PRO', hourDa: 250, matchDa: 70, match4Da: 140, extraRoundDa: 30 },
+  { id: 'ps5', label: 'PS5', hourDa: 300, matchDa: 100, match4Da: 200, extraRoundDa: 50 },
+  { id: 'xbox_360', label: 'XBOX 360', hourDa: 100, matchDa: 0, match4Da: 0, extraRoundDa: 0 },
+  { id: 'xbox_series_s', label: 'XBOX Series S', hourDa: 300, matchDa: 70, match4Da: 140, extraRoundDa: 40 },
 ]
 
 export const DEFAULT_GAME_TARIFFS: GameTariffs = {
@@ -1591,8 +1592,40 @@ function migrateGameStations(raw: GameStation[] | undefined): GameStation[] {
             : undefined,
         tvOnUrl: typeof g.tvOnUrl === 'string' ? g.tvOnUrl : undefined,
         tvOffUrl: typeof g.tvOffUrl === 'string' ? g.tvOffUrl : undefined,
+        tabLines: migrateGameStationTabLines(
+          (g as GameStation).tabLines,
+        ),
       }
     })
+}
+
+function migrateGameStationTabLines(
+  raw: GameStationTabLine[] | undefined,
+): GameStationTabLine[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined
+  const lines = raw
+    .filter(
+      (l) =>
+        l &&
+        typeof l.name === 'string' &&
+        l.name.trim() &&
+        typeof l.unitPriceDa === 'number',
+    )
+    .slice(0, 80)
+    .map((l) => ({
+      id: l.id || uid('gstab'),
+      kind: l.kind === 'product' ? ('product' as const) : ('game' as const),
+      productId:
+        typeof l.productId === 'string' && l.productId
+          ? l.productId
+          : `flash_${uid('g')}`,
+      name: l.name.trim(),
+      qty: Math.max(0.001, Number(l.qty) || 1),
+      unitPriceDa: Math.max(0, +Number(l.unitPriceDa).toFixed(2)),
+      unit: (l.unit || 'piece') as GameStationTabLine['unit'],
+      flash: l.flash === true || l.kind !== 'product' || undefined,
+    }))
+  return lines.length > 0 ? lines : undefined
 }
 
 function buildDefaultGameStations(count = DEFAULT_GAME_STATION_COUNT): GameStation[] {
@@ -1724,10 +1757,174 @@ export function freeGameStation(state: AppState, id: string): AppState {
             paidMinutes: undefined,
             freeMinutes: undefined,
             clientLabel: undefined,
+            tabLines: undefined,
           }
         : g,
     ),
   }
+}
+
+export function gameStationTabTotalDa(station: GameStation | undefined): number {
+  if (!station?.tabLines?.length) return 0
+  return +station.tabLines
+    .reduce((s, l) => s + l.qty * l.unitPriceDa, 0)
+    .toFixed(2)
+}
+
+export function gameStationTabGameDa(station: GameStation | undefined): number {
+  if (!station?.tabLines?.length) return 0
+  return +station.tabLines
+    .filter((l) => l.kind === 'game')
+    .reduce((s, l) => s + l.qty * l.unitPriceDa, 0)
+    .toFixed(2)
+}
+
+export function gameStationTabProductDa(
+  station: GameStation | undefined,
+): number {
+  if (!station?.tabLines?.length) return 0
+  return +station.tabLines
+    .filter((l) => l.kind === 'product')
+    .reduce((s, l) => s + l.qty * l.unitPriceDa, 0)
+    .toFixed(2)
+}
+
+function appendStationTabLine(
+  state: AppState,
+  stationId: string,
+  line: GameStationTabLine,
+): AppState {
+  return {
+    ...state,
+    gameStations: (state.gameStations ?? []).map((g) => {
+      if (g.id !== stationId) return g
+      const prev = g.tabLines ?? []
+      // Fusion qty pour même produit catalogue
+      if (line.kind === 'product' && !line.flash) {
+        const idx = prev.findIndex(
+          (x) => x.kind === 'product' && x.productId === line.productId,
+        )
+        if (idx >= 0) {
+          const cur = prev[idx]!
+          const nextLines = [...prev]
+          nextLines[idx] = {
+            ...cur,
+            qty: +(cur.qty + line.qty).toFixed(3),
+            unitPriceDa: line.unitPriceDa,
+          }
+          return { ...g, tabLines: nextLines }
+        }
+      }
+      return { ...g, tabLines: [...prev, line].slice(-80) }
+    }),
+  }
+}
+
+/** Ajoute un produit catalogue sur l’addition du poste. */
+export function addGameStationProduct(
+  state: AppState,
+  stationId: string,
+  productId: string,
+  qty = 1,
+): { state: AppState; ok: boolean; reason?: 'bad' | 'nostock' } {
+  const station = (state.gameStations ?? []).find((g) => g.id === stationId)
+  if (!station) return { state, ok: false, reason: 'bad' }
+  const product = state.products.find((p) => p.id === productId)
+  if (!product) return { state, ok: false, reason: 'bad' }
+  const q = Math.max(0.001, Number(qty) || 1)
+  const available = displayStock(state, product)
+  if (available + 1e-9 < q) return { state, ok: false, reason: 'nostock' }
+  const line: GameStationTabLine = {
+    id: uid('gstab'),
+    kind: 'product',
+    productId: product.id,
+    name: product.name,
+    qty: +q.toFixed(3),
+    unitPriceDa: product.priceDa,
+    unit: product.unit || 'piece',
+  }
+  return { state: appendStationTabLine(state, stationId, line), ok: true }
+}
+
+export function removeGameStationTabLine(
+  state: AppState,
+  stationId: string,
+  lineId: string,
+): AppState {
+  return {
+    ...state,
+    gameStations: (state.gameStations ?? []).map((g) => {
+      if (g.id !== stationId) return g
+      const next = (g.tabLines ?? []).filter((l) => l.id !== lineId)
+      return { ...g, tabLines: next.length > 0 ? next : undefined }
+    }),
+  }
+}
+
+/**
+ * Encaisser l’addition du poste (jeux + produits) → une vente caisse.
+ * Libère le poste après encaissement.
+ */
+export function settleGameStation(
+  state: AppState,
+  stationId: string,
+  opts?: { freeStation?: boolean },
+): {
+  state: AppState
+  totalDa: number
+  ok: boolean
+  reason?: 'empty' | 'bad'
+} {
+  const station = (state.gameStations ?? []).find((g) => g.id === stationId)
+  if (!station) return { state, totalDa: 0, ok: false, reason: 'bad' }
+  const lines = station.tabLines ?? []
+  if (lines.length === 0) return { state, totalDa: 0, ok: false, reason: 'empty' }
+
+  const orderLines: OrderLine[] = lines.map((l) => {
+    const lineTotal = +(l.qty * l.unitPriceDa).toFixed(2)
+    const product =
+      l.kind === 'product'
+        ? state.products.find((p) => p.id === l.productId)
+        : undefined
+    return {
+      productId: l.productId,
+      name: l.name,
+      unit: l.unit,
+      qty: l.qty,
+      unitPriceDa: l.unitPriceDa,
+      unitCostDa: product?.costDa ?? 0,
+      lineTotalDa: lineTotal,
+      flash: l.kind === 'game' || l.flash === true || undefined,
+    }
+  })
+  const totalDa = +orderLines
+    .reduce((s, l) => s + l.lineTotalDa, 0)
+    .toFixed(2)
+  const seller = currentSeller(state)
+  let next = createOrder(state, {
+    clientId: '',
+    clientName: station.clientLabel?.trim() || station.name || 'Passage',
+    clientPhone: '',
+    lines: orderLines,
+    totalDa,
+    paidDa: totalDa,
+    remainingDa: 0,
+    payment: 'paye',
+    note: `Salle de jeux · ${station.name} · encaissement`,
+    sellerId: seller?.id,
+    sellerName: seller?.name,
+  })
+  // Vider l’addition
+  next = {
+    ...next,
+    gameStations: (next.gameStations ?? []).map((g) =>
+      g.id === stationId ? { ...g, tabLines: undefined } : g,
+    ),
+  }
+  if (opts?.freeStation !== false) {
+    next = freeGameStation(next, stationId)
+  }
+  return { state: next, totalDa, ok: true }
 }
 
 /** Passe en veille tous les postes dont le temps est écoulé. */
@@ -2835,7 +3032,9 @@ function migrateGameFreeMinutes(
       stationName: typeof e.stationName === 'string' ? e.stationName : '',
       consoleKind: normalizeConsoleKind(e.consoleKind),
       mode:
-        e.mode === 'match' || e.mode === 'extra' ? e.mode : ('hour' as const),
+        e.mode === 'match' || e.mode === 'match4' || e.mode === 'extra'
+          ? e.mode
+          : ('hour' as const),
       minutes: Math.round(e.minutes),
       sellerId: typeof e.sellerId === 'string' ? e.sellerId : undefined,
       sellerName: typeof e.sellerName === 'string' ? e.sellerName : undefined,
@@ -3070,6 +3269,7 @@ export function migrateGameTariffs(
           label: consoleLabelOf(id),
           hourDa: 0,
           matchDa: 0,
+          match4Da: 0,
           extraRoundDa: 0,
         }
         const hour =
@@ -3082,6 +3282,15 @@ export function migrateGameTariffs(
           (item as GameConsoleTariff).matchDa >= 0
             ? +(item as GameConsoleTariff).matchDa.toFixed(2)
             : prev.matchDa
+        const match4Raw = (item as GameConsoleTariff).match4Da
+        const match4 =
+          typeof match4Raw === 'number' && match4Raw >= 0
+            ? +match4Raw.toFixed(2)
+            : typeof prev.match4Da === 'number' && prev.match4Da >= 0
+              ? prev.match4Da
+              : match > 0
+                ? +(match * 2).toFixed(2)
+                : 0
         const extra =
           typeof (item as GameConsoleTariff).extraRoundDa === 'number' &&
           (item as GameConsoleTariff).extraRoundDa >= 0
@@ -3097,6 +3306,7 @@ export function migrateGameTariffs(
           label,
           hourDa: hour,
           matchDa: match,
+          match4Da: match4,
           extraRoundDa: extra,
         })
       }
@@ -3106,6 +3316,13 @@ export function migrateGameTariffs(
     ps4.hourDa = +(legacyPerMin * 60).toFixed(2)
     const ps5 = byId.get('ps5')!
     ps5.hourDa = +(legacyPerMin * 60 * 1.25).toFixed(2)
+  }
+
+  // Garantit match4 = 2× match si non renseigné
+  for (const [id, row] of byId) {
+    if (row.matchDa > 0 && !(typeof row.match4Da === 'number' && row.match4Da > 0)) {
+      byId.set(id, { ...row, match4Da: +(row.matchDa * 2).toFixed(2) })
+    }
   }
 
   const consoles = CONSOLE_IDS.map((id) => byId.get(id)!).filter(Boolean)
@@ -3162,6 +3379,16 @@ export function matchRateDa(state: AppState, consoleKind: GameConsoleKind): numb
   return tariffForConsole(state, consoleKind).matchDa
 }
 
+/** Match 4 joueurs = double du match normal (sauf tarif admin explicite). */
+export function match4RateDa(state: AppState, consoleKind: GameConsoleKind): number {
+  const row = tariffForConsole(state, consoleKind)
+  if (typeof row.match4Da === 'number' && row.match4Da > 0) {
+    return row.match4Da
+  }
+  if (row.matchDa > 0) return +(row.matchDa * 2).toFixed(2)
+  return 0
+}
+
 export function extraRoundRateDa(
   state: AppState,
   consoleKind: GameConsoleKind,
@@ -3174,9 +3401,9 @@ export function gamePricePerMinute(state: AppState): number {
   return +(hourRateDa(state, 'ps4') / 60).toFixed(2)
 }
 
-export type GameBillMode = 'hour' | 'match' | 'extra'
+export type GameBillMode = 'hour' | 'match' | 'match4' | 'extra'
 
-/** Encaisser heure, match ou شوط إضافي → timer + caisse. */
+/** Encaisser heure, match, match 4J ou شوط إضافي → timer + caisse. */
 export function billGameSession(
   state: AppState,
   input: {
@@ -3198,6 +3425,7 @@ export function billGameSession(
   const consoleLabel = tariffForConsole(state, consoleKind).label
   const billCash = input.billCash !== false
   const matchPrice = matchRateDa(state, consoleKind)
+  const match4Price = match4RateDa(state, consoleKind)
   const extraPrice = extraRoundRateDa(state, consoleKind)
 
   let minutes = 0
@@ -3215,6 +3443,23 @@ export function billGameSession(
     label = station
       ? `${station.name} ${consoleLabel} · Prolongation 2 manches (${extraMin} min)`
       : `${consoleLabel} · Prolongation 2 manches`
+  } else if (input.mode === 'match4') {
+    const matchCount = Math.max(1, Math.round(input.matches || 1))
+    const matchMin =
+      input.matchMinutes && input.matchMinutes > 0
+        ? Math.round(input.matchMinutes)
+        : stationMatchMinutes(state, station)
+    minutes = matchMin * matchCount
+    const unit =
+      match4Price > 0
+        ? match4Price
+        : matchPrice > 0
+          ? +(matchPrice * 2).toFixed(2)
+          : +(((hourRateDa(state, consoleKind) * matchMin) / 60) * 2).toFixed(2)
+    totalDa = +(unit * matchCount).toFixed(2)
+    label = station
+      ? `${station.name} ${consoleLabel} · ${matchCount} match 4J (${matchMin} min)`
+      : `${consoleLabel} · ${matchCount} match 4J`
   } else if (input.mode === 'match') {
     if (matchPrice <= 0) {
       const matchMin =
@@ -3254,7 +3499,11 @@ export function billGameSession(
     input.clientLabel,
   )
 
-  if (input.mode === 'match' && input.matchMinutes && input.matchMinutes > 0) {
+  if (
+    (input.mode === 'match' || input.mode === 'match4') &&
+    input.matchMinutes &&
+    input.matchMinutes > 0
+  ) {
     next = updateGameStation(next, input.stationId, {
       matchMinutes: Math.round(input.matchMinutes),
     })
@@ -3264,31 +3513,23 @@ export function billGameSession(
     return { state: next, totalDa, minutes, label }
   }
 
-  const seller = currentSeller(next)
   const st = next.gameStations.find((g) => g.id === input.stationId)
-  const line = {
+  const tabLine: GameStationTabLine = {
+    id: uid('gstab'),
+    kind: 'game',
     productId: `flash_game_${input.mode}_${consoleKind}`,
     name: label,
-    unit: 'piece' as const,
     qty: 1,
     unitPriceDa: totalDa,
-    unitCostDa: 0,
-    lineTotalDa: totalDa,
-    flash: true as const,
+    unit: 'piece',
+    flash: true,
   }
-  next = createOrder(next, {
-    clientId: '',
-    clientName: input.clientLabel?.trim() || st?.clientLabel || 'Passage',
-    clientPhone: '',
-    lines: [line],
-    totalDa,
-    paidDa: totalDa,
-    remainingDa: 0,
-    payment: 'paye',
-    note: `Salle de jeux · ${label}`,
-    sellerId: seller?.id,
-    sellerName: seller?.name,
-  })
+  next = appendStationTabLine(next, input.stationId, tabLine)
+  if (input.clientLabel?.trim() && st && !st.clientLabel) {
+    next = updateGameStation(next, input.stationId, {
+      clientLabel: input.clientLabel.trim(),
+    })
+  }
   return { state: next, totalDa, minutes, label }
 }
 
@@ -3304,7 +3545,7 @@ export function gameFreeMaxMinutes(state: AppState): number {
 }
 
 /**
- * Ajoute du temps gratuit (heure / match / prolongation).
+ * Ajoute du temps gratuit (heure / match / match 4J / prolongation).
  * Enregistre une ligne « minute gratuite » — 0 DA en caisse.
  */
 export function grantGameFreeMinutes(
@@ -3336,6 +3577,7 @@ export function grantGameFreeMinutes(
   const consoleKind = stationConsole(station)
   const consoleLabel = tariffForConsole(state, consoleKind).label
   const matchPrice = matchRateDa(state, consoleKind)
+  const match4Price = match4RateDa(state, consoleKind)
   const extraPrice = extraRoundRateDa(state, consoleKind)
   const cap = gameFreeMaxMinutes(state)
 
@@ -3353,6 +3595,17 @@ export function grantGameFreeMinutes(
         : stationExtraRoundMinutes(state)
     minutes = extraMin * count
     label = `${station.name} ${consoleLabel} · Prolongation gratuite (${extraMin} min)`
+  } else if (input.mode === 'match4') {
+    const matchCount = Math.max(1, Math.round(input.matches || 1))
+    const matchMin =
+      input.matchMinutes && input.matchMinutes > 0
+        ? Math.round(input.matchMinutes)
+        : stationMatchMinutes(state, station)
+    if (match4Price <= 0 && matchPrice <= 0 && matchMin < 1) {
+      return { state, minutes: 0, label: '', ok: false, reason: 'bad' }
+    }
+    minutes = matchMin * matchCount
+    label = `${station.name} ${consoleLabel} · Match 4J gratuit (${matchMin} min)`
   } else if (input.mode === 'match') {
     const matchCount = Math.max(1, Math.round(input.matches || 1))
     const matchMin =
