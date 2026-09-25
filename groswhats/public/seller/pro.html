@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex" />
-    <title>AZ POS Pro — Multi-magasin</title>
+    <title>AZ POS Pro — Tarifs postes</title>
     <style>
       :root {
         font-family: Segoe UI, Trebuchet MS, 'Noto Naskh Arabic', sans-serif;
@@ -23,7 +23,7 @@
           radial-gradient(circle at top left, rgba(15, 107, 76, 0.14), transparent 28%),
           linear-gradient(180deg, #f7f3ea 0%, var(--bg) 40%, #ebe4d7 100%);
       }
-      .wrap { max-width: 720px; margin: 0 auto; padding: 28px 16px 48px; }
+      .wrap { max-width: 760px; margin: 0 auto; padding: 28px 16px 48px; }
       .brand { font-size: 1.7rem; font-weight: 800; letter-spacing: -0.03em; }
       .brand span { color: var(--brand); }
       .card {
@@ -64,7 +64,7 @@
       }
       .price-box strong.amount {
         display: block;
-        font-size: 1.45rem;
+        font-size: 1.35rem;
         margin: 6px 0 2px;
         color: var(--brand);
       }
@@ -92,67 +92,63 @@
         margin-top: 16px;
         padding-top: 14px;
       }
-      .edit-hint {
-        font-size: 0.8rem;
-        color: var(--muted);
-        margin-top: 8px;
-      }
     </style>
   </head>
   <body>
     <div class="wrap">
-      <div class="brand">AZ <span>POS</span> Pro</div>
-      <p class="muted">Vendu par <strong>AZ Soft</strong> — plusieurs magasins, dépôts et stocks séparés.</p>
+      <div class="brand">AZ <span>POS</span> · licences</div>
+      <p class="muted">Vendu par <strong>AZ Soft</strong> — tarif selon le nombre de postes (PC / téléphone).</p>
 
       <div class="card">
         <span class="pill">TARIFS 2026</span>
-        <h1>Plusieurs magasins. Un seul logiciel.</h1>
+        <h1>1 licence = des postes comptés</h1>
         <p class="muted">
-          AZ POS reste simple pour le commerce du quotidien.
-          <strong>AZ POS Pro</strong> ajoute les dépôts et le stock par magasin.
+          <strong>AZ POS</strong> : un seul poste.
+          <strong>AZ POS Pro</strong> : le client choisit 3, 10 ou illimité.
         </p>
         <div class="price-row">
           <div class="price-box">
             <span class="pill">STANDARD</span>
-            <div class="muted">1 magasin · licence annuelle</div>
+            <div class="muted">1 poste · licence annuelle</div>
             <strong class="amount">12 000 DA / an</strong>
-            <div class="muted">Caisse, stock, WhatsApp, mobile + PC</div>
+            <div class="muted">Caisse, stock, WhatsApp — 1 appareil</div>
           </div>
           <div class="price-box">
-            <span class="pill">PRO</span>
-            <div class="muted">Multi-magasin · licence annuelle</div>
+            <span class="pill">PRO · 3</span>
+            <div class="muted">3 postes</div>
             <strong class="amount">25 000 DA / an</strong>
-            <div class="muted">Jusqu’à 3 dépôts inclus · +5 000 DA / dépôt / an au-delà</div>
+            <div class="muted">Multi-magasin / multi-caisse jusqu’à 3</div>
+          </div>
+          <div class="price-box">
+            <span class="pill">PRO · 10</span>
+            <div class="muted">10 postes</div>
+            <strong class="amount">70 000 DA / an</strong>
+            <div class="muted">Chaîne / dépôt + magasins</div>
+          </div>
+          <div class="price-box">
+            <span class="pill">PRO MAX</span>
+            <div class="muted">Postes illimités</div>
+            <strong class="amount">90 000 DA / an</strong>
+            <div class="muted">Réseau sans plafond de postes</div>
           </div>
         </div>
-        <p class="edit-hint">Prix AZ Soft — modifiables dans cette page HTML si tu changes ton tarif.</p>
       </div>
 
       <div class="card">
-        <h2>Inclus dans Pro</h2>
+        <h2>Règle simple</h2>
         <ul>
-          <li>Multi-magasins / dépôts (stock séparé)</li>
-          <li>Magasin actif à la caisse</li>
-          <li>Transfert de stock entre dépôts</li>
-          <li>WhatsApp, tickets, mobile + PC</li>
-          <li>Même app : pas de clé USB</li>
-        </ul>
-      </div>
-
-      <div class="card">
-        <h2>Qui c’est pour ?</h2>
-        <ul>
-          <li>Chaîne de 2–10 magasins</li>
-          <li>Dépôt + points de vente</li>
-          <li>Petite usine avec stock atelier + magasin</li>
+          <li>Licence <strong>Standard</strong> → valable sur <strong>1 seul poste</strong></li>
+          <li>Licence <strong>Pro</strong> → nombre de postes fixé à la vente (3 / 10 / illimité)</li>
+          <li>Chaque poste = PC Windows, téléphone ou tablette qui active AZ POS</li>
+          <li>Pro inclut multi-magasins / dépôts dans la limite des postes</li>
         </ul>
         <a class="btn" href="./license-generator.html">Générer une licence</a>
         <a class="btn ghost" href="https://az-pos-dz.vercel.app" target="_blank" rel="noreferrer">Voir la démo</a>
 
         <div class="ar">
-          <h2>AZ POS Pro</h2>
-          <p class="muted">عدة محلات ومخازن، مخزون منفصل، تحويل بين المخازن.</p>
-          <p class="muted"><strong>السعر:</strong> Standard 12 000 دج/سنة · Pro 25 000 دج/سنة (حتى 3 مخازن).</p>
+          <h2>التراخيص</h2>
+          <p class="muted">عادي = جهاز واحد · Pro = 3 أو 10 أو بلا حد.</p>
+          <p class="muted"><strong>الأسعار:</strong> 12 000 · 25 000 · 70 000 · 90 000 دج/سنة.</p>
         </div>
       </div>
     </div>

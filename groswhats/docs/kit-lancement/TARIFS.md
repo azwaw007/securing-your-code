@@ -1,21 +1,21 @@
 # Tarifs — à communiquer
 
-## Offres produit
+## Offres produit (postes = PC / téléphone)
 
 | Offre | Prix | Contenu |
 |-------|------|---------|
 | **Essai** | Gratuit 15 jours | Démo web + Windows |
-| **AZ POS** | **12 000 DA / an** | 1 magasin — caisse, stock, clients, WhatsApp |
-| **AZ POS Pro** | **25 000 DA / an** | Multi-dépôts (jusqu’à 3), stock séparé, transferts |
-| Dépôt supplémentaire | **+5 000 DA / dépôt / an** | Au-delà de 3 |
+| **AZ POS** | **12 000 DA / an** | **1 poste** — caisse, stock, clients, WhatsApp |
+| **AZ POS Pro · 3** | **25 000 DA / an** | **3 postes** — multi-magasin / multi-caisse |
+| **AZ POS Pro · 10** | **70 000 DA / an** | **10 postes** |
+| **AZ POS Pro Max** | **90 000 DA / an** | **Postes illimités** |
 
 ## Options vendeur (si tu factures l’accompagnement)
 
 | Option | Fourchette indicative |
 |--------|------------------------|
 | Installation + formation | 5 000 – 10 000 DA |
-| Pack lifetime (si client refuse l’abo) | 25 000 – 40 000 DA |
 
 ## Phrase tarif claire
 
-> AZ POS 12 000 DA/an · Pro multi-magasin 25 000 DA/an · Essai gratuit 15 jours.
+> AZ POS 12 000 DA/an (1 poste) · Pro 3 = 25 000 · Pro 10 = 70 000 · Pro Max = 90 000 · Essai gratuit.

@@ -14,8 +14,9 @@ export const SELLER_BRAND = {
   campagneUrl: '/seller/campagne.html',
   /** WhatsApp vendeur — à personnaliser dans la campagne */
   defaultWhatsapp: '',
-  prixDetail: '12 000 DA / an',
-  prixPro: '25 000 DA / an (jusqu’à 3 dépôts) · +5 000 DA / dépôt / an',
+  prixDetail: '12 000 DA / an (1 poste)',
+  prixPro:
+    'Pro 3 postes 25 000 DA · Pro 10 postes 70 000 DA · Pro Max illimité 90 000 DA / an',
 } as const
 
 export type StorySlot = 'matin' | 'midi' | 'soir'

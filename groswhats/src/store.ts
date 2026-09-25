@@ -65,6 +65,7 @@ import {
   sellerCan,
 } from './sellerPermissions'
 import { APP_BRAND } from './brand'
+import { getCachedSeatLimit } from './license/license'
 import { countryByCode, convertPriceDa } from './data/countries'
 import { bestForeignCatalogHit, catalogFor, catalogNameHits } from './data/catalogs'
 import { domainById } from './data/domains'
@@ -286,8 +287,8 @@ export function addLocation(
 ): AppState {
   const trimmed = name.trim()
   if (!trimmed) return state
-  /** Offre Pro : jusqu’à 3 magasins / dépôts */
-  if (state.locations.length >= 3) return state
+  /** Cap = postes de la licence (Standard 1 · Pro 3/10 · Pro Max illimité) */
+  if (state.locations.length >= getCachedSeatLimit()) return state
   const loc: ShopLocation = {
     id: uid('loc'),
     name: trimmed,

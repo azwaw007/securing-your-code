@@ -239,6 +239,9 @@
       @media (min-width: 700px) {
         .pricing { grid-template-columns: 1fr 1fr; }
       }
+      @media (min-width: 980px) {
+        .pricing { grid-template-columns: 1fr 1fr 1fr 1fr; }
+      }
       .plan {
         background: var(--card);
         border: 1px solid var(--line);
@@ -301,7 +304,7 @@
         <h1>AZ POS — la caisse qui suit ton magasin.</h1>
         <p class="lead">
           Stock, clients, crédit et WhatsApp sur téléphone ou PC.
-          Version Pro pour plusieurs magasins.
+          Standard = 1 poste · Pro = 3 / 10 / illimité.
         </p>
         <div class="cta">
           <a
@@ -506,26 +509,46 @@
 
     <section id="tarifs">
       <h2>Tarifs</h2>
-      <p class="muted">Licence annuelle · Paiement simple · Démo gratuite avant d’acheter.</p>
+      <p class="muted">Licence annuelle selon le nombre de postes (PC / téléphone).</p>
       <div class="pricing">
         <article class="plan">
           <strong>AZ POS</strong>
-          <p class="muted">1 magasin — stock, clients, caisse, WhatsApp</p>
+          <p class="muted">1 poste — stock, clients, caisse, WhatsApp</p>
           <span class="price">12 000 DA / an</span>
           <ul>
-            <li>Caisse + stock + clients</li>
+            <li>1 appareil uniquement</li>
             <li>Crédit &amp; facture WhatsApp</li>
             <li>Web, téléphone, Windows</li>
           </ul>
         </article>
         <article class="plan pro">
-          <strong>AZ POS Pro</strong>
-          <p class="muted">Multi-dépôts, stock séparé, transferts</p>
+          <strong>Pro · 3 postes</strong>
+          <p class="muted">Multi-caisse / multi-magasin</p>
           <span class="price">25 000 DA / an</span>
           <ul>
-            <li>Jusqu’à 3 dépôts inclus</li>
-            <li>+5 000 DA / dépôt / an au-delà</li>
-            <li>Magasin actif à la caisse</li>
+            <li>Jusqu’à 3 postes</li>
+            <li>Stock séparé par dépôt</li>
+            <li>Transferts entre magasins</li>
+          </ul>
+        </article>
+        <article class="plan pro">
+          <strong>Pro · 10 postes</strong>
+          <p class="muted">Chaîne / dépôt + magasins</p>
+          <span class="price">70 000 DA / an</span>
+          <ul>
+            <li>Jusqu’à 10 postes</li>
+            <li>Multi-magasin inclus</li>
+            <li>Idéal réseau moyen</li>
+          </ul>
+        </article>
+        <article class="plan pro">
+          <strong>Pro Max</strong>
+          <p class="muted">Postes illimités</p>
+          <span class="price">90 000 DA / an</span>
+          <ul>
+            <li>Aucun plafond de postes</li>
+            <li>Multi-magasin illimité</li>
+            <li>Grandes chaînes</li>
           </ul>
         </article>
       </div>
@@ -550,7 +573,7 @@
       <h2 class="ar">AZ Soft</h2>
       <p class="muted ar">
         نبيع AZ POS للتجار في الجزائر — كاش، مخزون، واتساب.
-        Standard 12 000 دج/سنة · Pro 25 000 دج/سنة.
+        Standard 12 000 · Pro 25 000 (3) · 70 000 (10) · 90 000 (∞) دج/سنة.
       </p>
     </section>
 

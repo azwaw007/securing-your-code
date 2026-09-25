@@ -6,8 +6,10 @@
 - Windows : https://github.com/azwaw007/securing-your-code/releases/download/v1.2.5/AZ-POS-Setup-1.2.5.exe
 
 ## Tarifs
-- Standard : 12 000 DA / an
-- Pro : 25 000 DA / an (≤3 dépôts)
+- Standard : 12 000 DA / an (**1 poste**)
+- Pro 3 postes : 25 000 DA / an
+- Pro 10 postes : 70 000 DA / an
+- Pro Max (illimité) : 90 000 DA / an
 
 ## Kit lancement (vendeur, privé)
 Tout pour finir et lancer la pub :  
