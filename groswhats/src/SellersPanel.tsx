@@ -1,12 +1,18 @@
 import { useState } from 'react'
-import type { AppState, Language, PosSeller, PosSellerRole } from './types'
+import type { AppState, GameConsoleKind, Language, PosSeller, PosSellerRole } from './types'
 import { t } from './i18n'
 import {
   addSeller,
   currentSeller,
   deleteSeller,
+  ensureGameStations,
+  gameFreeMaxMinutes,
   resolveGameTariffs,
   setCurrentSeller,
+  stationConsole,
+  tariffForConsole,
+  updateGameStation,
+  updateSeller,
   updateSettings,
   verifyAdminPin,
 } from './store'
@@ -237,7 +243,36 @@ export function SellersPanel({
                     ? t(lang, 'sellerRoleAdmin')
                     : t(lang, 'sellerRoleVendeur')}
                   {s.pin ? ' · PIN' : ''}
+                  {s.role === 'vendeur' ? (
+                    <>
+                      {' · '}
+                      {s.canGrantFreeMinutes
+                        ? t(lang, 'gameFreeAllowOn')
+                        : t(lang, 'gameFreeAllowOff')}
+                    </>
+                  ) : null}
                 </div>
+                {unlocked && s.role === 'vendeur' ? (
+                  <label className="field check-row" style={{ marginTop: 6 }}>
+                    <input
+                      type="checkbox"
+                      checked={s.canGrantFreeMinutes === true}
+                      onChange={(e) => {
+                        onState(
+                          updateSeller(state, s.id, {
+                            canGrantFreeMinutes: e.target.checked,
+                          }),
+                        )
+                        onFlash(
+                          e.target.checked
+                            ? `${s.name} · ${t(lang, 'gameFreeAllowOn')}`
+                            : `${s.name} · ${t(lang, 'gameFreeAllowOff')}`,
+                        )
+                      }}
+                    />
+                    <span>{t(lang, 'gameFreeAllow')}</span>
+                  </label>
+                ) : null}
               </div>
               <div className="btn-row">
                 <button
@@ -290,11 +325,18 @@ export function GamePriceAdminCard({
   const tariffs = resolveGameTariffs(state)
   const [pin, setPin] = useState('')
   const [open, setOpen] = useState(false)
-  const [ps4Hour, setPs4Hour] = useState(String(tariffs.ps4HourDa))
-  const [ps5Hour, setPs5Hour] = useState(String(tariffs.ps5HourDa))
-  const [ps4Match, setPs4Match] = useState(String(tariffs.ps4MatchDa))
-  const [ps5Match, setPs5Match] = useState(String(tariffs.ps5MatchDa))
+  const [rows, setRows] = useState(
+    tariffs.consoles.map((c) => ({
+      id: c.id,
+      label: c.label,
+      hour: String(c.hourDa),
+      match: String(c.matchDa),
+      extra: String(c.extraRoundDa),
+    })),
+  )
   const [matchMin, setMatchMin] = useState(String(tariffs.matchMinutes))
+  const [extraMin, setExtraMin] = useState(String(tariffs.extraRoundMinutes))
+  const [freeCap, setFreeCap] = useState(String(gameFreeMaxMinutes(state)))
 
   function unlock() {
     if (!verifyAdminPin(state, pin)) {
@@ -312,25 +354,38 @@ export function GamePriceAdminCard({
   }
 
   function save() {
-    const a = num(ps4Hour)
-    const b = num(ps5Hour)
-    const c = num(ps4Match)
-    const d = num(ps5Match)
     const m = Math.round(Number(matchMin))
-    if (a === null || b === null || c === null || d === null || !Number.isFinite(m) || m < 1) {
+    const em = Math.round(Number(extraMin))
+    if (!Number.isFinite(m) || m < 1 || !Number.isFinite(em) || em < 1) {
       onFlash(t(lang, 'gamePriceBad'))
       return
     }
+    const consoles = []
+    for (const r of rows) {
+      const hour = num(r.hour)
+      const match = num(r.match)
+      const extra = num(r.extra)
+      if (hour === null || match === null || extra === null) {
+        onFlash(t(lang, 'gamePriceBad'))
+        return
+      }
+      consoles.push({
+        id: r.id,
+        label: r.label,
+        hourDa: hour,
+        matchDa: match,
+        extraRoundDa: extra,
+      })
+    }
+    const ps4 = consoles.find((c) => c.id === 'ps4')
     onState(
       updateSettings(state, {
         gameTariffs: {
-          ps4HourDa: a,
-          ps5HourDa: b,
-          ps4MatchDa: c,
-          ps5MatchDa: d,
           matchMinutes: m,
+          extraRoundMinutes: em,
+          consoles,
         },
-        gamePricePerMinuteDa: +(a / 60).toFixed(2),
+        gamePricePerMinuteDa: ps4 ? +(ps4.hourDa / 60).toFixed(2) : undefined,
       }),
     )
     onFlash(t(lang, 'gamePriceSaved'))
@@ -340,19 +395,36 @@ export function GamePriceAdminCard({
     <div className="card">
       <h2>{t(lang, 'gamePriceTitle')}</h2>
       <p className="muted">{t(lang, 'gamePriceHint')}</p>
+      <p className="muted" style={{ marginTop: 0 }}>
+        {t(lang, 'gameExtraHint')}
+      </p>
       {!open ? (
         <>
-          <div className="muted" style={{ marginBottom: 8 }}>
+          <div className="muted game-admin-preview" style={{ marginBottom: 8 }}>
+            {tariffs.consoles.map((c) => (
+              <div key={c.id}>
+                {c.label} : <strong>{c.hourDa} DA</strong>/h
+                {c.matchDa > 0 ? (
+                  <>
+                    {' '}
+                    · <strong>{c.matchDa} DA</strong>/{t(lang, 'gameMatchShort')}
+                  </>
+                ) : null}
+                {c.extraRoundDa > 0 ? (
+                  <>
+                    {' '}
+                    · <strong>{c.extraRoundDa} DA</strong>/{t(lang, 'gameExtraShort')}
+                  </>
+                ) : null}
+              </div>
+            ))}
             <div>
-              PS4 : <strong>{tariffs.ps4HourDa} DA</strong>/h ·{' '}
-              <strong>{tariffs.ps4MatchDa} DA</strong>/{t(lang, 'gameMatchShort')}
+              {t(lang, 'gameMatchDefault')}:{' '}
+              <strong>{tariffs.matchMinutes} min</strong>
             </div>
             <div>
-              PS5 : <strong>{tariffs.ps5HourDa} DA</strong>/h ·{' '}
-              <strong>{tariffs.ps5MatchDa} DA</strong>/{t(lang, 'gameMatchShort')}
-            </div>
-            <div>
-              {t(lang, 'gameMatchDefault')}: <strong>{tariffs.matchMinutes} min</strong>
+              {t(lang, 'gameExtraDefault')}:{' '}
+              <strong>{tariffs.extraRoundMinutes} min</strong>
             </div>
           </div>
           <div className="field">
@@ -372,47 +444,59 @@ export function GamePriceAdminCard({
         </>
       ) : (
         <>
-          <div className="grid-2">
-            <div className="field">
-              <label>{t(lang, 'gameTariffPs4Hour')}</label>
-              <input
-                type="number"
-                min={0}
-                step={10}
-                value={ps4Hour}
-                onChange={(e) => setPs4Hour(e.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label>{t(lang, 'gameTariffPs5Hour')}</label>
-              <input
-                type="number"
-                min={0}
-                step={10}
-                value={ps5Hour}
-                onChange={(e) => setPs5Hour(e.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label>{t(lang, 'gameTariffPs4Match')}</label>
-              <input
-                type="number"
-                min={0}
-                step={10}
-                value={ps4Match}
-                onChange={(e) => setPs4Match(e.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label>{t(lang, 'gameTariffPs5Match')}</label>
-              <input
-                type="number"
-                min={0}
-                step={10}
-                value={ps5Match}
-                onChange={(e) => setPs5Match(e.target.value)}
-              />
-            </div>
+          <div className="game-tariff-edit">
+            {rows.map((r, i) => (
+              <div key={r.id} className="game-tariff-edit-row">
+                <strong>{r.label}</strong>
+                <div className="grid-2">
+                  <div className="field">
+                    <label>{t(lang, 'gameTariffHour')}</label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={10}
+                      value={r.hour}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        setRows((prev) =>
+                          prev.map((x, j) => (j === i ? { ...x, hour: v } : x)),
+                        )
+                      }}
+                    />
+                  </div>
+                  <div className="field">
+                    <label>{t(lang, 'gameTariffMatch')}</label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={10}
+                      value={r.match}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        setRows((prev) =>
+                          prev.map((x, j) => (j === i ? { ...x, match: v } : x)),
+                        )
+                      }}
+                    />
+                  </div>
+                  <div className="field">
+                    <label>{t(lang, 'gameTariffExtra')}</label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={5}
+                      value={r.extra}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        setRows((prev) =>
+                          prev.map((x, j) => (j === i ? { ...x, extra: v } : x)),
+                        )
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
           <div className="field">
             <label>{t(lang, 'gameMatchDefault')}</label>
@@ -424,11 +508,176 @@ export function GamePriceAdminCard({
               onChange={(e) => setMatchMin(e.target.value)}
             />
           </div>
+          <div className="field">
+            <label>{t(lang, 'gameExtraDefault')}</label>
+            <input
+              type="number"
+              min={1}
+              max={60}
+              value={extraMin}
+              onChange={(e) => setExtraMin(e.target.value)}
+            />
+          </div>
           <button type="button" className="btn block" onClick={save}>
             {t(lang, 'save')}
           </button>
+
+          <hr style={{ margin: '16px 0', border: 0, borderTop: '1px solid var(--line)' }} />
+          <h3 style={{ margin: '0 0 6px' }}>{t(lang, 'gameAssignConsoles')}</h3>
+          <p className="muted" style={{ marginTop: 0 }}>
+            {t(lang, 'gameAssignConsolesHint')}
+          </p>
+          <AdminStationConsoleList
+            state={state}
+            lang={lang}
+            onState={onState}
+            onFlash={onFlash}
+          />
+
+          <hr style={{ margin: '16px 0', border: 0, borderTop: '1px solid var(--line)' }} />
+          <h3 style={{ margin: '0 0 6px' }}>{t(lang, 'gameFreeTitle')}</h3>
+          <p className="muted" style={{ marginTop: 0 }}>
+            {t(lang, 'gameFreeHint')}
+          </p>
+          <div className="field">
+            <label>{t(lang, 'gameFreeCap')}</label>
+            <input
+              type="number"
+              min={1}
+              max={180}
+              value={freeCap}
+              onChange={(e) => setFreeCap(e.target.value)}
+            />
+          </div>
+          <button
+            type="button"
+            className="btn secondary block"
+            onClick={() => {
+              const n = Math.round(Number(freeCap))
+              if (!Number.isFinite(n) || n < 1 || n > 180) {
+                onFlash(t(lang, 'gameFreeCapBad'))
+                return
+              }
+              onState(updateSettings(state, { gameFreeMaxMinutes: n }))
+              onFlash(t(lang, 'gameFreeCapSaved'))
+            }}
+          >
+            {t(lang, 'save')}
+          </button>
+          <p className="muted" style={{ marginTop: 10 }}>
+            {t(lang, 'gameFreeLog')}
+          </p>
+          <GameFreeMinutesLog state={state} lang={lang} />
         </>
       )}
+    </div>
+  )
+}
+
+function GameFreeMinutesLog({
+  state,
+  lang,
+}: {
+  state: AppState
+  lang: Language
+}) {
+  const logs = (state.gameFreeMinutes ?? []).slice(0, 20)
+  if (logs.length === 0) {
+    return <div className="empty">{t(lang, 'gameFreeLogEmpty')}</div>
+  }
+  return (
+    <div className="game-free-log">
+      {logs.map((e) => {
+        const when = e.createdAt
+          ? new Date(e.createdAt).toLocaleString(
+              lang === 'ar' ? 'ar-DZ' : 'fr-DZ',
+              { dateStyle: 'short', timeStyle: 'short' },
+            )
+          : ''
+        const modeLabel =
+          e.mode === 'match'
+            ? t(lang, 'gameMatchShort')
+            : e.mode === 'extra'
+              ? t(lang, 'gameExtraShort')
+              : t(lang, 'gameMinShort')
+        return (
+          <div key={e.id} className="list-item game-free-log-row">
+            <div>
+              <strong>
+                {e.stationName} · {e.minutes} min · {modeLabel}
+              </strong>
+              <div className="muted">
+                {e.sellerName || '—'}
+                {e.clientLabel ? ` · ${e.clientLabel}` : ''}
+                {when ? ` · ${when}` : ''}
+              </div>
+            </div>
+            <span className="game-free-badge">{t(lang, 'gameFreeShort')}</span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function AdminStationConsoleList({
+  state,
+  lang,
+  onState,
+  onFlash,
+}: {
+  state: AppState
+  lang: Language
+  onState: (next: AppState) => void
+  onFlash: (msg: string) => void
+}) {
+  const withStations = ensureGameStations(state)
+  const stations = withStations.gameStations ?? []
+  const consoles = resolveGameTariffs(state).consoles
+
+  if (stations.length === 0) {
+    return <div className="empty">{t(lang, 'gameStationsEmpty')}</div>
+  }
+
+  return (
+    <div className="game-assign-list">
+      {stations.map((st) => {
+        const kind = stationConsole(st)
+        return (
+          <div key={st.id} className="game-assign-row list-item">
+            <div>
+              <strong>{st.name}</strong>
+              <div className="muted">
+                {tariffForConsole(state, kind).label}
+              </div>
+            </div>
+            <select
+              value={kind}
+              onChange={(e) => {
+                const nextKind = e.target.value as GameConsoleKind
+                let next = withStations === state ? state : withStations
+                next = updateGameStation(next, st.id, { consoleKind: nextKind })
+                onState(next)
+                onFlash(
+                  t(lang, 'gameConsoleAssigned')
+                    .replace('{poste}', st.name)
+                    .replace(
+                      '{console}',
+                      tariffForConsole(next, nextKind).label,
+                    ),
+                )
+              }}
+              aria-label={`${st.name} console`}
+            >
+              {consoles.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )
+      })}
     </div>
   )
 }

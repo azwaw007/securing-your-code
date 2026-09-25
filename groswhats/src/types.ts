@@ -460,20 +460,38 @@ export type GameStationStatus = 'free' | 'active' | 'standby'
 /** Prise / TV Wi‑Fi sur le réseau local */
 export type TvControlKind = 'shelly' | 'tasmota' | 'custom'
 
-export type GameConsoleKind = 'ps4' | 'ps5'
+export type GameConsoleKind =
+  | 'xbox_one'
+  | 'ps4'
+  | 'ps4_pro'
+  | 'ps5'
+  | 'xbox_360'
+  | 'xbox_series_s'
+
+/** Une ligne de tarif console (heure + match + شوط إضافي) */
+export interface GameConsoleTariff {
+  id: GameConsoleKind
+  label: string
+  hourDa: number
+  /** 0 = pas de tarif match (ex. Xbox 360) */
+  matchDa: number
+  /** Prolongation = les 2 manches de temps additionnel — 0 = pas proposé */
+  extraRoundDa: number
+}
 
 /** Tarifs salle de jeux (réglages admin) */
 export interface GameTariffs {
-  /** Tarif heure PS4 (DA) */
-  ps4HourDa: number
-  /** Tarif heure PS5 (DA) */
-  ps5HourDa: number
-  /** Tarif match / partie PS4 (DA) */
-  ps4MatchDa: number
-  /** Tarif match / partie PS5 (DA) */
-  ps5MatchDa: number
   /** Durée d’un match par défaut (minutes) */
   matchMinutes: number
+  /** Durée totale prolongation (2 manches) en minutes */
+  extraRoundMinutes: number
+  /** Grille consoles */
+  consoles: GameConsoleTariff[]
+  /** @deprecated migration — préférer consoles[] */
+  ps4HourDa?: number
+  ps5HourDa?: number
+  ps4MatchDa?: number
+  ps5MatchDa?: number
 }
 
 export interface GameStation {
@@ -482,7 +500,7 @@ export interface GameStation {
   name: string
   number: number
   status: GameStationStatus
-  /** PS4 ou PS5 sur ce poste */
+  /** PS4, PS5, Xbox… sur ce poste */
   consoleKind?: GameConsoleKind
   /**
    * Durée match (minutes) pour ce poste — sinon tarif global matchMinutes.
@@ -495,6 +513,8 @@ export interface GameStation {
   startedAt?: string
   /** Minutes payées / ajoutées sur la session courante */
   paidMinutes?: number
+  /** Minutes gratuites ajoutées sur la session courante */
+  freeMinutes?: number
   /** Nom joueur / ticket (optionnel) */
   clientLabel?: string
   note?: string
@@ -664,6 +684,11 @@ export interface ShopSettings {
   gamePricePerMinuteDa?: number
   /** Tarifs PS4 / PS5 — heure et match */
   gameTariffs?: GameTariffs
+  /**
+   * Plafond minutes gratuites (mode heure) par ajout — défaut 30.
+   * Match / prolongation = 1 unité gratuite (durée tarif).
+   */
+  gameFreeMaxMinutes?: number
   /** Vendeur / admin actuellement connecté sur cet appareil */
   currentSellerId?: string
   /** Identité fiscale magasin (outil fiscal) */
@@ -777,6 +802,27 @@ export interface PosSeller {
   pin: string
   active: boolean
   createdAt: string
+  /**
+   * Autorisé par l’admin à ajouter des minutes gratuites
+   * (heure / match / prolongation) sur les postes.
+   */
+  canGrantFreeMinutes?: boolean
+}
+
+/** Journal des minutes gratuites salle de jeux */
+export interface GameFreeMinuteEntry {
+  id: string
+  stationId: string
+  stationName: string
+  consoleKind: GameConsoleKind
+  /** heure | match | prolongation */
+  mode: 'hour' | 'match' | 'extra'
+  minutes: number
+  sellerId?: string
+  sellerName?: string
+  clientLabel?: string
+  createdAt: string
+  note?: string
 }
 
 export type MissionStatus = 'draft' | 'assigned' | 'in_progress' | 'done'
@@ -869,6 +915,8 @@ export interface AppState {
   tables: FloorTable[]
   /** Postes PlayStation (salle de jeux) */
   gameStations: GameStation[]
+  /** Journal minutes gratuites (salle de jeux) */
+  gameFreeMinutes: GameFreeMinuteEntry[]
   /** Ordres de réparation (garage, atelier…) */
   repairOrders: RepairOrder[]
   /** Mémoire scan facture : nom OCR → produit (corrections utilisateur) */

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type {
   AppState,
-  GameConsoleKind,
   GameStation,
   Language,
   TvControlKind,
@@ -14,14 +13,16 @@ import {
   ensureGameStations,
   expireGameStations,
   freeGameStation,
-  hourRateDa,
-  matchRateDa,
+  gameFreeMaxMinutes,
+  grantGameFreeMinutes,
   removeGameStation,
   resolveGameTariffs,
   setGameStationStandby,
   setGameStationCount,
+  sellerCanGrantFreeMinutes,
   stationConsole,
   stationMatchMinutes,
+  tariffForConsole,
   updateGameStation,
 } from './store'
 import {
@@ -32,6 +33,7 @@ import {
 import { playBarcodeError, playCash } from './utils/sfx'
 
 const HOUR_PRESETS = [15, 30, 60, 120] as const
+const FREE_MIN_PRESETS = [5, 10, 15] as const
 
 function formatRemaining(endsAt: string | undefined, now: number): string {
   if (!endsAt) return '—'
@@ -125,7 +127,7 @@ export function GameStationsPanel({
 
   async function applyStart(
     st: GameStation,
-    mode: 'hour' | 'match',
+    mode: 'hour' | 'match' | 'extra',
     opts: { minutes?: number; matches?: number; matchMinutes?: number },
   ) {
     const wasFree = st.status !== 'active'
@@ -149,8 +151,11 @@ export function GameStationsPanel({
       minutes = res.minutes
     } else {
       const mins =
-        mode === 'match'
-          ? (opts.matchMinutes || stationMatchMinutes(state, st)) *
+        mode === 'match' || mode === 'extra'
+          ? (opts.matchMinutes ||
+              (mode === 'extra'
+                ? tariffs.extraRoundMinutes
+                : stationMatchMinutes(state, st))) *
             Math.max(1, opts.matches || 1)
           : Math.max(1, opts.minutes || 60)
       nextState = addGameStationTime(state, st.id, mins, label)
@@ -185,6 +190,58 @@ export function GameStationsPanel({
     }
   }
 
+  async function applyFree(
+    st: GameStation,
+    mode: 'hour' | 'match' | 'extra',
+    opts: { minutes?: number; matches?: number; matchMinutes?: number },
+  ) {
+    if (!sellerCanGrantFreeMinutes(state)) {
+      onFlash(t(lang, 'gameFreeDenied'))
+      return
+    }
+    const wasFree = st.status !== 'active'
+    const label = labelDraft.trim() || st.clientLabel
+    const res = grantGameFreeMinutes(state, {
+      stationId: st.id,
+      mode,
+      minutes: opts.minutes,
+      matches: opts.matches,
+      matchMinutes: opts.matchMinutes,
+      clientLabel: label,
+    })
+    if (!res.ok) {
+      if (res.reason === 'denied') onFlash(t(lang, 'gameFreeDenied'))
+      else if (res.reason === 'cap') {
+        onFlash(
+          t(lang, 'gameFreeCapHit').replace(
+            '{max}',
+            String(gameFreeMaxMinutes(state)),
+          ),
+        )
+      } else onFlash(t(lang, 'gamePriceBad'))
+      return
+    }
+    onState(res.state)
+    playCash()
+    onFlash(
+      t(lang, 'gameFreeGranted')
+        .replace('{name}', st.name)
+        .replace('{min}', String(res.minutes)),
+    )
+    setLabelDraft('')
+    if (wasFree && stationHasTvControl(st)) {
+      const updated = res.state.gameStations.find((g) => g.id === st.id) || st
+      const tv = await turnTvOn(updated)
+      if (tv.ok) onFlash(t(lang, 'gameTvOnOk').replace('{name}', st.name))
+      else if (tv.reason === 'network') {
+        onFlash(t(lang, 'gameTvOnFail').replace('{name}', st.name))
+      }
+    }
+  }
+
+  const canFree = sellerCanGrantFreeMinutes(state)
+  const freeCap = gameFreeMaxMinutes(state)
+
   return (
     <section className="card game-stations">
       <div className="game-stations-head">
@@ -211,11 +268,23 @@ export function GameStationsPanel({
       </div>
 
       <div className="game-tariff-strip muted">
-        PS4 {tariffs.ps4HourDa} DA/h · {tariffs.ps4MatchDa} DA/{t(lang, 'gameMatchShort')}
-        {' · '}
-        PS5 {tariffs.ps5HourDa} DA/h · {tariffs.ps5MatchDa} DA/{t(lang, 'gameMatchShort')}
-        {' · '}
-        {t(lang, 'gameMatchDefault')}: {tariffs.matchMinutes} min
+        {tariffs.consoles.map((c) => (
+          <span key={c.id} className="game-tariff-chip">
+            {c.label} {c.hourDa} DA/h
+            {c.matchDa > 0
+              ? ` · ${c.matchDa} DA/${t(lang, 'gameMatchShort')}`
+              : ''}
+            {c.extraRoundDa > 0
+              ? ` · ${c.extraRoundDa} DA/${t(lang, 'gameExtraShort')}`
+              : ''}
+          </span>
+        ))}
+        <span className="game-tariff-chip">
+          {t(lang, 'gameMatchDefault')}: {tariffs.matchMinutes} min
+        </span>
+        <span className="game-tariff-chip">
+          {t(lang, 'gameExtraDefault')}: {tariffs.extraRoundMinutes} min
+        </span>
       </div>
 
       <div className="game-count-row">
@@ -305,27 +374,33 @@ export function GameStationsPanel({
                 setConfigId(configId === st.id ? null : st.id)
               }
               onHour={(minutes) => void applyStart(st, 'hour', { minutes })}
-              onMatch={(matchMinutes) =>
-                void applyStart(st, 'match', { matches: 1, matchMinutes })
+              onMatch={() =>
+                void applyStart(st, 'match', {
+                  matches: 1,
+                  matchMinutes: stationMatchMinutes(state, st),
+                })
               }
-              onSetConsole={(kind) => {
-                onState(updateGameStation(state, st.id, { consoleKind: kind }))
-                onFlash(
-                  `${st.name} → ${kind === 'ps5' ? 'PS5' : 'PS4'}`,
-                )
-              }}
-              onSetMatchMinutes={(mins) => {
-                onState(
-                  updateGameStation(state, st.id, {
-                    matchMinutes: Math.max(1, Math.round(mins)),
-                  }),
-                )
-                onFlash(
-                  t(lang, 'gameMatchMinSaved')
-                    .replace('{name}', st.name)
-                    .replace('{min}', String(Math.round(mins))),
-                )
-              }}
+              onExtra={() =>
+                void applyStart(st, 'extra', {
+                  matches: 1,
+                  matchMinutes: tariffs.extraRoundMinutes,
+                })
+              }
+              canFree={canFree}
+              freeCap={freeCap}
+              onFreeHour={(minutes) => void applyFree(st, 'hour', { minutes })}
+              onFreeMatch={() =>
+                void applyFree(st, 'match', {
+                  matches: 1,
+                  matchMinutes: stationMatchMinutes(state, st),
+                })
+              }
+              onFreeExtra={() =>
+                void applyFree(st, 'extra', {
+                  matches: 1,
+                  matchMinutes: tariffs.extraRoundMinutes,
+                })
+              }
               onStandby={async () => {
                 onState(setGameStationStandby(state, st.id))
                 onFlash(t(lang, 'gameStandbyOk').replace('{name}', st.name))
@@ -391,8 +466,12 @@ function StationTile({
   onToggleConfig,
   onHour,
   onMatch,
-  onSetConsole,
-  onSetMatchMinutes,
+  onExtra,
+  canFree,
+  freeCap,
+  onFreeHour,
+  onFreeMatch,
+  onFreeExtra,
   onStandby,
   onFree,
   onRemove,
@@ -408,9 +487,13 @@ function StationTile({
   customMin: string
   onToggleConfig: () => void
   onHour: (minutes: number) => void
-  onMatch: (matchMinutes: number) => void
-  onSetConsole: (kind: GameConsoleKind) => void
-  onSetMatchMinutes: (mins: number) => void
+  onMatch: () => void
+  onExtra: () => void
+  canFree: boolean
+  freeCap: number
+  onFreeHour: (minutes: number) => void
+  onFreeMatch: () => void
+  onFreeExtra: () => void
   onStandby: () => void | Promise<void>
   onFree: () => void
   onRemove: () => void
@@ -428,19 +511,17 @@ function StationTile({
   const warn = st.status === 'active' && rem > 0 && rem <= 5 * 60_000
   const kind = stationConsole(st)
   const matchMin = stationMatchMinutes(state, st)
-  const [matchDraft, setMatchDraft] = useState(String(matchMin))
-  const hourDa = hourRateDa(state, kind)
-  const matchDa = matchRateDa(state, kind)
-
-  useEffect(() => {
-    setMatchDraft(String(matchMin))
-  }, [matchMin])
+  const tariff = tariffForConsole(state, kind)
+  const hourDa = tariff.hourDa
+  const matchDa = tariff.matchDa
+  const extraDa = tariff.extraRoundDa
+  const freePresets = FREE_MIN_PRESETS.filter((m) => m <= freeCap)
 
   const tileClass = [
     'game-tile',
     `is-${st.status}`,
     warn ? 'is-warn' : '',
-    kind === 'ps5' ? 'is-ps5' : 'is-ps4',
+    `is-${kind}`,
   ]
     .filter(Boolean)
     .join(' ')
@@ -449,28 +530,12 @@ function StationTile({
     <div className={tileClass}>
       <div className="game-tile-top">
         <strong>{st.name}</strong>
+        <span className="game-console-badge">{tariff.label}</span>
         {stationHasTvControl(st) ? (
           <span className="game-tv-badge" title={st.tvHost || ''}>
             TV
           </span>
         ) : null}
-      </div>
-
-      <div className="game-console-toggle">
-        <button
-          type="button"
-          className={`game-console-btn ${kind === 'ps4' ? 'is-on' : ''}`}
-          onClick={() => onSetConsole('ps4')}
-        >
-          PS4
-        </button>
-        <button
-          type="button"
-          className={`game-console-btn ${kind === 'ps5' ? 'is-on' : ''}`}
-          onClick={() => onSetConsole('ps5')}
-        >
-          PS5
-        </button>
       </div>
 
       <div className="game-timer" aria-live="polite">
@@ -481,7 +546,20 @@ function StationTile({
             : t(lang, 'gameFree')}
       </div>
       <div className="muted game-tile-meta">
-        {st.clientLabel || `${hourDa} DA/h · ${matchDa} DA/${t(lang, 'gameMatchShort')}`}
+        {st.clientLabel
+          ? st.clientLabel
+          : `${hourDa} DA/h${
+              matchDa > 0
+                ? ` · ${matchDa} DA/${t(lang, 'gameMatchShort')} (${matchMin} min)`
+                : ''
+            }${
+              extraDa > 0
+                ? ` · ${extraDa} DA/${t(lang, 'gameExtraShort')}`
+                : ''
+            }`}
+        {st.freeMinutes && st.freeMinutes > 0
+          ? ` · ${t(lang, 'gameFreeSession').replace('{n}', String(st.freeMinutes))}`
+          : ''}
       </div>
 
       <div className="game-presets">
@@ -510,34 +588,68 @@ function StationTile({
         </button>
       ) : null}
 
-      <div className="game-match-box">
-        <label className="muted">{t(lang, 'gameMatchDuration')}</label>
-        <div className="game-match-row">
-          <input
-            type="number"
-            min={1}
-            max={180}
-            value={matchDraft}
-            onChange={(e) => setMatchDraft(e.target.value)}
-            onBlur={() => {
-              const n = Number(matchDraft)
-              if (Number.isFinite(n) && n >= 1) onSetMatchMinutes(n)
-            }}
-          />
-          <span className="muted">min</span>
-          <button
-            type="button"
-            className="btn"
-            onClick={() => {
-              const n = Math.max(1, Math.round(Number(matchDraft) || matchMin))
-              onSetMatchMinutes(n)
-              onMatch(n)
-            }}
-          >
-            +{t(lang, 'gameMatchShort')} ({matchDa} DA)
+      <div className="btn-row game-tile-actions" style={{ marginTop: 8 }}>
+        {matchDa > 0 ? (
+          <button type="button" className="btn" onClick={onMatch}>
+            +{t(lang, 'gameMatchShort')} {matchMin}′ ({matchDa} DA)
           </button>
-        </div>
+        ) : null}
+        {extraDa > 0 ? (
+          <button type="button" className="btn secondary" onClick={onExtra}>
+            +{t(lang, 'gameExtraShort')} ({extraDa} DA)
+          </button>
+        ) : null}
       </div>
+
+      {canFree ? (
+        <div className="game-free-actions">
+          <div className="muted game-free-label">{t(lang, 'gameFreeShort')}</div>
+          <div className="game-presets">
+            {freePresets.map((m) => (
+              <button
+                key={`f${m}`}
+                type="button"
+                className="btn ghost game-free-btn"
+                onClick={() => onFreeHour(m)}
+              >
+                +{m}′
+              </button>
+            ))}
+            {customMin ? (
+              <button
+                type="button"
+                className="btn ghost game-free-btn"
+                onClick={() => {
+                  const m = Math.round(Number(customMin))
+                  if (m >= 1) onFreeHour(m)
+                }}
+              >
+                +{customMin}′
+              </button>
+            ) : null}
+          </div>
+          <div className="btn-row game-tile-actions">
+            {matchDa > 0 || matchMin > 0 ? (
+              <button
+                type="button"
+                className="btn ghost game-free-btn"
+                onClick={onFreeMatch}
+              >
+                {t(lang, 'gameFreeMatch')}
+              </button>
+            ) : null}
+            {extraDa > 0 ? (
+              <button
+                type="button"
+                className="btn ghost game-free-btn"
+                onClick={onFreeExtra}
+              >
+                {t(lang, 'gameFreeExtra')}
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       <div className="btn-row game-tile-actions">
         {st.status === 'active' ? (
