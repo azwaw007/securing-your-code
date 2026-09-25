@@ -1183,7 +1183,7 @@ const fr: Dict = {
   gameClientLabel: 'Joueur / ticket (optionnel)',
   gameClientLabelHint: 'Nom ou n° ticket',
   gameTvLanNote:
-    'Chaque poste : IP de la prise Wi‑Fi de la TV (Shelly / Tasmota) sur le même réseau. AZ POS Windows recommandé.',
+    'Branchement : prise Wi‑Fi (Shelly/Tasmota) entre la murale et la TV, même Wi‑Fi que le PC. Voir docs/SALLE-JEUX-TV-WIFI.md. AZ POS Windows recommandé.',
   gameTvConfig: 'TV Wi‑Fi',
   gameTvKind: 'Type de boîtier',
   gameTvHost: 'Adresse IP (réseau local)',
@@ -2461,7 +2461,7 @@ const ar: Dict = {
   gameClientLabel: 'اللاعب / التذكرة (اختياري)',
   gameClientLabelHint: 'الاسم أو رقم التذكرة',
   gameTvLanNote:
-    'لكل جهاز: IP مقبس واي فاي التلفزيون (Shelly / Tasmota) على نفس الشبكة. يُفضَّل AZ POS ويندوز.',
+    'كل منصب: مقبس واي فاي (Shelly/Tasmota) بين الحائط والتلفزيون، نفس شبكة الجهاز. يُفضَّل AZ POS ويندوز.',
   gameTvConfig: 'تلفزيون واي فاي',
   gameTvKind: 'نوع الجهاز',
   gameTvHost: 'عنوان IP (شبكة محلية)',
