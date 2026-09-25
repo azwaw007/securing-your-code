@@ -149,6 +149,7 @@ import {
   showRetailVariants,
 } from './locale/retailRayons'
 import { LanguagePicker } from './locale/LanguagePicker'
+import { getCachedSeatLimit, getCachedPlanId, isProPlan } from './license/license'
 import { applyEffectiveTheme, applyUiTheme, themeLabel, THEME_PRESETS } from './utils/theme'
 import {
   DEFAULT_AGENT_PERMISSIONS,
@@ -2184,11 +2185,28 @@ function SettingsPage({
           <input
             type="checkbox"
             checked={state.settings.multiLocationEnabled === true}
-            onChange={(e) => onToggleMultiLocation(e.target.checked)}
+            disabled={!isProPlan(getCachedPlanId()) && getCachedPlanId() !== 'trial'}
+            onChange={(e) => {
+              if (!isProPlan(getCachedPlanId()) && getCachedPlanId() !== 'trial') {
+                window.alert(
+                  'Multi-magasin réservé à AZ POS Pro (3 / 10 / illimité postes).',
+                )
+                return
+              }
+              onToggleMultiLocation(e.target.checked)
+            }}
           />
           <span>
             <strong>{t(lang, 'multiLocation')}</strong>
             <div className="muted">{t(lang, 'multiLocationHint')}</div>
+            {!isProPlan(getCachedPlanId()) && getCachedPlanId() !== 'trial' ? (
+              <div className="muted">Licence 1 poste : un seul magasin. Passez en Pro pour plusieurs postes.</div>
+            ) : (
+              <div className="muted">
+                Postes / dépôts autorisés :{' '}
+                {getCachedSeatLimit() >= 9999 ? 'illimités' : getCachedSeatLimit()}
+              </div>
+            )}
           </span>
         </label>
 
@@ -2236,7 +2254,9 @@ function SettingsPage({
               <button
                 type="button"
                 className="btn secondary"
-                disabled={!newLocName.trim() || state.locations.length >= 3}
+                disabled={
+                  !newLocName.trim() || state.locations.length >= getCachedSeatLimit()
+                }
                 onClick={() => {
                   onAddLocation(newLocName)
                   setNewLocName('')
@@ -2245,9 +2265,10 @@ function SettingsPage({
                 {t(lang, 'addLocation')}
               </button>
             </div>
-            {state.locations.length >= 3 ? (
+            {state.locations.length >= getCachedSeatLimit() ? (
               <p className="muted" style={{ marginTop: 6 }}>
-                {t(lang, 'locationsMaxHint')}
+                {t(lang, 'locationsMaxHint')}{' '}
+                ({getCachedSeatLimit() >= 9999 ? '∞' : getCachedSeatLimit()} postes)
               </p>
             ) : null}
 

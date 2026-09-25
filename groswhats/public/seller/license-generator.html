@@ -76,24 +76,43 @@
         color: #6b6458;
         font-size: 0.9rem;
       }
+      .plans {
+        font-size: 0.85rem;
+        color: #6b6458;
+        line-height: 1.45;
+      }
     </style>
   </head>
   <body>
     <div class="card">
       <h1>Générateur de licences</h1>
-      <p class="muted">Réservé au vendeur AZ POS — ne pas donner aux clients.</p>
+      <p class="muted">Réservé au vendeur AZ Soft — ne pas donner aux clients.</p>
       <p class="muted">
-        <a href="./pro.html" style="color:#0f6b4c;font-weight:700">Page AZ POS Pro (multi-magasin)</a>
+        <a href="./pro.html" style="color:#0f6b4c;font-weight:700">Tarifs AZ POS / Pro</a>
       </p>
       <div class="warn">
         Le secret doit être <strong>identique</strong> à celui dans
         <code>src/license/license.ts</code> (LICENSE_SECRET).
       </div>
+      <p class="plans">
+        <strong>Standard</strong> = 1 poste (12 000 DA)<br />
+        <strong>Pro 3</strong> = 3 postes (25 000 DA)<br />
+        <strong>Pro 10</strong> = 10 postes (70 000 DA)<br />
+        <strong>Pro Max</strong> = illimité (90 000 DA)
+      </p>
     </div>
 
     <div class="card">
       <label>Nom du client / commerce</label>
       <input id="customer" placeholder="Ex: Dépôt El Amel" />
+
+      <label>Offre / postes</label>
+      <select id="plan">
+        <option value="standard" selected>AZ POS — 1 poste · 12 000 DA</option>
+        <option value="pro3">AZ POS Pro — 3 postes · 25 000 DA</option>
+        <option value="pro10">AZ POS Pro — 10 postes · 70 000 DA</option>
+        <option value="pro_max">AZ POS Pro Max — illimité · 90 000 DA</option>
+      </select>
 
       <label>Durée</label>
       <select id="days">
@@ -118,6 +137,12 @@
 
     <script type="module">
       const SECRET_DEFAULT = 'GROSSISTE-DZ-SECRET-CHANGE-MOI-2026'
+      const PLANS = {
+        standard: { id: 'standard', seats: 1, label: '1 poste' },
+        pro3: { id: 'pro3', seats: 3, label: '3 postes' },
+        pro10: { id: 'pro10', seats: 10, label: '10 postes' },
+        pro_max: { id: 'pro_max', seats: 0, label: 'postes illimités' },
+      }
 
       function toBase64Url(bytes) {
         let bin = ''
@@ -133,18 +158,20 @@
           .join('')
       }
 
-      async function createLicense(customer, days, secret) {
+      async function createLicense(customer, days, planId, secret) {
+        const plan = PLANS[planId] || PLANS.standard
         const exp = new Date()
         exp.setDate(exp.getDate() + days)
         const payload = {
           c: customer.trim() || 'Client',
           e: exp.toISOString().slice(0, 10),
-          p: 'annual',
+          p: plan.id,
+          s: plan.seats,
         }
         const json = JSON.stringify(payload)
         const body = toBase64Url(new TextEncoder().encode(json))
         const sig = (await sha256Hex(`${json}::${secret}`)).slice(0, 20)
-        return { key: `GDZ1.${body}.${sig}`, payload }
+        return { key: `GDZ1.${body}.${sig}`, payload, plan }
       }
 
       const out = document.getElementById('out')
@@ -153,10 +180,11 @@
       document.getElementById('gen').onclick = async () => {
         const customer = document.getElementById('customer').value
         const days = Number(document.getElementById('days').value)
+        const planId = document.getElementById('plan').value
         const secret = document.getElementById('secret').value || SECRET_DEFAULT
-        const { key, payload } = await createLicense(customer, days, secret)
+        const { key, payload, plan } = await createLicense(customer, days, planId, secret)
         out.textContent = key
-        meta.textContent = `Client: ${payload.c} — Expire: ${payload.e} — ${days} jours`
+        meta.textContent = `Client: ${payload.c} — ${plan.label} — Expire: ${payload.e} — ${days} j`
       }
 
       document.getElementById('copy').onclick = async () => {
@@ -168,4 +196,3 @@
     </script>
   </body>
 </html>
-

@@ -4,6 +4,7 @@ import {
   TRIAL_DAYS,
   activateLicense,
   getAccessStatus,
+  seatsLabel,
   type AccessStatus,
 } from './license'
 import { APP_BRAND } from '../brand'
@@ -63,8 +64,9 @@ export function LicenseGate({ children }: { children: ReactNode }) {
           <h2>Activation requise</h2>
           <div className="notice">{status.message}</div>
           <p>
-            Essai gratuit : <strong>{TRIAL_DAYS} jours</strong>.  
-            Ensuite : licence annuelle.
+            Essai gratuit : <strong>{TRIAL_DAYS} jours</strong>.
+            <br />
+            AZ POS = <strong>1 poste</strong> · Pro = 3 / 10 / illimité.
           </p>
           <div className="field">
             <label>Clé de licence</label>
@@ -121,8 +123,8 @@ export function LicenseGate({ children }: { children: ReactNode }) {
           </span>
         ) : (
           <span>
-            Licence active — {status.customer} — expire le {status.expiresAt} (
-            {status.daysLeft} j)
+            {status.planLabel} — {status.customer} — {seatsLabel(status.seats)} — expire le{' '}
+            {status.expiresAt} ({status.daysLeft} j)
           </span>
         )}
         <button
