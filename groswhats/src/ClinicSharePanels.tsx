@@ -24,9 +24,7 @@ export function SendToCashForm({
   onState: (next: AppState) => void
   onFlash: (msg: string) => void
 }) {
-  const [label, setLabel] = useState(
-    lang === 'ar' ? 'استشارة' : 'Consultation',
-  )
+  const [label, setLabel] = useState(t(lang, 'defaultConsultation'))
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')
   const [open, setOpen] = useState(false)
@@ -168,7 +166,11 @@ export function ReceptionCashQueue({
                       paidDa: c.amountDa,
                       remainingDa: 0,
                       payment: 'paye',
-                      note: c.note || `Caisse · ${c.label}`,
+                      note:
+                        c.note ||
+                        (lang === 'ar'
+                          ? `صندوق · ${c.label}`
+                          : `Caisse · ${c.label}`),
                     })
                     const orderId = next.orders[0]?.id
                     next = markClinicChargePaid(next, c.id, orderId)

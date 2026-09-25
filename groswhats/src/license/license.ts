@@ -1,4 +1,7 @@
 /** Clé secrète vendeur — change-la avant de vendre (même valeur dans le générateur). */
+import type { Language } from '../types'
+import { t, tf } from '../i18n'
+
 export const LICENSE_SECRET = 'GROSSISTE-DZ-SECRET-CHANGE-MOI-2026'
 
 export const TRIAL_DAYS = 14
@@ -47,14 +50,20 @@ export const LICENSE_PLANS: Record<LicensePlanId, LicensePlanDef> = {
   },
 }
 
-export function formatPriceDa(n: number): string {
-  return `${n.toLocaleString('fr-DZ')} DA / an`
+export function formatPriceDa(n: number, lang: Language = 'fr'): string {
+  const locale = lang === 'ar' ? 'ar-DZ' : 'fr-DZ'
+  return `${n.toLocaleString(locale)} DA / an`
 }
 
-export function seatsLabel(seats: number): string {
-  if (seats <= 0) return 'postes illimités'
-  if (seats === 1) return '1 poste'
-  return `${seats} postes`
+export function seatsLabel(seats: number, lang: Language = 'fr'): string {
+  if (seats <= 0) return t(lang, 'seatsUnlimited')
+  if (seats === 1) return t(lang, 'seatsOne')
+  return tf(lang, 'seatsN', { n: seats })
+}
+
+export function planLabel(planId: LicensePlanId, lang: Language = 'fr'): string {
+  const def = LICENSE_PLANS[planId]
+  return lang === 'ar' ? def.labelAr : def.labelFr
 }
 
 /** Cap magasin / dépôt = nombre de postes (Pro). 0 seats → illimité. */
@@ -255,21 +264,21 @@ export async function parseAndVerifyLicense(
 ): Promise<{ ok: true; payload: LicensePayload } | { ok: false; error: string }> {
   const parts = key.trim().split('.')
   if (parts.length !== 3 || parts[0] !== 'GDZ1') {
-    return { ok: false, error: 'Format de licence invalide' }
+    return { ok: false, error: 'licenseErrFormat' }
   }
   try {
     const json = new TextDecoder().decode(fromBase64Url(parts[1]))
     const payload = JSON.parse(json) as LicensePayload
     const expected = await signPayload(json, secret)
     if (expected !== parts[2]) {
-      return { ok: false, error: 'Signature invalide (fausse licence)' }
+      return { ok: false, error: 'licenseErrSignature' }
     }
     if (!payload.e || !payload.c) {
-      return { ok: false, error: 'Licence incomplète' }
+      return { ok: false, error: 'licenseErrIncomplete' }
     }
     return { ok: true, payload }
   } catch {
-    return { ok: false, error: 'Licence illisible' }
+    return { ok: false, error: 'licenseErrUnreadable' }
   }
 }
 
@@ -313,11 +322,7 @@ function bindDeviceIfNeeded(seats: number, deviceId: string): { ok: true } | { o
       return { ok: true }
     }
     if (bound !== deviceId) {
-      return {
-        ok: false,
-        error:
-          'Cette licence AZ POS (1 poste) est déjà liée à un autre appareil. Pour un autre poste, prenez AZ POS Pro.',
-      }
+      return { ok: false, error: 'licenseErrDeviceBound' }
     }
     return { ok: true }
   } catch {
@@ -325,19 +330,29 @@ function bindDeviceIfNeeded(seats: number, deviceId: string): { ok: true } | { o
   }
 }
 
+function localizeLicenseError(lang: Language, errorKey: string, vars?: Record<string, string | number>): string {
+  if (vars) return tf(lang, errorKey, vars)
+  return t(lang, errorKey)
+}
+
 export async function activateLicense(
   key: string,
+  lang: Language = 'fr',
 ): Promise<{ ok: true; payload: LicensePayload } | { ok: false; error: string }> {
   const verified = await parseAndVerifyLicense(key)
-  if (!verified.ok) return verified
+  if (!verified.ok) {
+    return { ok: false, error: localizeLicenseError(lang, verified.error) }
+  }
   const exp = new Date(verified.payload.e + 'T23:59:59')
   if (exp < startOfToday()) {
-    return { ok: false, error: 'Cette licence est déjà expirée' }
+    return { ok: false, error: localizeLicenseError(lang, 'licenseErrExpired') }
   }
   const { planId, seats } = normalizePlan(verified.payload)
   const deviceId = getOrCreateDeviceId()
   const bind = bindDeviceIfNeeded(seats, deviceId)
-  if (!bind.ok) return bind
+  if (!bind.ok) {
+    return { ok: false, error: localizeLicenseError(lang, bind.error) }
+  }
 
   localStorage.setItem(LICENSE_KEY, key.trim())
   writeMetaCache({
@@ -350,18 +365,26 @@ export async function activateLicense(
   return verified
 }
 
-export async function getAccessStatus(): Promise<AccessStatus> {
+export async function getAccessStatus(lang: Language = 'fr'): Promise<AccessStatus> {
   const key = getStoredLicenseKey()
   if (key) {
     const verified = await parseAndVerifyLicense(key)
     if (!verified.ok) {
-      return { ok: false, reason: 'invalid', message: verified.error }
+      return {
+        ok: false,
+        reason: 'invalid',
+        message: localizeLicenseError(lang, verified.error),
+      }
     }
     const { planId, seats } = normalizePlan(verified.payload)
     const deviceId = getOrCreateDeviceId()
     const bind = bindDeviceIfNeeded(seats, deviceId)
     if (!bind.ok) {
-      return { ok: false, reason: 'device_mismatch', message: bind.error }
+      return {
+        ok: false,
+        reason: 'device_mismatch',
+        message: localizeLicenseError(lang, bind.error),
+      }
     }
 
     const exp = new Date(verified.payload.e + 'T23:59:59')
@@ -370,7 +393,9 @@ export async function getAccessStatus(): Promise<AccessStatus> {
       return {
         ok: false,
         reason: 'license_expired',
-        message: `Licence expirée le ${verified.payload.e}`,
+        message: localizeLicenseError(lang, 'licenseErrExpiredOn', {
+          date: verified.payload.e,
+        }),
       }
     }
 
@@ -391,7 +416,7 @@ export async function getAccessStatus(): Promise<AccessStatus> {
       seats,
       planId,
       maxLocations: maxLocationsForSeats(seats),
-      planLabel: LICENSE_PLANS[planId].labelFr,
+      planLabel: planLabel(planId, lang),
     }
   }
 
@@ -404,7 +429,7 @@ export async function getAccessStatus(): Promise<AccessStatus> {
     return {
       ok: false,
       reason: 'trial_expired',
-      message: `Essai de ${TRIAL_DAYS} jours terminé. Activez une licence annuelle.`,
+      message: localizeLicenseError(lang, 'licenseErrTrialEnded', { days: TRIAL_DAYS }),
     }
   }
   return {

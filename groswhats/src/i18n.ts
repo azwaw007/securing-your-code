@@ -1501,6 +1501,46 @@ const fr: Dict = {
   prodNeedRecipe: 'Nom et produit fini requis',
   prodNeedIngredients: 'Ajoute au moins une matière première',
   prodIngredientNotOutput: 'Une MP ne peut pas être le produit fini',
+  licenseLoading: 'Chargement licence…',
+  licenseActivationRequired: 'Activation requise',
+  licenseTrialInfo: 'Essai gratuit : {days} jours.',
+  licensePlansHint: 'AZ POS = 1 poste · Pro = 3 / 10 / illimité.',
+  licenseKeyLabel: 'Clé de licence',
+  licenseActivate: 'Activer la licence',
+  licenseActivateRenew: 'Activer / renouveler licence',
+  licenseSupportSav: 'Service après-vente AZ Soft — WhatsApp',
+  licenseContactSupport: 'Contacter le support',
+  licenseGuide: 'Guide d’utilisation',
+  licenseGuideShort: 'Guide',
+  licenseTrialBanner: 'Essai AZ POS — {days} j restants (fin {date})',
+  licenseOkBanner: '{plan} — {customer} — {seats} — expire le {date} ({days} j)',
+  licenseInfoActive: 'Licence: {customer} — expire {date}',
+  licenseInfoTrial: 'Essai: {days} j restants',
+  licenseErrFormat: 'Format de licence invalide',
+  licenseErrSignature: 'Signature invalide (fausse licence)',
+  licenseErrIncomplete: 'Licence incomplète',
+  licenseErrUnreadable: 'Licence illisible',
+  licenseErrExpired: 'Cette licence est déjà expirée',
+  licenseErrDeviceBound:
+    'Cette licence AZ POS (1 poste) est déjà liée à un autre appareil. Pour un autre poste, prenez AZ POS Pro.',
+  licenseErrExpiredOn: 'Licence expirée le {date}',
+  licenseErrTrialEnded: 'Essai de {days} jours terminé. Activez une licence annuelle.',
+  seatsUnlimited: 'postes illimités',
+  seatsOne: '1 poste',
+  seatsN: '{n} postes',
+  multiLocationProOnly:
+    'Multi-magasin réservé à AZ POS Pro (3 / 10 / illimité postes).',
+  multiLocationStandardHint:
+    'Licence 1 poste : un seul magasin. Passez en Pro pour plusieurs postes.',
+  multiLocationSeatsHint: 'Postes / dépôts autorisés :',
+  seatsUnlimitedShort: 'illimités',
+  defaultLocationName: 'Magasin principal',
+  paymentNoteClient: 'Versement client',
+  defaultConsultation: 'Consultation',
+  gameStationPoste: 'Poste {n}',
+  gameStationWalkIn: 'Passage',
+  gameStationCashNote: 'Salle de jeux · {name} · encaissement',
+  versionLabel: 'Version {v}',
 }
 
 const ar: Dict = {
@@ -2989,11 +3029,62 @@ const ar: Dict = {
   prodNeedRecipe: 'الاسم والمنتج النهائي مطلوبان',
   prodNeedIngredients: 'أضف مادة أولية واحدة على الأقل',
   prodIngredientNotOutput: 'المادة الأولية لا تكون المنتج النهائي',
+  licenseLoading: 'جاري تحميل الرخصة…',
+  licenseActivationRequired: 'يلزم التفعيل',
+  licenseTrialInfo: 'تجربة مجانية: {days} أيام.',
+  licensePlansHint: 'AZ POS = جهاز واحد · Pro = 3 / 10 / بلا حد.',
+  licenseKeyLabel: 'مفتاح الرخصة',
+  licenseActivate: 'تفعيل الرخصة',
+  licenseActivateRenew: 'تفعيل / تجديد الرخصة',
+  licenseSupportSav: 'خدمة ما بعد البيع AZ Soft — واتساب',
+  licenseContactSupport: 'الاتصال بالدعم',
+  licenseGuide: 'دليل الاستخدام',
+  licenseGuideShort: 'الدليل',
+  licenseTrialBanner: 'تجربة AZ POS — باقي {days} ي (تنتهي {date})',
+  licenseOkBanner: '{plan} — {customer} — {seats} — تنتهي في {date} ({days} ي)',
+  licenseInfoActive: 'الرخصة: {customer} — تنتهي {date}',
+  licenseInfoTrial: 'تجربة: باقي {days} ي',
+  licenseErrFormat: 'صيغة الرخصة غير صالحة',
+  licenseErrSignature: 'توقيع غير صالح (رخصة مزيفة)',
+  licenseErrIncomplete: 'رخصة ناقصة',
+  licenseErrUnreadable: 'تعذّر قراءة الرخصة',
+  licenseErrExpired: 'هذه الرخصة منتهية مسبقاً',
+  licenseErrDeviceBound:
+    'رخصة AZ POS (جهاز واحد) مرتبطة بجهاز آخر. لجهاز إضافي اختر AZ POS Pro.',
+  licenseErrExpiredOn: 'انتهت الرخصة في {date}',
+  licenseErrTrialEnded: 'انتهت تجربة {days} يوماً. فعّل رخصة سنوية.',
+  seatsUnlimited: 'أجهزة بلا حد',
+  seatsOne: 'جهاز واحد',
+  seatsN: '{n} أجهزة',
+  multiLocationProOnly:
+    'متعدد المتاجر مخصّص لـ AZ POS Pro (3 / 10 / أجهزة بلا حد).',
+  multiLocationStandardHint:
+    'رخصة جهاز واحد: متجر واحد فقط. انتقل إلى Pro لعدة أجهزة.',
+  multiLocationSeatsHint: 'الأجهزة / المستودعات المسموحة:',
+  seatsUnlimitedShort: 'بلا حد',
+  defaultLocationName: 'المتجر الرئيسي',
+  paymentNoteClient: 'دفعة زبون',
+  defaultConsultation: 'استشارة',
+  gameStationPoste: 'منصب {n}',
+  gameStationWalkIn: 'مرور',
+  gameStationCashNote: 'قاعة ألعاب · {name} · تحصيل',
+  versionLabel: 'الإصدار {v}',
 }
 
 export function t(lang: Language, key: string): string {
   if (lang === 'ar') return ar[key] ?? fr[key] ?? key
   return EXTRA_DICTS[lang]?.[key] ?? fr[key] ?? key
+}
+
+/** Remplace `{name}` dans une clé i18n. */
+export function tf(
+  lang: Language,
+  key: string,
+  vars: Record<string, string | number>,
+): string {
+  return t(lang, key).replace(/\{(\w+)\}/g, (_, name: string) =>
+    vars[name] !== undefined && vars[name] !== null ? String(vars[name]) : `{${name}}`,
+  )
 }
 
 export function unitLabel(lang: Language, unit: Unit): string {
