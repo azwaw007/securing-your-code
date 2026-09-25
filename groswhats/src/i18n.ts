@@ -1169,7 +1169,7 @@ const fr: Dict = {
   tableSaved: 'Table enregistrée',
   tableDeleted: 'Table supprimée',
   gameStationsTitle: 'Postes PlayStation',
-  gameStationsHint: 'Postes ajustables — temps/minute, TV Wi‑Fi, stock et caisse.',
+  gameStationsHint: 'Tarifs auto selon la console du poste (réglée en admin). Match = 15 min.',
   gameStationsEmpty: 'Aucun poste.',
   gameActive: 'en jeu',
   gameStandby: 'veille',
