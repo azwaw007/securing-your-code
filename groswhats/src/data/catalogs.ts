@@ -738,6 +738,7 @@ const CATALOGS: Record<string, SeedSpec[]> = {
     s('Heure XBOX Series S', 300, 0, '⬛', 'autre'),
     s('Match XBOX Series S', 70, 0, '⬛', 'autre'),
     s('Prolongation PS4 (2 manches)', 30, 0, '➕', 'autre'),
+    s('Prolongation PS4 PRO (2 manches)', 30, 0, '➕', 'autre'),
     s('Prolongation PS5 (2 manches)', 50, 0, '➕', 'autre'),
     s('Prolongation XBOX ONE (2 manches)', 30, 0, '➕', 'autre'),
     s('Prolongation XBOX Series S (2 manches)', 40, 0, '➕', 'autre'),
