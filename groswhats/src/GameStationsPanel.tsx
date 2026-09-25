@@ -1,26 +1,34 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type {
   AppState,
   GameStation,
   Language,
   TvControlKind,
 } from './types'
+import { formatDa, formatQty } from './utils/format'
 import { t } from './i18n'
 import {
   addGameStation,
+  addGameStationProduct,
   addGameStationTime,
   billGameSession,
+  displayStock,
   ensureGameStations,
   expireGameStations,
   freeGameStation,
   gameFreeMaxMinutes,
+  gameStationTabGameDa,
+  gameStationTabProductDa,
+  gameStationTabTotalDa,
   grantGameFreeMinutes,
   match4RateDa,
   removeGameStation,
+  removeGameStationTabLine,
   resolveGameTariffs,
   setGameStationStandby,
   setGameStationCount,
   sellerCanGrantFreeMinutes,
+  settleGameStation,
   stationConsole,
   stationMatchMinutes,
   tariffForConsole,
@@ -172,7 +180,7 @@ export function GameStationsPanel({
     playCash()
     onFlash(
       billCash
-        ? t(lang, 'gameTimeBilled')
+        ? t(lang, 'gameTimeOnTab')
             .replace('{name}', st.name)
             .replace('{min}', String(minutes))
             .replace('{da}', String(totalDa))
@@ -341,6 +349,9 @@ export function GameStationsPanel({
         />
         <span>{t(lang, 'gameBillCash')}</span>
       </label>
+      <p className="muted" style={{ marginTop: 0 }}>
+        {t(lang, 'gameTabHint')}
+      </p>
 
       <div className="field game-label-field">
         <label>{t(lang, 'gameClientLabel')}</label>
@@ -433,9 +444,62 @@ export function GameStationsPanel({
                 onState(freeGameStation(state, st.id))
                 onFlash(t(lang, 'gameFreeOk').replace('{name}', st.name))
               }}
+              onAddProduct={(productId) => {
+                const res = addGameStationProduct(state, st.id, productId, 1)
+                if (!res.ok) {
+                  onFlash(
+                    res.reason === 'nostock'
+                      ? t(lang, 'gameProductNoStock')
+                      : t(lang, 'gamePriceBad'),
+                  )
+                  return
+                }
+                onState(res.state)
+                playCash()
+                const p = state.products.find((x) => x.id === productId)
+                onFlash(
+                  t(lang, 'gameProductAdded')
+                    .replace('{name}', st.name)
+                    .replace('{product}', p?.name || ''),
+                )
+              }}
+              onRemoveTabLine={(lineId) => {
+                onState(removeGameStationTabLine(state, st.id, lineId))
+              }}
+              onSettle={() => {
+                const res = settleGameStation(state, st.id, {
+                  freeStation: true,
+                })
+                if (!res.ok) {
+                  onFlash(
+                    res.reason === 'empty'
+                      ? t(lang, 'gameTabEmpty')
+                      : t(lang, 'gamePriceBad'),
+                  )
+                  return
+                }
+                onState(res.state)
+                playCash()
+                onFlash(
+                  t(lang, 'gameSettled')
+                    .replace('{name}', st.name)
+                    .replace('{da}', String(res.totalDa)),
+                )
+                if (stationHasTvControl(st)) {
+                  void turnTvOff(st).then((tv) => {
+                    if (tv.ok) {
+                      onFlash(t(lang, 'gameTvOffOk').replace('{name}', st.name))
+                    }
+                  })
+                }
+              }}
               onRemove={() => {
                 if (st.status === 'active') {
                   onFlash(t(lang, 'gameCantRemoveActive'))
+                  return
+                }
+                if ((st.tabLines?.length ?? 0) > 0) {
+                  onFlash(t(lang, 'gameCantRemoveTab'))
                   return
                 }
                 onState(removeGameStation(state, st.id))
@@ -492,6 +556,9 @@ function StationTile({
   onFreeExtra,
   onStandby,
   onFree,
+  onAddProduct,
+  onRemoveTabLine,
+  onSettle,
   onRemove,
   onSaveTv,
   onTestOn,
@@ -516,6 +583,9 @@ function StationTile({
   onFreeExtra: () => void
   onStandby: () => void | Promise<void>
   onFree: () => void
+  onAddProduct: (productId: string) => void
+  onRemoveTabLine: (lineId: string) => void
+  onSettle: () => void
   onRemove: () => void
   onSaveTv: (patch: {
     tvKind?: TvControlKind
@@ -539,6 +609,27 @@ function StationTile({
   const match4Da = match4RateDa(state, kind)
   const extraDa = tariff.extraRoundDa
   const freePresets = FREE_MIN_PRESETS.filter((m) => m <= freeCap)
+  const [showProducts, setShowProducts] = useState(false)
+  const [productQuery, setProductQuery] = useState('')
+  const tabTotal = gameStationTabTotalDa(st)
+  const tabGame = gameStationTabGameDa(st)
+  const tabProducts = gameStationTabProductDa(st)
+  const tabLines = st.tabLines ?? []
+
+  const productHits = useMemo(() => {
+    const q = productQuery.trim().toLowerCase()
+    return [...state.products]
+      .filter((p) => {
+        if (displayStock(state, p) <= 0) return false
+        if (!q) return true
+        return (
+          p.name.toLowerCase().includes(q) ||
+          (p.barcode || '').toLowerCase().includes(q)
+        )
+      })
+      .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+      .slice(0, 12)
+  }, [state, productQuery])
 
   const tileClass = [
     'game-tile',
@@ -632,6 +723,91 @@ function StationTile({
           </button>
         ) : null}
       </div>
+
+      <div className="btn-row game-tile-actions" style={{ marginTop: 6 }}>
+        <button
+          type="button"
+          className="btn secondary"
+          onClick={() => setShowProducts((v) => !v)}
+        >
+          {showProducts ? t(lang, 'gameProductsHide') : t(lang, 'gameProductsBtn')}
+          {tabProducts > 0 ? ` · ${formatDa(tabProducts)}` : ''}
+        </button>
+        <button
+          type="button"
+          className="btn"
+          disabled={tabTotal <= 0}
+          onClick={onSettle}
+        >
+          {t(lang, 'gameSettleBtn')}
+          {tabTotal > 0 ? ` · ${formatDa(tabTotal)}` : ''}
+        </button>
+      </div>
+
+      {tabLines.length > 0 ? (
+        <div className="game-tab-summary">
+          <div className="muted">
+            {t(lang, 'gameTabGame')}: <strong>{formatDa(tabGame)}</strong>
+            {' · '}
+            {t(lang, 'gameTabProducts')}:{' '}
+            <strong>{formatDa(tabProducts)}</strong>
+            {' · '}
+            {t(lang, 'gameTabTotal')}: <strong>{formatDa(tabTotal)}</strong>
+          </div>
+          <ul className="game-tab-lines">
+            {tabLines.map((l) => (
+              <li key={l.id}>
+                <span>
+                  {l.kind === 'product' ? '🥤' : '🎮'} {l.name}
+                  {l.qty !== 1 ? ` ×${formatQty(l.qty)}` : ''}
+                  {' — '}
+                  {formatDa(+(l.qty * l.unitPriceDa).toFixed(2))}
+                </span>
+                <button
+                  type="button"
+                  className="btn ghost"
+                  aria-label={t(lang, 'delete')}
+                  onClick={() => onRemoveTabLine(l.id)}
+                >
+                  ✕
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {showProducts ? (
+        <div className="game-product-picker">
+          <input
+            type="search"
+            value={productQuery}
+            onChange={(e) => setProductQuery(e.target.value)}
+            placeholder={t(lang, 'searchProduct')}
+            autoFocus
+          />
+          {productHits.length === 0 ? (
+            <div className="empty muted">{t(lang, 'noProductFound')}</div>
+          ) : (
+            <div className="game-product-hits">
+              {productHits.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className="btn secondary game-product-hit"
+                  onClick={() => {
+                    onAddProduct(p.id)
+                    setProductQuery('')
+                  }}
+                >
+                  <span>{p.name}</span>
+                  <strong>{formatDa(p.priceDa)}</strong>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : null}
 
       {canFree ? (
         <div className="game-free-actions">

@@ -42,6 +42,7 @@ import type {
   PriceTier,
   FloorTable,
   GameStation,
+  GameStationTabLine,
   GameConsoleKind,
   GameConsoleTariff,
   GameTariffs,
@@ -1561,8 +1562,40 @@ function migrateGameStations(raw: GameStation[] | undefined): GameStation[] {
             : undefined,
         tvOnUrl: typeof g.tvOnUrl === 'string' ? g.tvOnUrl : undefined,
         tvOffUrl: typeof g.tvOffUrl === 'string' ? g.tvOffUrl : undefined,
+        tabLines: migrateGameStationTabLines(
+          (g as GameStation).tabLines,
+        ),
       }
     })
+}
+
+function migrateGameStationTabLines(
+  raw: GameStationTabLine[] | undefined,
+): GameStationTabLine[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined
+  const lines = raw
+    .filter(
+      (l) =>
+        l &&
+        typeof l.name === 'string' &&
+        l.name.trim() &&
+        typeof l.unitPriceDa === 'number',
+    )
+    .slice(0, 80)
+    .map((l) => ({
+      id: l.id || uid('gstab'),
+      kind: l.kind === 'product' ? ('product' as const) : ('game' as const),
+      productId:
+        typeof l.productId === 'string' && l.productId
+          ? l.productId
+          : `flash_${uid('g')}`,
+      name: l.name.trim(),
+      qty: Math.max(0.001, Number(l.qty) || 1),
+      unitPriceDa: Math.max(0, +Number(l.unitPriceDa).toFixed(2)),
+      unit: (l.unit || 'piece') as GameStationTabLine['unit'],
+      flash: l.flash === true || l.kind !== 'product' || undefined,
+    }))
+  return lines.length > 0 ? lines : undefined
 }
 
 function buildDefaultGameStations(count = DEFAULT_GAME_STATION_COUNT): GameStation[] {
@@ -1694,10 +1727,174 @@ export function freeGameStation(state: AppState, id: string): AppState {
             paidMinutes: undefined,
             freeMinutes: undefined,
             clientLabel: undefined,
+            tabLines: undefined,
           }
         : g,
     ),
   }
+}
+
+export function gameStationTabTotalDa(station: GameStation | undefined): number {
+  if (!station?.tabLines?.length) return 0
+  return +station.tabLines
+    .reduce((s, l) => s + l.qty * l.unitPriceDa, 0)
+    .toFixed(2)
+}
+
+export function gameStationTabGameDa(station: GameStation | undefined): number {
+  if (!station?.tabLines?.length) return 0
+  return +station.tabLines
+    .filter((l) => l.kind === 'game')
+    .reduce((s, l) => s + l.qty * l.unitPriceDa, 0)
+    .toFixed(2)
+}
+
+export function gameStationTabProductDa(
+  station: GameStation | undefined,
+): number {
+  if (!station?.tabLines?.length) return 0
+  return +station.tabLines
+    .filter((l) => l.kind === 'product')
+    .reduce((s, l) => s + l.qty * l.unitPriceDa, 0)
+    .toFixed(2)
+}
+
+function appendStationTabLine(
+  state: AppState,
+  stationId: string,
+  line: GameStationTabLine,
+): AppState {
+  return {
+    ...state,
+    gameStations: (state.gameStations ?? []).map((g) => {
+      if (g.id !== stationId) return g
+      const prev = g.tabLines ?? []
+      // Fusion qty pour même produit catalogue
+      if (line.kind === 'product' && !line.flash) {
+        const idx = prev.findIndex(
+          (x) => x.kind === 'product' && x.productId === line.productId,
+        )
+        if (idx >= 0) {
+          const cur = prev[idx]!
+          const nextLines = [...prev]
+          nextLines[idx] = {
+            ...cur,
+            qty: +(cur.qty + line.qty).toFixed(3),
+            unitPriceDa: line.unitPriceDa,
+          }
+          return { ...g, tabLines: nextLines }
+        }
+      }
+      return { ...g, tabLines: [...prev, line].slice(-80) }
+    }),
+  }
+}
+
+/** Ajoute un produit catalogue sur l’addition du poste. */
+export function addGameStationProduct(
+  state: AppState,
+  stationId: string,
+  productId: string,
+  qty = 1,
+): { state: AppState; ok: boolean; reason?: 'bad' | 'nostock' } {
+  const station = (state.gameStations ?? []).find((g) => g.id === stationId)
+  if (!station) return { state, ok: false, reason: 'bad' }
+  const product = state.products.find((p) => p.id === productId)
+  if (!product) return { state, ok: false, reason: 'bad' }
+  const q = Math.max(0.001, Number(qty) || 1)
+  const available = displayStock(state, product)
+  if (available + 1e-9 < q) return { state, ok: false, reason: 'nostock' }
+  const line: GameStationTabLine = {
+    id: uid('gstab'),
+    kind: 'product',
+    productId: product.id,
+    name: product.name,
+    qty: +q.toFixed(3),
+    unitPriceDa: product.priceDa,
+    unit: product.unit || 'piece',
+  }
+  return { state: appendStationTabLine(state, stationId, line), ok: true }
+}
+
+export function removeGameStationTabLine(
+  state: AppState,
+  stationId: string,
+  lineId: string,
+): AppState {
+  return {
+    ...state,
+    gameStations: (state.gameStations ?? []).map((g) => {
+      if (g.id !== stationId) return g
+      const next = (g.tabLines ?? []).filter((l) => l.id !== lineId)
+      return { ...g, tabLines: next.length > 0 ? next : undefined }
+    }),
+  }
+}
+
+/**
+ * Encaisser l’addition du poste (jeux + produits) → une vente caisse.
+ * Libère le poste après encaissement.
+ */
+export function settleGameStation(
+  state: AppState,
+  stationId: string,
+  opts?: { freeStation?: boolean },
+): {
+  state: AppState
+  totalDa: number
+  ok: boolean
+  reason?: 'empty' | 'bad'
+} {
+  const station = (state.gameStations ?? []).find((g) => g.id === stationId)
+  if (!station) return { state, totalDa: 0, ok: false, reason: 'bad' }
+  const lines = station.tabLines ?? []
+  if (lines.length === 0) return { state, totalDa: 0, ok: false, reason: 'empty' }
+
+  const orderLines: OrderLine[] = lines.map((l) => {
+    const lineTotal = +(l.qty * l.unitPriceDa).toFixed(2)
+    const product =
+      l.kind === 'product'
+        ? state.products.find((p) => p.id === l.productId)
+        : undefined
+    return {
+      productId: l.productId,
+      name: l.name,
+      unit: l.unit,
+      qty: l.qty,
+      unitPriceDa: l.unitPriceDa,
+      unitCostDa: product?.costDa ?? 0,
+      lineTotalDa: lineTotal,
+      flash: l.kind === 'game' || l.flash === true || undefined,
+    }
+  })
+  const totalDa = +orderLines
+    .reduce((s, l) => s + l.lineTotalDa, 0)
+    .toFixed(2)
+  const seller = currentSeller(state)
+  let next = createOrder(state, {
+    clientId: '',
+    clientName: station.clientLabel?.trim() || station.name || 'Passage',
+    clientPhone: '',
+    lines: orderLines,
+    totalDa,
+    paidDa: totalDa,
+    remainingDa: 0,
+    payment: 'paye',
+    note: `Salle de jeux · ${station.name} · encaissement`,
+    sellerId: seller?.id,
+    sellerName: seller?.name,
+  })
+  // Vider l’addition
+  next = {
+    ...next,
+    gameStations: (next.gameStations ?? []).map((g) =>
+      g.id === stationId ? { ...g, tabLines: undefined } : g,
+    ),
+  }
+  if (opts?.freeStation !== false) {
+    next = freeGameStation(next, stationId)
+  }
+  return { state: next, totalDa, ok: true }
 }
 
 /** Passe en veille tous les postes dont le temps est écoulé. */
@@ -3243,31 +3440,23 @@ export function billGameSession(
     return { state: next, totalDa, minutes, label }
   }
 
-  const seller = currentSeller(next)
   const st = next.gameStations.find((g) => g.id === input.stationId)
-  const line = {
+  const tabLine: GameStationTabLine = {
+    id: uid('gstab'),
+    kind: 'game',
     productId: `flash_game_${input.mode}_${consoleKind}`,
     name: label,
-    unit: 'piece' as const,
     qty: 1,
     unitPriceDa: totalDa,
-    unitCostDa: 0,
-    lineTotalDa: totalDa,
-    flash: true as const,
+    unit: 'piece',
+    flash: true,
   }
-  next = createOrder(next, {
-    clientId: '',
-    clientName: input.clientLabel?.trim() || st?.clientLabel || 'Passage',
-    clientPhone: '',
-    lines: [line],
-    totalDa,
-    paidDa: totalDa,
-    remainingDa: 0,
-    payment: 'paye',
-    note: `Salle de jeux · ${label}`,
-    sellerId: seller?.id,
-    sellerName: seller?.name,
-  })
+  next = appendStationTabLine(next, input.stationId, tabLine)
+  if (input.clientLabel?.trim() && st && !st.clientLabel) {
+    next = updateGameStation(next, input.stationId, {
+      clientLabel: input.clientLabel.trim(),
+    })
+  }
   return { state: next, totalDa, minutes, label }
 }
 

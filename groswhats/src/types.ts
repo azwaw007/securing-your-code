@@ -529,6 +529,11 @@ export interface GameStation {
   clientLabel?: string
   note?: string
   /**
+   * Lignes en attente d’encaissement (jeux + produits consommés).
+   * Total = somme des lignes — encaissé via le bouton « Encaisser ».
+   */
+  tabLines?: GameStationTabLine[]
+  /**
    * Contrôle TV sur le réseau local (même Wi‑Fi).
    * - google_tv : Google TV / Android TV (ADB réseau + Wake-on-LAN)
    * - smart_tv : IP + MAC / URLs
@@ -546,6 +551,20 @@ export interface GameStation {
   tvOnUrl?: string
   /** URL HTTP complète OFF (smart_tv / custom) */
   tvOffUrl?: string
+}
+
+/** Ligne d’addition sur un poste (jeux ou produit consommé) */
+export interface GameStationTabLine {
+  id: string
+  kind: 'game' | 'product'
+  /** Produit catalogue (kind product) — flash_* pour jeux */
+  productId: string
+  name: string
+  qty: number
+  unitPriceDa: number
+  unit: Unit
+  /** true = hors stock (ligne jeu / flash) */
+  flash?: boolean
 }
 
 export type RepairStatus = 'devis' | 'or' | 'done' | 'cancelled'
