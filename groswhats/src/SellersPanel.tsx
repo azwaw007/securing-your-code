@@ -2,6 +2,11 @@ import { useState } from 'react'
 import type { AppState, GameConsoleKind, Language, PosSeller, PosSellerRole } from './types'
 import { t } from './i18n'
 import {
+  resolveSellerPermissions,
+  SELLER_PERM_OPTIONS,
+  type SellerPermId,
+} from './sellerPermissions'
+import {
   addSeller,
   currentSeller,
   deleteSeller,
@@ -83,6 +88,45 @@ export function SellerSwitcherBar({
   )
 }
 
+function SellerPermChecklist({
+  seller,
+  lang,
+  unlocked,
+  onToggle,
+}: {
+  seller: PosSeller
+  lang: Language
+  unlocked: boolean
+  onToggle: (id: SellerPermId, checked: boolean) => void
+}) {
+  const perms = resolveSellerPermissions(seller)
+  return (
+    <div className="seller-perms">
+      <div className="muted" style={{ marginTop: 8, marginBottom: 4 }}>
+        {t(lang, 'sellerPermsTitle')}
+      </div>
+      <div className="seller-perms-grid">
+        {SELLER_PERM_OPTIONS.map((opt) => (
+          <label key={opt.id} className="field check-row seller-perm-row">
+            <input
+              type="checkbox"
+              disabled={!unlocked}
+              checked={perms[opt.id] === true}
+              onChange={(e) => onToggle(opt.id, e.target.checked)}
+            />
+            <span>
+              {t(lang, opt.labelKey)}
+              {opt.salesCore ? (
+                <span className="muted"> · {t(lang, 'sellerPermSalesCore')}</span>
+              ) : null}
+            </span>
+          </label>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export function SellersPanel({
   state,
   lang,
@@ -141,11 +185,25 @@ export function SellersPanel({
     onFlash(t(lang, 'sellerAdded'))
   }
 
+  function togglePerm(sellerId: string, id: SellerPermId, checked: boolean) {
+    const s = sellers.find((x) => x.id === sellerId)
+    if (!s || s.role !== 'vendeur') return
+    const base = resolveSellerPermissions(s)
+    onState(
+      updateSeller(state, sellerId, {
+        permissions: { ...base, [id]: checked },
+        canGrantFreeMinutes:
+          id === 'gameFreeMinutes' ? checked : base.gameFreeMinutes,
+      }),
+    )
+  }
+
   return (
     <div className="sellers-panel">
       <div className="card">
         <h2>{t(lang, 'sellersTitle')}</h2>
         <p className="muted">{t(lang, 'sellersHint')}</p>
+        <p className="muted">{t(lang, 'sellerPermsHint')}</p>
 
         {!unlocked ? (
           <div className="field">
@@ -235,44 +293,27 @@ export function SellersPanel({
           <div className="empty">{t(lang, 'sellersEmpty')}</div>
         ) : (
           sellers.map((s) => (
-            <div key={s.id} className="list-item">
-              <div>
+            <div key={s.id} className="list-item seller-list-item">
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <strong>{s.name}</strong>
                 <div className="muted">
                   {s.role === 'admin'
                     ? t(lang, 'sellerRoleAdmin')
                     : t(lang, 'sellerRoleVendeur')}
                   {s.pin ? ' · PIN' : ''}
-                  {s.role === 'vendeur' ? (
-                    <>
-                      {' · '}
-                      {s.canGrantFreeMinutes
-                        ? t(lang, 'gameFreeAllowOn')
-                        : t(lang, 'gameFreeAllowOff')}
-                    </>
-                  ) : null}
                 </div>
-                {unlocked && s.role === 'vendeur' ? (
-                  <label className="field check-row" style={{ marginTop: 6 }}>
-                    <input
-                      type="checkbox"
-                      checked={s.canGrantFreeMinutes === true}
-                      onChange={(e) => {
-                        onState(
-                          updateSeller(state, s.id, {
-                            canGrantFreeMinutes: e.target.checked,
-                          }),
-                        )
-                        onFlash(
-                          e.target.checked
-                            ? `${s.name} · ${t(lang, 'gameFreeAllowOn')}`
-                            : `${s.name} · ${t(lang, 'gameFreeAllowOff')}`,
-                        )
-                      }}
-                    />
-                    <span>{t(lang, 'gameFreeAllow')}</span>
-                  </label>
-                ) : null}
+                {s.role === 'vendeur' ? (
+                  <SellerPermChecklist
+                    seller={s}
+                    lang={lang}
+                    unlocked={unlocked}
+                    onToggle={(id, checked) => togglePerm(s.id, id, checked)}
+                  />
+                ) : (
+                  <p className="muted" style={{ marginTop: 6 }}>
+                    {t(lang, 'sellerAdminAllPerms')}
+                  </p>
+                )}
               </div>
               <div className="btn-row">
                 <button
@@ -331,6 +372,13 @@ export function GamePriceAdminCard({
       label: c.label,
       hour: String(c.hourDa),
       match: String(c.matchDa),
+      match4: String(
+        typeof c.match4Da === 'number' && c.match4Da > 0
+          ? c.match4Da
+          : c.matchDa > 0
+            ? c.matchDa * 2
+            : 0,
+      ),
       extra: String(c.extraRoundDa),
     })),
   )
@@ -364,8 +412,9 @@ export function GamePriceAdminCard({
     for (const r of rows) {
       const hour = num(r.hour)
       const match = num(r.match)
+      const match4 = num(r.match4)
       const extra = num(r.extra)
-      if (hour === null || match === null || extra === null) {
+      if (hour === null || match === null || match4 === null || extra === null) {
         onFlash(t(lang, 'gamePriceBad'))
         return
       }
@@ -374,6 +423,7 @@ export function GamePriceAdminCard({
         label: r.label,
         hourDa: hour,
         matchDa: match,
+        match4Da: match4 > 0 ? match4 : match > 0 ? +(match * 2).toFixed(2) : 0,
         extraRoundDa: extra,
       })
     }
@@ -398,16 +448,32 @@ export function GamePriceAdminCard({
       <p className="muted" style={{ marginTop: 0 }}>
         {t(lang, 'gameExtraHint')}
       </p>
+      <p className="muted" style={{ marginTop: 0 }}>
+        {t(lang, 'gameMatch4Hint')}
+      </p>
       {!open ? (
         <>
           <div className="muted game-admin-preview" style={{ marginBottom: 8 }}>
-            {tariffs.consoles.map((c) => (
+            {tariffs.consoles.map((c) => {
+              const m4 =
+                typeof c.match4Da === 'number' && c.match4Da > 0
+                  ? c.match4Da
+                  : c.matchDa > 0
+                    ? c.matchDa * 2
+                    : 0
+              return (
               <div key={c.id}>
                 {c.label} : <strong>{c.hourDa} DA</strong>/h
                 {c.matchDa > 0 ? (
                   <>
                     {' '}
                     · <strong>{c.matchDa} DA</strong>/{t(lang, 'gameMatchShort')}
+                  </>
+                ) : null}
+                {m4 > 0 ? (
+                  <>
+                    {' '}
+                    · <strong>{m4} DA</strong>/{t(lang, 'gameMatch4Short')}
                   </>
                 ) : null}
                 {c.extraRoundDa > 0 ? (
@@ -417,7 +483,8 @@ export function GamePriceAdminCard({
                   </>
                 ) : null}
               </div>
-            ))}
+              )
+            })}
             <div>
               {t(lang, 'gameMatchDefault')}:{' '}
               <strong>{tariffs.matchMinutes} min</strong>
@@ -474,7 +541,30 @@ export function GamePriceAdminCard({
                       onChange={(e) => {
                         const v = e.target.value
                         setRows((prev) =>
-                          prev.map((x, j) => (j === i ? { ...x, match: v } : x)),
+                          prev.map((x, j) => {
+                            if (j !== i) return x
+                            const matchN = Number(String(v).replace(',', '.'))
+                            const auto4 =
+                              Number.isFinite(matchN) && matchN > 0
+                                ? String(+(matchN * 2).toFixed(2))
+                                : '0'
+                            return { ...x, match: v, match4: auto4 }
+                          }),
+                        )
+                      }}
+                    />
+                  </div>
+                  <div className="field">
+                    <label>{t(lang, 'gameTariffMatch4')}</label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={10}
+                      value={r.match4}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        setRows((prev) =>
+                          prev.map((x, j) => (j === i ? { ...x, match4: v } : x)),
                         )
                       }}
                     />
@@ -597,9 +687,11 @@ function GameFreeMinutesLog({
         const modeLabel =
           e.mode === 'match'
             ? t(lang, 'gameMatchShort')
-            : e.mode === 'extra'
-              ? t(lang, 'gameExtraShort')
-              : t(lang, 'gameMinShort')
+            : e.mode === 'match4'
+              ? t(lang, 'gameMatch4Short')
+              : e.mode === 'extra'
+                ? t(lang, 'gameExtraShort')
+                : t(lang, 'gameMinShort')
         return (
           <div key={e.id} className="list-item game-free-log-row">
             <div>

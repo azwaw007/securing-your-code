@@ -96,6 +96,7 @@ export type Screen =
   | 'fiscal'
   | 'tpe'
   | 'sellers'
+  | 'production'
 
 /** Mode d’encaissement DZ (outil optionnel « Paiements DZ ») */
 export type PaymentMethod = 'cash' | 'baridimob' | 'ccp' | 'card' | 'cheque'
@@ -323,6 +324,10 @@ export interface Client {
   membershipEnd?: string
   /** Formule (mensuel, trimestriel, séances…) */
   membershipPlan?: string
+  /** Id du plan admin (GymMembershipPlan) si salle unifiée */
+  membershipPlanId?: string
+  /** Disciplines autorisées pour cet adhérent */
+  membershipDisciplineIds?: GymDisciplineId[]
   /** Objectif (perte de poids, force, compétition…) */
   sportGoal?: string
   /** Programme d’entraînement assigné par le coach */
@@ -389,6 +394,61 @@ export interface GymCheckIn {
   kind: 'in' | 'out'
   at: string
   source: 'nfc' | 'qr' | 'manual' | 'wedge'
+}
+
+/** Disciplines d’une salle de sport (admin coche celles présentes). */
+export type GymDisciplineId =
+  | 'boxe'
+  | 'gym'
+  | 'gym_cardio'
+  | 'cardio'
+  | 'musculation'
+  | 'musculation_cardio'
+  | 'football'
+  | 'yoga'
+  | 'crossfit'
+  | 'martial'
+  | 'natation'
+  | 'tennis'
+  | 'danse'
+
+/** Formule d’abonnement — tarifs réglables par l’admin. */
+export interface GymMembershipPlan {
+  id: string
+  name: string
+  /** Disciplines couvertes (vide = toutes les disciplines actives). */
+  disciplineIds: GymDisciplineId[]
+  priceDa: number
+  /** Durée en jours (1 = séance / journée). */
+  durationDays: number
+  /** Séance passager / entrée sans abonnement longue durée. */
+  walkIn?: boolean
+  active?: boolean
+}
+
+/** Réglages salle de sport (disciplines + tarifs). */
+export interface GymSettings {
+  enabledDisciplines: GymDisciplineId[]
+  plans: GymMembershipPlan[]
+  /** À l’entrée : ouvrir un ticket caisse pour la conso de la séance. */
+  openTicketOnEntry: boolean
+}
+
+/**
+ * Session en salle : ticket caisse ouvert (HeldSale) jusqu’à encaissement.
+ * Membres NFC / QR ou passagers.
+ */
+export interface GymSession {
+  id: string
+  clientId: string
+  clientName: string
+  kind: 'member' | 'walk_in'
+  disciplineId?: GymDisciplineId
+  membershipPlanId?: string
+  heldSaleId: string
+  startedAt: string
+  status: 'open' | 'billing'
+  nfcUid?: string
 }
 
 /** Rôle employé (commerçant, cabinet, atelier…) */
@@ -522,13 +582,18 @@ export type GameConsoleKind =
   | 'xbox_360'
   | 'xbox_series_s'
 
-/** Une ligne de tarif console (heure + match + شوط إضافي) */
+/** Une ligne de tarif console (heure + match + match 4J + شوط إضافي) */
 export interface GameConsoleTariff {
   id: GameConsoleKind
   label: string
   hourDa: number
   /** 0 = pas de tarif match (ex. Xbox 360) */
   matchDa: number
+  /**
+   * Match 4 joueurs — par défaut le double du match normal.
+   * Si absent / 0 alors que matchDa > 0 → traité comme matchDa × 2.
+   */
+  match4Da?: number
   /** Prolongation = les 2 manches de temps additionnel — 0 = pas proposé */
   extraRoundDa: number
 }
@@ -573,6 +638,11 @@ export interface GameStation {
   clientLabel?: string
   note?: string
   /**
+   * Lignes en attente d’encaissement (jeux + produits consommés).
+   * Total = somme des lignes — encaissé via le bouton « Encaisser ».
+   */
+  tabLines?: GameStationTabLine[]
+  /**
    * Contrôle TV sur le réseau local (même Wi‑Fi).
    * - google_tv : Google TV / Android TV (ADB réseau + Wake-on-LAN)
    * - smart_tv : IP + MAC / URLs
@@ -590,6 +660,20 @@ export interface GameStation {
   tvOnUrl?: string
   /** URL HTTP complète OFF (smart_tv / custom) */
   tvOffUrl?: string
+}
+
+/** Ligne d’addition sur un poste (jeux ou produit consommé) */
+export interface GameStationTabLine {
+  id: string
+  kind: 'game' | 'product'
+  /** Produit catalogue (kind product) — flash_* pour jeux */
+  productId: string
+  name: string
+  qty: number
+  unitPriceDa: number
+  unit: Unit
+  /** true = hors stock (ligne jeu / flash) */
+  flash?: boolean
 }
 
 export type RepairStatus = 'devis' | 'or' | 'done' | 'cancelled'
@@ -754,6 +838,8 @@ export interface ShopSettings {
   gamePricePerMinuteDa?: number
   /** Tarifs PS4 / PS5 — heure et match */
   gameTariffs?: GameTariffs
+  /** Salle de sport unifiée — disciplines + abonnements */
+  gymSettings?: GymSettings
   /**
    * Plafond minutes gratuites (mode heure) par ajout — défaut 30.
    * Match / prolongation = 1 unité gratuite (durée tarif).
@@ -875,8 +961,40 @@ export interface PosSeller {
   /**
    * Autorisé par l’admin à ajouter des minutes gratuites
    * (heure / match / prolongation) sur les postes.
+   * @deprecated Préférer `permissions.gameFreeMinutes`
    */
   canGrantFreeMinutes?: boolean
+  /**
+   * Droits cochés par l’admin (vendeur uniquement).
+   * Absent / admin = tous les droits.
+   */
+  permissions?: Partial<
+    Record<
+      | 'sell'
+      | 'viewStock'
+      | 'editStock'
+      | 'viewClients'
+      | 'editClients'
+      | 'viewHistory'
+      | 'viewCaisse'
+      | 'viewProfits'
+      | 'viewExpenses'
+      | 'manageExpenses'
+      | 'viewPurchases'
+      | 'managePurchases'
+      | 'viewReturns'
+      | 'doReturns'
+      | 'settings'
+      | 'manageSellers'
+      | 'viewStaff'
+      | 'viewZakat'
+      | 'viewMissions'
+      | 'exportData'
+      | 'gameFreeMinutes'
+      | 'gameAdmin',
+      boolean
+    >
+  >
 }
 
 /** Journal des minutes gratuites salle de jeux */
@@ -885,8 +1003,8 @@ export interface GameFreeMinuteEntry {
   stationId: string
   stationName: string
   consoleKind: GameConsoleKind
-  /** heure | match | prolongation */
-  mode: 'hour' | 'match' | 'extra'
+  /** heure | match | match 4 joueurs | prolongation */
+  mode: 'hour' | 'match' | 'match4' | 'extra'
   minutes: number
   sellerId?: string
   sellerName?: string
@@ -973,6 +1091,8 @@ export interface AppState {
   clinicCharges: ClinicCharge[]
   /** Présences salle de sport (check-in NFC) */
   gymCheckIns: GymCheckIn[]
+  /** Sessions ouvertes (ticket conso jusqu’à encaissement) */
+  gymSessions: GymSession[]
   /** Équipe / RH lean */
   employees: Employee[]
   employeeLeaves: EmployeeLeave[]
@@ -991,6 +1111,10 @@ export interface AppState {
   repairOrders: RepairOrder[]
   /** Mémoire scan facture : nom OCR → produit (corrections utilisateur) */
   invoiceAliases: InvoiceProductAlias[]
+  /** Recettes de production (MP → produit fini) */
+  recipes: Recipe[]
+  /** Historique des fabrications */
+  productionRuns: ProductionRun[]
 }
 
 /** Lien mémorisé entre un libellé facture et un produit stock. */
@@ -1000,6 +1124,43 @@ export interface InvoiceProductAlias {
   productId: string
   hits: number
   updatedAt: string
+}
+
+/** Ingrédient : qty de matière première pour 1 unité de produit fini */
+export interface RecipeIngredient {
+  productId: string
+  qtyPerUnit: number
+}
+
+/** Recette de fabrication */
+export interface Recipe {
+  id: string
+  name: string
+  /** Produit fini (stock +) */
+  outputProductId: string
+  ingredients: RecipeIngredient[]
+  note?: string
+  createdAt: string
+  updatedAt?: string
+}
+
+/** Une fabrication enregistrée */
+export interface ProductionRun {
+  id: string
+  recipeId: string
+  recipeName: string
+  outputProductId: string
+  outputName: string
+  qtyProduced: number
+  consumed: {
+    productId: string
+    name: string
+    qty: number
+  }[]
+  /** Coût unitaire estimé (somme MP) au moment de la prod */
+  unitCostDa?: number
+  locationId: string
+  createdAt: string
 }
 
 export const ALL_UNITS: Unit[] = [

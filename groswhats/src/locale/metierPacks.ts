@@ -107,6 +107,10 @@ export type MetierFeatures = {
    * hors fiches dédiées patient (medicalDossier) et athlète (gymCheckin).
    */
   specialtyDossier: boolean
+  /**
+   * Production / recettes : MP → produit fini (boulangerie, resto, atelier…).
+   */
+  production: boolean
 }
 
 export type MetierCopy = DomainVocab & {
@@ -145,6 +149,7 @@ const FEAT = {
     doctorNoCash: false,
     staffHr: true,
     specialtyDossier: false,
+    production: false,
   } satisfies MetierFeatures,
   depot: {
     medicalDossier: false,
@@ -164,6 +169,7 @@ const FEAT = {
     doctorNoCash: false,
     staffHr: true,
     specialtyDossier: false,
+    production: false,
   } satisfies MetierFeatures,
   clinic: {
     medicalDossier: true,
@@ -183,6 +189,7 @@ const FEAT = {
     doctorNoCash: true,
     staffHr: true,
     specialtyDossier: true,
+    production: false,
   } satisfies MetierFeatures,
   service: {
     medicalDossier: false,
@@ -202,6 +209,7 @@ const FEAT = {
     doctorNoCash: false,
     staffHr: true,
     specialtyDossier: true,
+    production: false,
   } satisfies MetierFeatures,
 }
 
@@ -620,7 +628,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
   grocery: pack(
     'grocery',
     THEME_RETAIL,
-    FEAT.shop,
+    { ...FEAT.shop, production: true },
     {
       client: 'Client',
       product: 'Rayon',
@@ -645,7 +653,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
   bakery: pack(
     'bakery',
     THEME_BAKERY,
-    { ...FEAT.shop, gallery: true },
+    { ...FEAT.shop, gallery: true, production: true },
     {
       client: 'Client',
       product: 'Produit',
@@ -684,7 +692,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
         '--glow': 'rgba(155, 44, 44, 0.14)',
       },
     ),
-    FEAT.shop,
+    { ...FEAT.shop, production: true },
     {
       client: 'Client',
       product: 'Coupe',
@@ -716,6 +724,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
       gallery: true,
       noSaleWording: true,
       specialtyDossier: true,
+      production: true,
     },
     {
       client: 'Client',
@@ -741,7 +750,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
   cafe: pack(
     'cafe',
     THEME_CAFE,
-    { ...FEAT.shop, noSaleWording: true },
+    { ...FEAT.shop, noSaleWording: true, production: true },
     {
       client: 'Client',
       product: 'Carte',
@@ -1329,21 +1338,21 @@ const PACKS: Record<MetierFamily, MetierPack> = {
       client: 'Adhérent',
       product: 'Boutique',
       sell: 'Encaisser',
-      sellHint: 'Boutique, abonnement, check-in NFC',
-      homeTitle: 'Club',
-      homeHint: 'Adhérents, boutique, accès',
-      historyLabel: 'Abonnements',
-      primaryCta: 'Check-in / encaisser',
+      sellHint: 'Séance, abonnement, boutique, NFC',
+      homeTitle: 'Salle de sport',
+      homeHint: 'Disciplines, abonnements, sessions ouvertes',
+      historyLabel: 'Séances / abonnements',
+      primaryCta: 'Entrée / session',
     },
     {
       client: 'منخرط',
       product: 'متجر',
       sell: 'تحصيل',
-      sellHint: 'متجر، اشتراك، دخول NFC',
-      homeTitle: 'النادي',
-      homeHint: 'منخرطون، متجر، دخول',
-      historyLabel: 'الاشتراكات',
-      primaryCta: 'دخول / تحصيل',
+      sellHint: 'حصة، اشتراك، متجر، NFC',
+      homeTitle: 'قاعة الرياضة',
+      homeHint: 'تخصصات، اشتراكات، حصص مفتوحة',
+      historyLabel: 'الحصص / الاشتراكات',
+      primaryCta: 'دخول / حصة',
     },
   ),
   boxing: pack(
@@ -1351,24 +1360,24 @@ const PACKS: Record<MetierFamily, MetierPack> = {
     THEME_BOXING,
     { ...FEAT.service, gymCheckin: true, homeScan: true, specialtyDossier: false },
     {
-      client: 'Boxeur',
+      client: 'Adhérent',
       product: 'Boutique',
       sell: 'Encaisser',
-      sellHint: 'Boutique, séances, abonnement',
-      homeTitle: 'Boxe',
-      homeHint: 'Athlètes, boutique et check-in',
-      historyLabel: 'Abonnements',
-      primaryCta: 'Check-in / encaisser',
+      sellHint: 'Séance, abonnement, boutique',
+      homeTitle: 'Salle de sport',
+      homeHint: 'Disciplines, abonnements, sessions',
+      historyLabel: 'Séances',
+      primaryCta: 'Entrée / session',
     },
     {
-      client: 'ملاكم',
+      client: 'منخرط',
       product: 'متجر',
       sell: 'تحصيل',
-      sellHint: 'متجر، حصص، اشتراك',
-      homeTitle: 'الملاكمة',
-      homeHint: 'رياضيون ومتجر ودخول',
-      historyLabel: 'الاشتراكات',
-      primaryCta: 'دخول / تحصيل',
+      sellHint: 'حصة، اشتراك، متجر',
+      homeTitle: 'قاعة الرياضة',
+      homeHint: 'تخصصات واشتراكات',
+      historyLabel: 'الحصص',
+      primaryCta: 'دخول / حصة',
     },
   ),
   football: pack(
@@ -1738,7 +1747,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
   artisan: pack(
     'artisan',
     THEME_SERVICE,
-    { ...FEAT.service, repairOrder: true, gallery: true },
+    { ...FEAT.service, repairOrder: true, gallery: true, production: true },
     {
       client: 'Client',
       product: 'Intervention',
@@ -1987,15 +1996,15 @@ const DOMAIN_FAMILY: Record<string, MetierFamily> = {
   'svc-ecole': 'school',
   'svc-creche': 'creche',
   'svc-sport': 'gym',
-  'svc-boxe': 'boxing',
-  'svc-football': 'football',
-  'svc-yoga': 'yoga',
-  'svc-crossfit': 'crossfit',
-  'svc-arts-martiaux': 'martial',
-  'svc-natation': 'swim',
-  'svc-tennis': 'tennis',
-  'svc-danse': 'danse',
-  'svc-musculation': 'musculation',
+  'svc-boxe': 'gym',
+  'svc-football': 'gym',
+  'svc-yoga': 'gym',
+  'svc-crossfit': 'gym',
+  'svc-arts-martiaux': 'gym',
+  'svc-natation': 'gym',
+  'svc-tennis': 'gym',
+  'svc-danse': 'gym',
+  'svc-musculation': 'gym',
   'svc-fetes': 'events',
   'svc-jeux': 'game_room',
   'svc-photo': 'photo',

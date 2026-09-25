@@ -227,6 +227,13 @@ export function showRepairOrder(
   return featuresFor(domainId, mode).repairOrder
 }
 
+export function showProduction(
+  mode: CommerceMode | undefined,
+  domainId?: string,
+): boolean {
+  return featuresFor(domainId, mode).production
+}
+
 export function usesNoSaleWording(
   mode: CommerceMode | undefined,
   domainId?: string,

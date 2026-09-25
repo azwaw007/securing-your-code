@@ -87,8 +87,15 @@ import {
   removeHeldSale,
   setClinicStation,
   setTableStatus,
+  closeGymSession,
+  ensureGymSessionHeld,
+  relinkGymSessionHeld,
   uid,
 } from './store'
+import {
+  sellerCan,
+  sellerCanAccessScreen,
+} from './sellerPermissions'
 import { isDecimalUnit, qtyStep, t, unitLabel } from './i18n'
 import { mt } from './locale/modeCopy'
 import { formatDa, formatQty, setActiveCurrency, setActiveLocale } from './utils/format'
@@ -124,6 +131,7 @@ import {
   showTableService,
   showGameStations,
   showRepairOrder,
+  showProduction,
   showMedicalDossier,
   showReturns,
   showStaffHr,
@@ -244,6 +252,7 @@ import {
   SellersPanel,
 } from './SellersPanel'
 import { RepairOrderPanel } from './RepairOrderPanel'
+import { ProductionPage } from './ProductionPage'
 import { StaffPanel } from './StaffPanel'
 import { ExpertComptableCard } from './ExpertComptableCard'
 import { OrderRevisePanel } from './OrderRevisePanel'
@@ -380,6 +389,10 @@ export default function App() {
   }
 
   function goTo(next: Screen, _spokenLabel?: string) {
+    if (!sellerCanAccessScreen(state, next)) {
+      setToast(t(lang, 'sellerAccessDenied'))
+      return
+    }
     keepAlive(next)
     setScreen((curr) => {
       if (curr !== next) {
@@ -505,7 +518,7 @@ export default function App() {
     state.settings.commerceMode === 'sante' &&
     state.settings.clinicShareEnabled === true &&
     !state.settings.clinicStationChosen
-
+  const needSetup = !state.settings.setupDone || redoSetup
 
   useEffect(() => {
     if (isDriverMode && screen !== 'missions') goTo('missions')
@@ -525,6 +538,14 @@ export default function App() {
     }
   }, [isCashierMode, needCashierLogin, screen])
 
+  useEffect(() => {
+    if (needSetup || needRolePick || needCashierLogin) return
+    if (!sellerCanAccessScreen(state, screen)) {
+      setScreen('home')
+      setNavStack([])
+    }
+  }, [state.sellers, state.settings.currentSellerId, screen, needSetup, needRolePick, needCashierLogin])
+
   /** Voix agent / TTS désactivée */
   useEffect(() => {
     stopSpeaking()
@@ -541,8 +562,6 @@ export default function App() {
       setState((s) => updateSettings(s, { language: defaultLang(code) }))
     }
   }, [state.settings.countryCode, lang])
-
-  const needSetup = !state.settings.setupDone || redoSetup
 
   return (
     <DesktopChrome
@@ -734,7 +753,7 @@ export default function App() {
             onClick={() => goTo('settings')}
             aria-label={t(lang, 'settings')}
             title={t(lang, 'settings')}
-            hidden={isCashierMode}
+            hidden={isCashierMode || !sellerCan(state, 'settings')}
           >
             ⚙️
           </button>
@@ -854,6 +873,19 @@ export default function App() {
             if (newHeldId) setSeedHeldId(newHeldId)
             goTo('order', vocab.sell)
           }}
+          onOpenGymSession={(sessionId) => {
+            const ensured = ensureGymSessionHeld(state, sessionId)
+            const session = (ensured.gymSessions ?? []).find(
+              (s) => s.id === sessionId,
+            )
+            if (!session) {
+              flash('gymSessionFailed')
+              return
+            }
+            setState(ensured)
+            setSeedHeldId(session.heldSaleId)
+            goTo('order', vocab.sell)
+          }}
           onOpenHistoryDates={(from, to) => {
             setHistorySeed({ from, to })
             goTo('history', t(lang, 'appHistory'))
@@ -905,6 +937,8 @@ export default function App() {
           state={state}
           lang={lang}
           onFlash={flash}
+          canEdit={sellerCan(state, 'editStock')}
+          showCosts={sellerCan(state, 'viewProfits')}
           initialProductId={focusProductId}
           seedBarcode={seedProductBarcode}
           seedQuery={seedProductQuery}
@@ -914,14 +948,26 @@ export default function App() {
             setSeedProductQuery(null)
           }}
           onAdd={(p) => {
+            if (!sellerCan(state, 'editStock')) {
+              flash('sellerAccessDenied')
+              return
+            }
             setState((s) => addProduct(s, p))
             flash('productAdded')
           }}
           onUpdate={(id, patch) => {
+            if (!sellerCan(state, 'editStock')) {
+              flash('sellerAccessDenied')
+              return
+            }
             setState((s) => updateProduct(s, id, patch))
             flash('productUpdated')
           }}
           onDelete={(id) => {
+            if (!sellerCan(state, 'editStock')) {
+              flash('sellerAccessDenied')
+              return
+            }
             setState((s) => deleteProduct(s, id))
             flash('productDeleted')
           }}
@@ -939,6 +985,7 @@ export default function App() {
           state={state}
           lang={lang}
           clinicStation={clinicStation}
+          canEdit={sellerCan(state, 'editClients')}
           initialClientId={focusClientId}
           seedNotes={seedClientNotes}
           onSeedConsumed={() => {
@@ -947,10 +994,18 @@ export default function App() {
           }}
           onState={setState}
           onAdd={(c) => {
+            if (!sellerCan(state, 'editClients')) {
+              flash('sellerAccessDenied')
+              return
+            }
             setState((s) => addClient(s, c))
             flash('clientAdded')
           }}
           onUpdate={(id, patch) => {
+            if (!sellerCan(state, 'editClients')) {
+              flash('sellerAccessDenied')
+              return
+            }
             setState((s) => updateClient(s, id, patch))
             flash('clientUpdated')
           }}
@@ -959,15 +1014,27 @@ export default function App() {
             flash('debtPaymentSaved')
           }}
           onSetBalance={(id, balance) => {
+            if (!sellerCan(state, 'editClients')) {
+              flash('sellerAccessDenied')
+              return
+            }
             setState((s) => setClientDisplayedBalance(s, id, balance))
             flash('balanceUpdated')
           }}
           onImport={(list) => {
+            if (!sellerCan(state, 'editClients')) {
+              flash('sellerAccessDenied')
+              return
+            }
             const { state: next, added } = addClientsBulk(state, list)
             setState(next)
             if (added > 0) flash('contactsImported')
           }}
           onDelete={(id) => {
+            if (!sellerCan(state, 'editClients')) {
+              flash('sellerAccessDenied')
+              return
+            }
             setState((s) => deleteClient(s, id))
             flash('clientDeleted')
           }}
@@ -992,10 +1059,32 @@ export default function App() {
           onGo={goTo}
           onFlash={flash}
           onUpdateProduct={(id, patch) => setState((s) => updateProduct(s, id, patch))}
-          onHoldSale={(input) => setState((s) => holdSale(s, input))}
+          onHoldSale={(input) =>
+            setState((s) => {
+              const next = holdSale(s, input)
+              const newId = next.heldSales[0]?.id
+              if (!newId) return next
+              return relinkGymSessionHeld(next, newId, {
+                clientId: input.clientId,
+                label: input.label,
+              })
+            })
+          }
           onRemoveHeld={(id) => setState((s) => removeHeldSale(s, id))}
           onCreate={(order) => {
-            const next = createOrder(state, order)
+            let next = createOrder(state, order)
+            const sessions = next.gymSessions ?? []
+            for (const s of [...sessions]) {
+              const matchClient =
+                !!order.clientId && s.clientId === order.clientId
+              const matchWalkIn =
+                !order.clientId &&
+                s.kind === 'walk_in' &&
+                (s.status === 'billing' || s.clientName === order.clientName)
+              if (matchClient || matchWalkIn) {
+                next = closeGymSession(next, s.id)
+              }
+            }
             setState(next)
             return next.orders[0]
           }}
@@ -1243,7 +1332,26 @@ export default function App() {
           aria-hidden={screen !== 'stock'}
           inert={screen !== 'stock' ? true : undefined}
         >
-          <StockPage state={state} stats={stats} lang={lang} />
+          <StockPage
+            state={state}
+            stats={stats}
+            lang={lang}
+            showCosts={sellerCan(state, 'viewProfits')}
+          />
+        </div>
+      ) : null}
+      {isAlive('production') && !isDriverMode ? (
+        <div
+          className={`screen-pane ${screen === 'production' ? 'is-active' : 'is-cached'}`}
+          aria-hidden={screen !== 'production'}
+          inert={screen !== 'production' ? true : undefined}
+        >
+          <ProductionPage
+            state={state}
+            lang={lang}
+            onState={setState}
+            onFlash={(msg) => setToast(msg)}
+          />
         </div>
       ) : null}
       {isAlive('zakat') ? (
@@ -1404,6 +1512,7 @@ export default function App() {
       <nav className="bottom-nav" aria-label="Navigation">
         {navItems(state.settings.commerceMode, clinicStation)
           .filter((item) => {
+            if (!sellerCanAccessScreen(state, item.id)) return false
             if (!isCashierMode) return true
             return (
               item.id === 'home' ||
@@ -2463,6 +2572,7 @@ function HomePage({
   onSeedNewClient,
   onSeedSell,
   onOpenTableOrder,
+  onOpenGymSession,
   onOpenHistoryDates,
   onEnableAlerts,
   onWhatsapp,
@@ -2502,6 +2612,8 @@ function HomePage({
   onSeedSell: (productId: string) => void
   /** Ouvre une table (resto) : crée/reprend le ticket en attente puis va à la caisse */
   onOpenTableOrder: (tableId: string, heldSaleId?: string) => void
+  /** Ouvre le ticket session salle de sport en caisse */
+  onOpenGymSession: (sessionId: string) => void
   onOpenHistoryDates: (from: string, to: string) => void
   onEnableAlerts: () => void
   onWhatsapp: (order: Order) => void
@@ -2687,6 +2799,8 @@ function HomePage({
                 { id: 'clients', label: vocab.client, icon: '👥', tone: 'navy' },
               ]
 
+  const canSell = sellerCan(state, 'sell')
+
   const depot = showDepotTools(state.settings.commerceMode, domainId)
   const moreApps: Array<{
     id: Screen
@@ -2729,10 +2843,13 @@ function HomePage({
     ...(showReturns(state.settings.commerceMode, domainId)
       ? [{ id: 'returns' as Screen, label: t(lang, 'appReturns'), icon: '↩️', tone: 'coral' }]
       : []),
-    { id: 'agent', label: t(lang, 'appAgent'), icon: '🤖', tone: 'slate' },
-    { id: 'expenses', label: t(lang, 'appExpenses'), icon: '💸', tone: 'rose' },
-    { id: 'profits', label: t(lang, 'appProfits'), icon: '💰', tone: 'amber' },
-    { id: 'stock', label: t(lang, 'appValue'), icon: '📈', tone: 'emerald' },
+    { id: 'agent' as Screen, label: t(lang, 'appAgent'), icon: '🤖', tone: 'slate' },
+    { id: 'expenses' as Screen, label: t(lang, 'appExpenses'), icon: '💸', tone: 'rose' },
+    { id: 'profits' as Screen, label: t(lang, 'appProfits'), icon: '💰', tone: 'amber' },
+    { id: 'stock' as Screen, label: t(lang, 'appValue'), icon: '📈', tone: 'emerald' },
+    ...(showProduction(mode, domainId)
+      ? [{ id: 'production' as Screen, label: t(lang, 'prodTitle'), icon: '🥖', tone: 'amber' }]
+      : []),
     ...(state.settings.showZakat !== false
       ? [{ id: 'zakat' as Screen, label: t(lang, 'appZakat'), icon: '🌙', tone: 'forest' }]
       : []),
@@ -2743,22 +2860,26 @@ function HomePage({
       ? [{ id: 'staff' as Screen, label: t(lang, 'staffTitle'), icon: '👥', tone: 'navy' }]
       : []),
     { id: 'sellers' as Screen, label: t(lang, 'sellersTitle'), icon: '🧍', tone: 'navy' },
-    { id: 'settings', label: t(lang, 'appSettings'), icon: '⚙️', tone: 'charcoal' },
-  ]
+    { id: 'settings' as Screen, label: t(lang, 'appSettings'), icon: '⚙️', tone: 'charcoal' },
+  ].filter((app) => sellerCanAccessScreen(state, app.id))
+
+  const dailyAppsFiltered = dailyApps.filter((app) =>
+    sellerCanAccessScreen(state, app.id),
+  )
   const optionalApps: Array<{
     id: Screen
     label: string
     icon: string
     tone: string
     badge?: number
-  }> = OPTIONAL_TOOLS.filter((tool) => isToolEnabled(state.settings, tool.id)).map(
-    (tool) => ({
+  }> = OPTIONAL_TOOLS.filter((tool) => isToolEnabled(state.settings, tool.id))
+    .map((tool) => ({
       id: tool.screen,
       label: toolLabel(tool, lang),
       icon: tool.icon,
       tone: tool.tone,
-    }),
-  )
+    }))
+    .filter((app) => sellerCanAccessScreen(state, app.id))
   const moreBadge = moreApps.reduce((n, app) => n + (app.badge ?? 0), 0)
 
   return (
@@ -2768,7 +2889,11 @@ function HomePage({
         lang={lang}
         onState={onState}
         onFlash={onFlash}
-        onManage={() => onGo('sellers', t(lang, 'sellersTitle'))}
+        onManage={
+          sellerCan(state, 'manageSellers')
+            ? () => onGo('sellers', t(lang, 'sellersTitle'))
+            : undefined
+        }
       />
       <StockAlertCard
         products={low}
@@ -2835,6 +2960,9 @@ function HomePage({
             onSeedNewClient(`NFC:${uid}`)
             onGo('clients', vocab.client)
           }}
+          onOpenSession={(session) => {
+            onOpenGymSession(session.id)
+          }}
         />
       ) : null}
 
@@ -2894,7 +3022,7 @@ function HomePage({
           <span className="sell-cta-emoji">📷</span>
         </button>
         ) : null}
-        {!isDoctor ? (
+        {!isDoctor && canSell ? (
         <button
           type="button"
           className="sell-cta"
@@ -2914,6 +3042,7 @@ function HomePage({
           </span>
         </button>
         ) : null}
+        {sellerCan(state, 'viewHistory') ? (
         <button
           type="button"
           className="history-cta"
@@ -2922,6 +3051,7 @@ function HomePage({
         >
           <span className="cal">📅</span>
         </button>
+        ) : null}
       </section>
 
       {needsSetup ? (
@@ -2944,7 +3074,7 @@ function HomePage({
 
       <section className="home-apps" aria-label={t(lang, 'appMenu')}>
         <div className="app-grid">
-          {dailyApps.map((app) => (
+          {dailyAppsFiltered.map((app) => (
             <button
               key={app.id}
               type="button"
@@ -3911,6 +4041,8 @@ function ProductsPage({
   state,
   lang,
   onFlash,
+  canEdit = true,
+  showCosts = true,
   onAdd,
   onUpdate,
   onDelete,
@@ -3923,6 +4055,8 @@ function ProductsPage({
   state: AppState
   lang: Language
   onFlash: (key: string) => void
+  canEdit?: boolean
+  showCosts?: boolean
   onAdd: (p: Omit<Product, 'id' | 'createdAt'>) => void
   onUpdate: (id: string, patch: Partial<Product>) => void
   onDelete: (id: string) => void
@@ -4059,6 +4193,31 @@ function ProductsPage({
   }
 
   if (editing) {
+    if (!canEdit) {
+      return (
+        <div className="card">
+          <h2>{editing.name}</h2>
+          <p className="muted">{t(lang, 'sellerStockReadOnly')}</p>
+          <div className="muted" style={{ marginTop: 4 }}>
+            {showCosts ? (
+              <>
+                {t(lang, 'buyPriceShort')} {formatDa(editing.costDa || 0)} →{' '}
+              </>
+            ) : null}
+            {formatDa(editing.priceDa)} · {formatQty(displayStock(state, editing))}{' '}
+            {unitLabel(lang, editing.unit)}
+          </div>
+          <button
+            type="button"
+            className="btn secondary block"
+            style={{ marginTop: 12 }}
+            onClick={() => setEditId(null)}
+          >
+            {t(lang, 'back')}
+          </button>
+        </div>
+      )
+    }
     return (
       <ProductEditCard
         lang={lang}
@@ -4089,6 +4248,7 @@ function ProductsPage({
 
   return (
     <>
+      {canEdit ? (
       <div className="card">
         <h2>{t(lang, 'newProduct')}</h2>
         <div className="product-photo-field">
@@ -4330,6 +4490,12 @@ function ProductsPage({
           {t(lang, 'addToStock')}
         </button>
       </div>
+      ) : (
+        <div className="card">
+          <h2>{t(lang, 'productCatalog')}</h2>
+          <p className="muted">{t(lang, 'sellerStockReadOnly')}</p>
+        </div>
+      )}
 
       <div className="card">
         <h2>
@@ -4382,7 +4548,11 @@ function ProductsPage({
                   {p.color ? ` · ${p.color}` : ''}
                 </div>
                 <div className="muted" style={{ marginTop: 4 }}>
-                  {t(lang, 'buyPriceShort')} {formatDa(p.costDa || 0)} →{' '}
+                  {showCosts ? (
+                    <>
+                      {t(lang, 'buyPriceShort')} {formatDa(p.costDa || 0)} →{' '}
+                    </>
+                  ) : null}
                   {formatDa(p.priceDa)}
                   {showWholesaleTiers(state.settings.commerceMode) && p.demiGrosPriceDa
                     ? ` · ${t(lang, 'tier_demi_gros')} ${formatDa(p.demiGrosPriceDa)}`
@@ -4415,6 +4585,8 @@ function ProductsPage({
                       ? ` · ${Math.floor(displayStock(state, p) / p.piecesPerPack)} ${t(lang, 'cartonsLeft')}`
                       : ''}
                   </span>
+                  {canEdit ? (
+                    <>
                   <button
                     className="btn ghost"
                     onClick={() =>
@@ -4451,6 +4623,12 @@ function ProductsPage({
                   <button className="btn danger" onClick={() => onDelete(p.id)}>
                     {t(lang, 'delete')}
                   </button>
+                    </>
+                  ) : (
+                  <button className="btn secondary" onClick={() => setEditId(p.id)}>
+                    {t(lang, 'view')}
+                  </button>
+                  )}
                 </div>
               </div>
               <strong>{formatDa(p.priceDa * p.stock)}</strong>
@@ -4850,6 +5028,7 @@ function ClientsPage({
   state,
   lang,
   clinicStation,
+  canEdit = true,
   initialClientId,
   seedNotes,
   onSeedConsumed,
@@ -4866,6 +5045,7 @@ function ClientsPage({
   state: AppState
   lang: Language
   clinicStation: ClinicStation | null
+  canEdit?: boolean
   initialClientId?: string | null
   seedNotes?: string | null
   onSeedConsumed?: () => void
@@ -5171,6 +5351,8 @@ function ClientsPage({
                 {t(lang, 'whatsappClient')}
               </button>
             ) : null}
+            {canEdit ? (
+              <>
             <button className="btn" onClick={() => setEditing(true)}>
               ✏️ {t(lang, 'editClient')}
             </button>
@@ -5183,6 +5365,8 @@ function ClientsPage({
             >
               {t(lang, 'delete')}
             </button>
+              </>
+            ) : null}
           </div>
 
           <ClientQrCard client={selected} lang={lang} />
@@ -7620,6 +7804,7 @@ function StockPage({
   state,
   stats,
   lang,
+  showCosts = true,
 }: {
   state: AppState
   stats: {
@@ -7629,6 +7814,7 @@ function StockPage({
     credits: number
   }
   lang: Language
+  showCosts?: boolean
 }) {
   return (
     <>
@@ -7637,6 +7823,8 @@ function StockPage({
           <div className="muted">{t(lang, 'stockValue')}</div>
           <strong>{formatDa(stats.stockValue)}</strong>
         </div>
+        {showCosts ? (
+          <>
         <div className="stat">
           <div className="muted">{t(lang, 'stockCost')}</div>
           <strong>{formatDa(stats.stockCost)}</strong>
@@ -7645,14 +7833,18 @@ function StockPage({
           <div className="muted">{t(lang, 'stockMargin')}</div>
           <strong>{formatDa(stats.stockMargin)}</strong>
         </div>
+          </>
+        ) : null}
         <div className="stat">
           <div className="muted">{t(lang, 'openCredits')}</div>
           <strong>{formatDa(stats.credits)}</strong>
         </div>
       </div>
+      {showCosts ? (
       <div className="muted" style={{ margin: '8px 4px 0' }}>
         {mt(state.settings.commerceMode, lang, 'profitHint')}
       </div>
+      ) : null}
 
       <div className="card" style={{ marginTop: 12 }}>
         <h2>{t(lang, 'stockDetail')}</h2>
@@ -7671,16 +7863,30 @@ function StockPage({
                 <div className="muted">
                   {state.settings.multiLocationEnabled
                     ? `${t(lang, 'stockHere')} ${formatQty(here)} · ${t(lang, 'stockTotal')} ${formatQty(p.stock)}`
-                    : `${formatQty(p.stock)} ${unitLabel(lang, p.unit)}`}{' '}
-                  · {t(lang, 'buyPriceShort')} {formatDa(p.costDa || 0)} →{' '}
-                  {mt(state.settings.commerceMode, lang, 'sellPriceShort')} {formatDa(p.priceDa)}
+                    : `${formatQty(p.stock)} ${unitLabel(lang, p.unit)}`}
+                  {showCosts ? (
+                    <>
+                      {' '}
+                      · {t(lang, 'buyPriceShort')} {formatDa(p.costDa || 0)} →{' '}
+                      {mt(state.settings.commerceMode, lang, 'sellPriceShort')}{' '}
+                      {formatDa(p.priceDa)}
+                    </>
+                  ) : (
+                    <>
+                      {' '}
+                      · {mt(state.settings.commerceMode, lang, 'sellPriceShort')}{' '}
+                      {formatDa(p.priceDa)}
+                    </>
+                  )}
                 </div>
               </div>
               <div style={{ textAlign: 'end' }}>
                 <strong>{formatDa(p.stock * p.priceDa)}</strong>
+                {showCosts ? (
                 <div className="muted">
                   {t(lang, 'margin')} {formatDa(margin)}
                 </div>
+                ) : null}
                 {here <= p.lowStockAt ? (
                   <div className="badge warn">{t(lang, 'lowStock')}</div>
                 ) : null}

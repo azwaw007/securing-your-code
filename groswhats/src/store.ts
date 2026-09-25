@@ -27,6 +27,8 @@ import type {
   ClinicCharge,
   ClinicStation,
   GymCheckIn,
+  GymSession,
+  GymDisciplineId,
   Employee,
   EmployeeLeave,
   StaffLedgerEntry,
@@ -42,17 +44,26 @@ import type {
   PriceTier,
   FloorTable,
   GameStation,
+  GameStationTabLine,
   GameConsoleKind,
   GameConsoleTariff,
   GameTariffs,
   GameFreeMinuteEntry,
   RepairOrder,
   InvoiceProductAlias,
+  Recipe,
+  RecipeIngredient,
+  ProductionRun,
 } from './types'
 import {
   DEFAULT_AGENT_PERMISSIONS,
   type AgentPermissions,
 } from './agent/permissions'
+import {
+  DEFAULT_VENDEUR_PERMISSIONS,
+  migrateSellerPermissions,
+  sellerCan,
+} from './sellerPermissions'
 import { APP_BRAND } from './brand'
 import { countryByCode, convertPriceDa } from './data/countries'
 import { bestForeignCatalogHit, catalogFor, catalogNameHits } from './data/catalogs'
@@ -61,6 +72,13 @@ import { catalogImagePath } from './utils/productArt'
 import { resolvePackSize, normalizePackOptions } from './utils/packSize'
 import { parseLanguage } from './locale/langs'
 import { defaultZakatOn } from './locale/adapt'
+import {
+  defaultGymSettings,
+  migrateGymSettings,
+  membershipStillValid,
+  resolveSportDomainId,
+  SPORT_DOMAIN_ALIASES,
+} from './gym/disciplines'
 
 const STORAGE_KEY = 'az-pos-v1'
 const LEGACY_STORAGE_KEYS = [
@@ -113,6 +131,7 @@ function defaultSettings(): ShopSettings {
     adminPin: undefined,
     gamePricePerMinuteDa: 7,
     gameTariffs: { ...DEFAULT_GAME_TARIFFS },
+    gymSettings: defaultGymSettings(),
     gameFreeMaxMinutes: 30,
     currentSellerId: undefined,
   }
@@ -122,12 +141,12 @@ export const DEFAULT_GAME_PRICE_PER_MINUTE_DA = 7
 
 /** Grille par défaut — liste prix + Xbox Series S + أشواط إضافية */
 export const DEFAULT_GAME_CONSOLES: GameConsoleTariff[] = [
-  { id: 'xbox_one', label: 'XBOX ONE', hourDa: 200, matchDa: 50, extraRoundDa: 30 },
-  { id: 'ps4', label: 'PS4', hourDa: 200, matchDa: 50, extraRoundDa: 30 },
-  { id: 'ps4_pro', label: 'PS4 PRO', hourDa: 250, matchDa: 70, extraRoundDa: 30 },
-  { id: 'ps5', label: 'PS5', hourDa: 300, matchDa: 100, extraRoundDa: 50 },
-  { id: 'xbox_360', label: 'XBOX 360', hourDa: 100, matchDa: 0, extraRoundDa: 0 },
-  { id: 'xbox_series_s', label: 'XBOX Series S', hourDa: 300, matchDa: 70, extraRoundDa: 40 },
+  { id: 'xbox_one', label: 'XBOX ONE', hourDa: 200, matchDa: 50, match4Da: 100, extraRoundDa: 30 },
+  { id: 'ps4', label: 'PS4', hourDa: 200, matchDa: 50, match4Da: 100, extraRoundDa: 30 },
+  { id: 'ps4_pro', label: 'PS4 PRO', hourDa: 250, matchDa: 70, match4Da: 140, extraRoundDa: 30 },
+  { id: 'ps5', label: 'PS5', hourDa: 300, matchDa: 100, match4Da: 200, extraRoundDa: 50 },
+  { id: 'xbox_360', label: 'XBOX 360', hourDa: 100, matchDa: 0, match4Da: 0, extraRoundDa: 0 },
+  { id: 'xbox_series_s', label: 'XBOX Series S', hourDa: 300, matchDa: 70, match4Da: 140, extraRoundDa: 40 },
 ]
 
 export const DEFAULT_GAME_TARIFFS: GameTariffs = {
@@ -138,11 +157,36 @@ export const DEFAULT_GAME_TARIFFS: GameTariffs = {
 
 export function defaultSellers(): PosSeller[] {
   const now = new Date().toISOString()
+  const vendeurPerms = { ...DEFAULT_VENDEUR_PERMISSIONS }
   return [
     { id: 'seller_admin', name: 'Admin', role: 'admin', pin: '', active: true, createdAt: now },
-    { id: 'seller_v1', name: 'Vendeur 1', role: 'vendeur', pin: '', active: true, createdAt: now },
-    { id: 'seller_v2', name: 'Vendeur 2', role: 'vendeur', pin: '', active: true, createdAt: now },
-    { id: 'seller_v3', name: 'Vendeur 3', role: 'vendeur', pin: '', active: true, createdAt: now },
+    {
+      id: 'seller_v1',
+      name: 'Vendeur 1',
+      role: 'vendeur',
+      pin: '',
+      active: true,
+      createdAt: now,
+      permissions: { ...vendeurPerms },
+    },
+    {
+      id: 'seller_v2',
+      name: 'Vendeur 2',
+      role: 'vendeur',
+      pin: '',
+      active: true,
+      createdAt: now,
+      permissions: { ...vendeurPerms },
+    },
+    {
+      id: 'seller_v3',
+      name: 'Vendeur 3',
+      role: 'vendeur',
+      pin: '',
+      active: true,
+      createdAt: now,
+      permissions: { ...vendeurPerms },
+    },
   ]
 }
 
@@ -407,6 +451,7 @@ function seedState(): AppState {
     medicalDocuments: [],
     clinicCharges: [],
     gymCheckIns: [],
+    gymSessions: [],
     employees: [],
     employeeLeaves: [],
     staffLedger: [],
@@ -417,6 +462,8 @@ function seedState(): AppState {
     gameFreeMinutes: [],
     repairOrders: [],
     invoiceAliases: [],
+    recipes: [],
+    productionRuns: [],
   }
 }
 
@@ -449,6 +496,8 @@ export function migrate(raw: unknown): AppState {
     gameStations?: GameStation[]
     repairOrders?: RepairOrder[]
     invoiceAliases?: InvoiceProductAlias[]
+    recipes?: Recipe[]
+    productionRuns?: ProductionRun[]
   }
   const incoming = data.settings ?? {}
   const defaults = defaultSettings()
@@ -468,10 +517,13 @@ export function migrate(raw: unknown): AppState {
     )
       ? (incoming.commerceMode as CommerceMode)
       : defaults.commerceMode,
-    domainId:
-      incoming.domainId === 'detail-alimentation'
-        ? 'detail-superette'
-        : incoming.domainId || defaults.domainId,
+    domainId: (() => {
+      const raw =
+        incoming.domainId === 'detail-alimentation'
+          ? 'detail-superette'
+          : incoming.domainId || defaults.domainId
+      return resolveSportDomainId(raw)
+    })(),
     currency: incoming.currency || defaults.currency,
     nextInvoiceNumber: incoming.nextInvoiceNumber ?? defaults.nextInvoiceNumber,
     stockAlertsEnabled: incoming.stockAlertsEnabled ?? true,
@@ -521,6 +573,10 @@ export function migrate(raw: unknown): AppState {
         ? +incoming.gamePricePerMinuteDa.toFixed(2)
         : DEFAULT_GAME_PRICE_PER_MINUTE_DA,
     gameTariffs: migrateGameTariffs(incoming.gameTariffs, incoming.gamePricePerMinuteDa),
+    gymSettings: migrateGymSettings(
+      incoming.gymSettings,
+      typeof incoming.domainId === 'string' ? incoming.domainId : undefined,
+    ),
     gameFreeMaxMinutes:
       typeof incoming.gameFreeMaxMinutes === 'number' &&
       incoming.gameFreeMaxMinutes >= 1
@@ -715,6 +771,13 @@ export function migrate(raw: unknown): AppState {
       membershipStart: typeof c.membershipStart === 'string' ? c.membershipStart : undefined,
       membershipEnd: typeof c.membershipEnd === 'string' ? c.membershipEnd : undefined,
       membershipPlan: typeof c.membershipPlan === 'string' ? c.membershipPlan : undefined,
+      membershipPlanId:
+        typeof (c as Client).membershipPlanId === 'string'
+          ? (c as Client).membershipPlanId
+          : undefined,
+      membershipDisciplineIds: Array.isArray((c as Client).membershipDisciplineIds)
+        ? ((c as Client).membershipDisciplineIds as GymDisciplineId[])
+        : undefined,
       sportGoal: typeof c.sportGoal === 'string' ? c.sportGoal : undefined,
       trainingProgram: typeof c.trainingProgram === 'string' ? c.trainingProgram : undefined,
       dietPlan: typeof c.dietPlan === 'string' ? c.dietPlan : undefined,
@@ -909,6 +972,9 @@ export function migrate(raw: unknown): AppState {
             ? g.source
             : 'manual',
       })),
+    gymSessions: migrateGymSessions(
+      (data as { gymSessions?: GymSession[] }).gymSessions,
+    ),
     employees: (data.employees ?? [])
       .filter((e) => e && typeof e.name === 'string')
       .map((e) => ({
@@ -1077,6 +1143,8 @@ export function migrate(raw: unknown): AppState {
           }))
           .slice(0, 500)
       : [],
+    recipes: migrateRecipes(data.recipes),
+    productionRuns: migrateProductionRuns(data.productionRuns),
   }
   return ensureDefaultLocation(base)
 }
@@ -1185,12 +1253,19 @@ export function applyShopSetup(state: AppState, input: ShopSetupInput): AppState
     state.products.length > 0
   return ensureDefaultLocation({
     ...state,
+    products: keep ? state.products : products,
+    /** RDV / file clinique d’un autre métier ne doivent pas traîner */
+    appointments: metierChanged ? [] : state.appointments ?? [],
+    clinicCharges: metierChanged ? [] : state.clinicCharges ?? [],
+    medicalDocuments: metierChanged ? [] : state.medicalDocuments ?? [],
+    gymCheckIns: metierChanged ? [] : state.gymCheckIns ?? [],
+    gymSessions: metierChanged ? [] : state.gymSessions ?? [],
     settings: {
       ...state.settings,
       setupDone: true,
       countryCode: country.code,
       commerceMode: input.commerceMode,
-      domainId: domain.id,
+      domainId: resolveSportDomainId(domain.id),
       currency: country.currency,
       shopName: input.shopName.trim() || domain.nameFr,
       phone: input.phone.trim(),
@@ -1201,13 +1276,15 @@ export function applyShopSetup(state: AppState, input: ShopSetupInput): AppState
       clinicStationChosen: false,
       clinicStation: undefined,
       retailRayons: undefined,
+      gymSettings: (() => {
+        const alias = SPORT_DOMAIN_ALIASES[domain.id]
+        if (alias) return defaultGymSettings(alias.disciplines)
+        if (state.settings.domainId === domain.id && state.settings.gymSettings) {
+          return state.settings.gymSettings
+        }
+        return state.settings.gymSettings ?? defaultGymSettings()
+      })(),
     },
-    products: keep ? state.products : products,
-    /** RDV / file clinique d’un autre métier ne doivent pas traîner */
-    appointments: metierChanged ? [] : state.appointments ?? [],
-    clinicCharges: metierChanged ? [] : state.clinicCharges ?? [],
-    medicalDocuments: metierChanged ? [] : state.medicalDocuments ?? [],
-    gymCheckIns: metierChanged ? [] : state.gymCheckIns ?? [],
   })
 }
 
@@ -1299,6 +1376,92 @@ export function removeHeldSale(state: AppState, id: string): AppState {
   return {
     ...state,
     heldSales: (state.heldSales || []).filter((h) => h.id !== id),
+  }
+}
+
+/** Ajoute / retire un produit catalogue sur le ticket d’une session salle. */
+export function bumpGymSessionProduct(
+  state: AppState,
+  sessionId: string,
+  productId: string,
+  delta: number,
+): AppState {
+  let next = ensureGymSessionHeld(state, sessionId)
+  const session = (next.gymSessions ?? []).find((s) => s.id === sessionId)
+  if (!session) return state
+  const product = next.products.find((p) => p.id === productId)
+  if (!product) return next
+
+  const held = (next.heldSales || []).find((h) => h.id === session.heldSaleId)
+  if (!held) return next
+
+  const key = productId
+  const cur = held.qtyMap?.[key] || 0
+  const stock = displayStock(next, product)
+  const qty = Math.max(0, Math.min(stock, +(cur + delta).toFixed(3)))
+  const qtyMap = { ...(held.qtyMap || {}) }
+  const tierMap = { ...(held.tierMap || {}) }
+  if (qty <= 0) {
+    delete qtyMap[key]
+    delete tierMap[key]
+  } else {
+    qtyMap[key] = qty
+    if (!tierMap[key]) tierMap[key] = 'piece'
+  }
+
+  return {
+    ...next,
+    heldSales: (next.heldSales || []).map((h) =>
+      h.id === held.id ? { ...h, qtyMap, tierMap } : h,
+    ),
+  }
+}
+
+/** Total ticket session (flash séance + produits catalogue). */
+export function gymSessionTicketTotal(
+  state: AppState,
+  sessionId: string,
+): { totalDa: number; productLines: number; sessionFeeDa: number } {
+  const session = (state.gymSessions ?? []).find((s) => s.id === sessionId)
+  if (!session) return { totalDa: 0, productLines: 0, sessionFeeDa: 0 }
+  const held = (state.heldSales || []).find((h) => h.id === session.heldSaleId)
+  if (!held) return { totalDa: 0, productLines: 0, sessionFeeDa: 0 }
+
+  let sessionFeeDa = 0
+  for (const f of held.flashLines || []) {
+    sessionFeeDa += (f.unitPriceDa || 0) * (f.qty || 0)
+  }
+  let productsDa = 0
+  let productLines = 0
+  for (const [pid, qty] of Object.entries(held.qtyMap || {})) {
+    if (qty <= 0) continue
+    const p = state.products.find((x) => x.id === pid)
+    if (!p) continue
+    productLines += 1
+    const tier = held.tierMap?.[pid] || 'piece'
+    const price =
+      held.priceOverrides?.[`${pid}::${tier}`] ??
+      (tier === 'gros' || tier === 'super_gros'
+        ? p.grosPriceDa || p.priceDa
+        : tier === 'demi_gros'
+          ? p.demiGrosPriceDa || p.priceDa
+          : p.priceDa)
+    productsDa += price * qty
+  }
+  let sum = sessionFeeDa + productsDa
+  const disc = held.discountPercent || 0
+  if (disc > 0) sum = sum * (1 - disc / 100)
+  if (typeof held.totalOverrideDa === 'number') {
+    return {
+      totalDa: held.totalOverrideDa,
+      productLines,
+      sessionFeeDa,
+    }
+  }
+  return {
+    totalDa: Math.round(sum),
+    productLines,
+    sessionFeeDa: Math.round(sessionFeeDa),
   }
 }
 
@@ -1575,8 +1738,40 @@ function migrateGameStations(raw: GameStation[] | undefined): GameStation[] {
             : undefined,
         tvOnUrl: typeof g.tvOnUrl === 'string' ? g.tvOnUrl : undefined,
         tvOffUrl: typeof g.tvOffUrl === 'string' ? g.tvOffUrl : undefined,
+        tabLines: migrateGameStationTabLines(
+          (g as GameStation).tabLines,
+        ),
       }
     })
+}
+
+function migrateGameStationTabLines(
+  raw: GameStationTabLine[] | undefined,
+): GameStationTabLine[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined
+  const lines = raw
+    .filter(
+      (l) =>
+        l &&
+        typeof l.name === 'string' &&
+        l.name.trim() &&
+        typeof l.unitPriceDa === 'number',
+    )
+    .slice(0, 80)
+    .map((l) => ({
+      id: l.id || uid('gstab'),
+      kind: l.kind === 'product' ? ('product' as const) : ('game' as const),
+      productId:
+        typeof l.productId === 'string' && l.productId
+          ? l.productId
+          : `flash_${uid('g')}`,
+      name: l.name.trim(),
+      qty: Math.max(0.001, Number(l.qty) || 1),
+      unitPriceDa: Math.max(0, +Number(l.unitPriceDa).toFixed(2)),
+      unit: (l.unit || 'piece') as GameStationTabLine['unit'],
+      flash: l.flash === true || l.kind !== 'product' || undefined,
+    }))
+  return lines.length > 0 ? lines : undefined
 }
 
 function buildDefaultGameStations(count = DEFAULT_GAME_STATION_COUNT): GameStation[] {
@@ -1708,10 +1903,174 @@ export function freeGameStation(state: AppState, id: string): AppState {
             paidMinutes: undefined,
             freeMinutes: undefined,
             clientLabel: undefined,
+            tabLines: undefined,
           }
         : g,
     ),
   }
+}
+
+export function gameStationTabTotalDa(station: GameStation | undefined): number {
+  if (!station?.tabLines?.length) return 0
+  return +station.tabLines
+    .reduce((s, l) => s + l.qty * l.unitPriceDa, 0)
+    .toFixed(2)
+}
+
+export function gameStationTabGameDa(station: GameStation | undefined): number {
+  if (!station?.tabLines?.length) return 0
+  return +station.tabLines
+    .filter((l) => l.kind === 'game')
+    .reduce((s, l) => s + l.qty * l.unitPriceDa, 0)
+    .toFixed(2)
+}
+
+export function gameStationTabProductDa(
+  station: GameStation | undefined,
+): number {
+  if (!station?.tabLines?.length) return 0
+  return +station.tabLines
+    .filter((l) => l.kind === 'product')
+    .reduce((s, l) => s + l.qty * l.unitPriceDa, 0)
+    .toFixed(2)
+}
+
+function appendStationTabLine(
+  state: AppState,
+  stationId: string,
+  line: GameStationTabLine,
+): AppState {
+  return {
+    ...state,
+    gameStations: (state.gameStations ?? []).map((g) => {
+      if (g.id !== stationId) return g
+      const prev = g.tabLines ?? []
+      // Fusion qty pour même produit catalogue
+      if (line.kind === 'product' && !line.flash) {
+        const idx = prev.findIndex(
+          (x) => x.kind === 'product' && x.productId === line.productId,
+        )
+        if (idx >= 0) {
+          const cur = prev[idx]!
+          const nextLines = [...prev]
+          nextLines[idx] = {
+            ...cur,
+            qty: +(cur.qty + line.qty).toFixed(3),
+            unitPriceDa: line.unitPriceDa,
+          }
+          return { ...g, tabLines: nextLines }
+        }
+      }
+      return { ...g, tabLines: [...prev, line].slice(-80) }
+    }),
+  }
+}
+
+/** Ajoute un produit catalogue sur l’addition du poste. */
+export function addGameStationProduct(
+  state: AppState,
+  stationId: string,
+  productId: string,
+  qty = 1,
+): { state: AppState; ok: boolean; reason?: 'bad' | 'nostock' } {
+  const station = (state.gameStations ?? []).find((g) => g.id === stationId)
+  if (!station) return { state, ok: false, reason: 'bad' }
+  const product = state.products.find((p) => p.id === productId)
+  if (!product) return { state, ok: false, reason: 'bad' }
+  const q = Math.max(0.001, Number(qty) || 1)
+  const available = displayStock(state, product)
+  if (available + 1e-9 < q) return { state, ok: false, reason: 'nostock' }
+  const line: GameStationTabLine = {
+    id: uid('gstab'),
+    kind: 'product',
+    productId: product.id,
+    name: product.name,
+    qty: +q.toFixed(3),
+    unitPriceDa: product.priceDa,
+    unit: product.unit || 'piece',
+  }
+  return { state: appendStationTabLine(state, stationId, line), ok: true }
+}
+
+export function removeGameStationTabLine(
+  state: AppState,
+  stationId: string,
+  lineId: string,
+): AppState {
+  return {
+    ...state,
+    gameStations: (state.gameStations ?? []).map((g) => {
+      if (g.id !== stationId) return g
+      const next = (g.tabLines ?? []).filter((l) => l.id !== lineId)
+      return { ...g, tabLines: next.length > 0 ? next : undefined }
+    }),
+  }
+}
+
+/**
+ * Encaisser l’addition du poste (jeux + produits) → une vente caisse.
+ * Libère le poste après encaissement.
+ */
+export function settleGameStation(
+  state: AppState,
+  stationId: string,
+  opts?: { freeStation?: boolean },
+): {
+  state: AppState
+  totalDa: number
+  ok: boolean
+  reason?: 'empty' | 'bad'
+} {
+  const station = (state.gameStations ?? []).find((g) => g.id === stationId)
+  if (!station) return { state, totalDa: 0, ok: false, reason: 'bad' }
+  const lines = station.tabLines ?? []
+  if (lines.length === 0) return { state, totalDa: 0, ok: false, reason: 'empty' }
+
+  const orderLines: OrderLine[] = lines.map((l) => {
+    const lineTotal = +(l.qty * l.unitPriceDa).toFixed(2)
+    const product =
+      l.kind === 'product'
+        ? state.products.find((p) => p.id === l.productId)
+        : undefined
+    return {
+      productId: l.productId,
+      name: l.name,
+      unit: l.unit,
+      qty: l.qty,
+      unitPriceDa: l.unitPriceDa,
+      unitCostDa: product?.costDa ?? 0,
+      lineTotalDa: lineTotal,
+      flash: l.kind === 'game' || l.flash === true || undefined,
+    }
+  })
+  const totalDa = +orderLines
+    .reduce((s, l) => s + l.lineTotalDa, 0)
+    .toFixed(2)
+  const seller = currentSeller(state)
+  let next = createOrder(state, {
+    clientId: '',
+    clientName: station.clientLabel?.trim() || station.name || 'Passage',
+    clientPhone: '',
+    lines: orderLines,
+    totalDa,
+    paidDa: totalDa,
+    remainingDa: 0,
+    payment: 'paye',
+    note: `Salle de jeux · ${station.name} · encaissement`,
+    sellerId: seller?.id,
+    sellerName: seller?.name,
+  })
+  // Vider l’addition
+  next = {
+    ...next,
+    gameStations: (next.gameStations ?? []).map((g) =>
+      g.id === stationId ? { ...g, tabLines: undefined } : g,
+    ),
+  }
+  if (opts?.freeStation !== false) {
+    next = freeGameStation(next, stationId)
+  }
+  return { state: next, totalDa, ok: true }
 }
 
 /** Passe en veille tous les postes dont le temps est écoulé. */
@@ -1767,6 +2126,227 @@ export function deleteRepairOrder(state: AppState, id: string): AppState {
   return {
     ...state,
     repairOrders: (state.repairOrders ?? []).filter((r) => r.id !== id),
+  }
+}
+
+function migrateRecipes(raw: Recipe[] | undefined): Recipe[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .filter(
+      (r) =>
+        r &&
+        typeof r.name === 'string' &&
+        r.name.trim() &&
+        typeof r.outputProductId === 'string' &&
+        r.outputProductId,
+    )
+    .map((r) => ({
+      id: r.id || uid('rcp'),
+      name: r.name.trim(),
+      outputProductId: r.outputProductId,
+      ingredients: Array.isArray(r.ingredients)
+        ? r.ingredients
+            .filter(
+              (ing): ing is RecipeIngredient =>
+                !!ing &&
+                typeof ing.productId === 'string' &&
+                ing.productId.length > 0 &&
+                typeof ing.qtyPerUnit === 'number' &&
+                ing.qtyPerUnit > 0,
+            )
+            .map((ing) => ({
+              productId: ing.productId,
+              qtyPerUnit: ing.qtyPerUnit,
+            }))
+        : [],
+      note: typeof r.note === 'string' ? r.note : undefined,
+      createdAt: r.createdAt || new Date().toISOString(),
+      updatedAt: typeof r.updatedAt === 'string' ? r.updatedAt : undefined,
+    }))
+    .slice(0, 200)
+}
+
+function migrateProductionRuns(raw: ProductionRun[] | undefined): ProductionRun[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .filter(
+      (r) =>
+        r &&
+        typeof r.recipeId === 'string' &&
+        typeof r.qtyProduced === 'number' &&
+        r.qtyProduced > 0,
+    )
+    .map((r) => ({
+      id: r.id || uid('prod'),
+      recipeId: r.recipeId,
+      recipeName: typeof r.recipeName === 'string' ? r.recipeName : '',
+      outputProductId:
+        typeof r.outputProductId === 'string' ? r.outputProductId : '',
+      outputName: typeof r.outputName === 'string' ? r.outputName : '',
+      qtyProduced: r.qtyProduced,
+      consumed: Array.isArray(r.consumed)
+        ? r.consumed
+            .filter(
+              (c) =>
+                c &&
+                typeof c.productId === 'string' &&
+                typeof c.qty === 'number' &&
+                c.qty > 0,
+            )
+            .map((c) => ({
+              productId: c.productId,
+              name: typeof c.name === 'string' ? c.name : '',
+              qty: c.qty,
+            }))
+        : [],
+      unitCostDa:
+        typeof r.unitCostDa === 'number' && r.unitCostDa >= 0
+          ? r.unitCostDa
+          : undefined,
+      locationId:
+        typeof r.locationId === 'string' && r.locationId
+          ? r.locationId
+          : DEFAULT_LOCATION_ID,
+      createdAt: r.createdAt || new Date().toISOString(),
+    }))
+    .slice(0, 500)
+}
+
+export function addRecipe(
+  state: AppState,
+  input: Omit<Recipe, 'id' | 'createdAt' | 'updatedAt'>,
+): AppState {
+  const now = new Date().toISOString()
+  const recipe: Recipe = {
+    ...input,
+    name: input.name.trim(),
+    ingredients: input.ingredients.filter((i) => i.qtyPerUnit > 0),
+    id: uid('rcp'),
+    createdAt: now,
+  }
+  return { ...state, recipes: [recipe, ...(state.recipes ?? [])] }
+}
+
+export function updateRecipe(
+  state: AppState,
+  id: string,
+  patch: Partial<Omit<Recipe, 'id' | 'createdAt'>>,
+): AppState {
+  return {
+    ...state,
+    recipes: (state.recipes ?? []).map((r) =>
+      r.id === id
+        ? {
+            ...r,
+            ...patch,
+            name: patch.name !== undefined ? patch.name.trim() : r.name,
+            ingredients: patch.ingredients
+              ? patch.ingredients.filter((i) => i.qtyPerUnit > 0)
+              : r.ingredients,
+            updatedAt: new Date().toISOString(),
+          }
+        : r,
+    ),
+  }
+}
+
+export function deleteRecipe(state: AppState, id: string): AppState {
+  return {
+    ...state,
+    recipes: (state.recipes ?? []).filter((r) => r.id !== id),
+  }
+}
+
+export type ProduceResult =
+  | { ok: true; state: AppState; run: ProductionRun }
+  | { ok: false; error: 'missing_recipe' | 'bad_qty' | 'missing_output' | 'missing_ingredient' | 'insufficient_stock'; missingName?: string; need?: number; have?: number }
+
+/** Fabrication : déduit les MP et entre le produit fini en stock. */
+export function produceFromRecipe(
+  state: AppState,
+  recipeId: string,
+  qtyProduced: number,
+): ProduceResult {
+  const qty = Number(qtyProduced)
+  if (!Number.isFinite(qty) || qty <= 0) {
+    return { ok: false, error: 'bad_qty' }
+  }
+  const recipe = (state.recipes ?? []).find((r) => r.id === recipeId)
+  if (!recipe) return { ok: false, error: 'missing_recipe' }
+  if (!recipe.ingredients.length) {
+    return { ok: false, error: 'missing_ingredient' }
+  }
+
+  const locId = activeLocationId(state)
+  const output = state.products.find((p) => p.id === recipe.outputProductId)
+  if (!output) return { ok: false, error: 'missing_output' }
+
+  const consumed: ProductionRun['consumed'] = []
+  let unitCostDa = 0
+
+  for (const ing of recipe.ingredients) {
+    const mp = state.products.find((p) => p.id === ing.productId)
+    if (!mp) {
+      return { ok: false, error: 'missing_ingredient', missingName: ing.productId }
+    }
+    const need = ing.qtyPerUnit * qty
+    const have = stockAt(mp, locId)
+    if (have + 1e-9 < need) {
+      return {
+        ok: false,
+        error: 'insufficient_stock',
+        missingName: mp.name,
+        need,
+        have,
+      }
+    }
+    consumed.push({ productId: mp.id, name: mp.name, qty: need })
+    unitCostDa += (mp.costDa || 0) * ing.qtyPerUnit
+  }
+
+  let products = state.products.map((p) => {
+    const line = consumed.find((c) => c.productId === p.id)
+    if (!line) return p
+    return adjustStockAt(p, locId, -line.qty)
+  })
+
+  products = products.map((p) => {
+    if (p.id !== output.id) return p
+    const before = stockAt(p, locId)
+    const next = adjustStockAt(p, locId, qty)
+    const oldCost = p.costDa || 0
+    const blended =
+      before > 0
+        ? (before * oldCost + qty * unitCostDa) / (before + qty)
+        : unitCostDa
+    return {
+      ...next,
+      costDa: Math.round(blended * 100) / 100,
+      updatedAt: new Date().toISOString(),
+    }
+  })
+
+  const run: ProductionRun = {
+    id: uid('prod'),
+    recipeId: recipe.id,
+    recipeName: recipe.name,
+    outputProductId: output.id,
+    outputName: output.name,
+    qtyProduced: qty,
+    consumed,
+    unitCostDa: Math.round(unitCostDa * 100) / 100,
+    locationId: locId,
+    createdAt: new Date().toISOString(),
+  }
+
+  return {
+    ok: true,
+    state: {
+      ...state,
+      products,
+      productionRuns: [run, ...(state.productionRuns ?? [])].slice(0, 500),
+    },
+    run,
   }
 }
 
@@ -1827,15 +2407,321 @@ export function isClientPresentInGym(state: AppState, clientId: string): boolean
   return gymPresentClientIds(state).includes(clientId)
 }
 
-/** Entrée si absent, sortie si déjà présent. */
+function migrateGymSessions(raw: GymSession[] | undefined): GymSession[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .filter(
+      (s) =>
+        s &&
+        typeof s.heldSaleId === 'string' &&
+        s.heldSaleId &&
+        typeof s.clientName === 'string',
+    )
+    .map((s): GymSession => ({
+      id: s.id || uid('gs'),
+      clientId: typeof s.clientId === 'string' ? s.clientId : '',
+      clientName: s.clientName,
+      kind: s.kind === 'walk_in' ? 'walk_in' : 'member',
+      disciplineId: s.disciplineId,
+      membershipPlanId:
+        typeof s.membershipPlanId === 'string' ? s.membershipPlanId : undefined,
+      heldSaleId: s.heldSaleId,
+      startedAt: s.startedAt || new Date().toISOString(),
+      status: s.status === 'billing' ? 'billing' : 'open',
+      nfcUid: typeof s.nfcUid === 'string' ? s.nfcUid : undefined,
+    }))
+    .slice(0, 80)
+}
+
+export function openGymSessions(state: AppState): GymSession[] {
+  return (state.gymSessions ?? []).filter(
+    (s) => s.status === 'open' || s.status === 'billing',
+  )
+}
+
+export function gymSessionForClient(
+  state: AppState,
+  clientId: string,
+): GymSession | undefined {
+  if (!clientId) return undefined
+  return openGymSessions(state).find((s) => s.clientId === clientId)
+}
+
+export function updateGymSettings(
+  state: AppState,
+  patch: Partial<NonNullable<ShopSettings['gymSettings']>>,
+): AppState {
+  const cur = state.settings.gymSettings ?? defaultGymSettings()
+  return {
+    ...state,
+    settings: {
+      ...state.settings,
+      gymSettings: {
+        ...cur,
+        ...patch,
+        enabledDisciplines:
+          patch.enabledDisciplines ?? cur.enabledDisciplines,
+        plans: patch.plans ?? cur.plans,
+      },
+    },
+  }
+}
+
+function openGymSessionTicket(
+  state: AppState,
+  input: {
+    clientId: string
+    clientName: string
+    kind: 'member' | 'walk_in'
+    disciplineId?: GymDisciplineId
+    membershipPlanId?: string
+    nfcUid?: string
+    flashLines?: HeldSale['flashLines']
+  },
+): AppState {
+  const existing = input.clientId
+    ? gymSessionForClient(state, input.clientId)
+    : undefined
+  if (existing) return state
+
+  const held = holdSale(state, {
+    label: `Séance · ${input.clientName}`,
+    clientId: input.clientId,
+    qtyMap: {},
+    tierMap: {},
+    flashLines: input.flashLines,
+  })
+  const heldSaleId = held.heldSales[0]?.id
+  if (!heldSaleId) return state
+
+  const session: GymSession = {
+    id: uid('gs'),
+    clientId: input.clientId,
+    clientName: input.clientName,
+    kind: input.kind,
+    disciplineId: input.disciplineId,
+    membershipPlanId: input.membershipPlanId,
+    heldSaleId,
+    startedAt: new Date().toISOString(),
+    status: 'open',
+    nfcUid: input.nfcUid,
+  }
+  return {
+    ...held,
+    gymSessions: [session, ...(held.gymSessions ?? [])].slice(0, 80),
+  }
+}
+
+/** Si le ticket a été absorbé par la caisse, en recrée un lié à la session. */
+export function ensureGymSessionHeld(
+  state: AppState,
+  sessionId: string,
+): AppState {
+  const session = (state.gymSessions ?? []).find((s) => s.id === sessionId)
+  if (!session) return state
+  if ((state.heldSales || []).some((h) => h.id === session.heldSaleId)) {
+    return markGymSessionBilling(state, sessionId)
+  }
+  const plan = (state.settings.gymSettings?.plans ?? []).find(
+    (p) => p.id === session.membershipPlanId,
+  )
+  const flashLines =
+    session.kind === 'walk_in' && plan && plan.priceDa > 0
+      ? [
+          {
+            id: uid('flash'),
+            name: plan.name,
+            qty: 1,
+            unitPriceDa: plan.priceDa,
+            unit: 'piece' as const,
+          },
+        ]
+      : undefined
+  const held = holdSale(state, {
+    label: `Séance · ${session.clientName}`,
+    clientId: session.clientId,
+    qtyMap: {},
+    tierMap: {},
+    flashLines,
+  })
+  const newId = held.heldSales[0]?.id
+  if (!newId) return state
+  return {
+    ...held,
+    gymSessions: (held.gymSessions ?? []).map((s) =>
+      s.id === sessionId
+        ? { ...s, heldSaleId: newId, status: 'billing' as const }
+        : s,
+    ),
+  }
+}
+
+/** Après « mettre en attente » depuis la caisse : rattache le nouveau ticket. */
+export function relinkGymSessionHeld(
+  state: AppState,
+  heldSaleId: string,
+  hint?: { clientId?: string; label?: string },
+): AppState {
+  const sessions = openGymSessions(state)
+  if (!sessions.length) return state
+  let target =
+    (hint?.clientId &&
+      sessions.find((s) => s.clientId && s.clientId === hint.clientId)) ||
+    sessions.find((s) => s.status === 'billing') ||
+    sessions[0]
+  if (!target) return state
+  return {
+    ...state,
+    gymSessions: (state.gymSessions ?? []).map((s) =>
+      s.id === target!.id
+        ? { ...s, heldSaleId, status: 'open' as const }
+        : s,
+    ),
+  }
+}
+
+/** Passager : entrée sans abonnement longue durée. */
+export function startWalkInGymSession(
+  state: AppState,
+  input: {
+    name?: string
+    clientId?: string
+    disciplineId?: GymDisciplineId
+    planId?: string
+  } = {},
+): { state: AppState; session: GymSession } | { error: 'no_ticket' } {
+  const plans = state.settings.gymSettings?.plans ?? []
+  const walkPlan =
+    (input.planId && plans.find((p) => p.id === input.planId)) ||
+    plans.find((p) => p.walkIn && p.active !== false)
+  const name =
+    input.name?.trim() ||
+    (input.clientId
+      ? state.clients.find((c) => c.id === input.clientId)?.name
+      : undefined) ||
+    'Passager'
+  const clientId = input.clientId || ''
+  const flashLines =
+    walkPlan && walkPlan.priceDa > 0
+      ? [
+          {
+            id: uid('flash'),
+            name: walkPlan.name,
+            qty: 1,
+            unitPriceDa: walkPlan.priceDa,
+            unit: 'piece' as const,
+          },
+        ]
+      : undefined
+  let next = openGymSessionTicket(state, {
+    clientId,
+    clientName: name,
+    kind: 'walk_in',
+    disciplineId:
+      input.disciplineId ||
+      walkPlan?.disciplineIds[0] ||
+      state.settings.gymSettings?.enabledDisciplines[0],
+    membershipPlanId: walkPlan?.id,
+    flashLines,
+  })
+  const session = openGymSessions(next).find(
+    (s) =>
+      s.heldSaleId &&
+      s.clientName === name &&
+      (!clientId || s.clientId === clientId),
+  )
+  if (!session) return { error: 'no_ticket' }
+
+  if (clientId && !isClientPresentInGym(next, clientId)) {
+    const toggled = toggleGymCheckIn(next, clientId, 'manual', {
+      skipSession: true,
+    })
+    if (toggled && !('error' in toggled)) next = toggled.state
+  }
+  return { state: next, session }
+}
+
+export function markGymSessionBilling(
+  state: AppState,
+  sessionId: string,
+): AppState {
+  return {
+    ...state,
+    gymSessions: (state.gymSessions ?? []).map((s) =>
+      s.id === sessionId ? { ...s, status: 'billing' as const } : s,
+    ),
+  }
+}
+
+/** Après encaissement : ferme session + check-out + retire held. */
+export function closeGymSession(
+  state: AppState,
+  sessionId: string,
+  opts?: { checkout?: boolean },
+): AppState {
+  const session = (state.gymSessions ?? []).find((s) => s.id === sessionId)
+  if (!session) return state
+  let next = removeHeldSale(state, session.heldSaleId)
+  next = {
+    ...next,
+    gymSessions: (next.gymSessions ?? []).filter((s) => s.id !== sessionId),
+  }
+  if (opts?.checkout !== false && session.clientId) {
+    if (isClientPresentInGym(next, session.clientId)) {
+      const out = toggleGymCheckIn(next, session.clientId, 'manual', {
+        skipSession: true,
+        forceKind: 'out',
+      })
+      if (out && !('error' in out)) next = out.state
+    }
+  }
+  return next
+}
+
+/**
+ * Entrée si absent, sortie si déjà présent.
+ * Entrée → ticket session (conso). Sortie bloquée si conso non encaissée.
+ */
 export function toggleGymCheckIn(
   state: AppState,
   clientId: string,
   source: GymCheckIn['source'] = 'manual',
-): { state: AppState; kind: 'in' | 'out'; client: Client } | null {
+  opts?: {
+    skipSession?: boolean
+    forceKind?: 'in' | 'out'
+    disciplineId?: GymDisciplineId
+  },
+):
+  | {
+      state: AppState
+      kind: 'in' | 'out'
+      client: Client
+      sessionId?: string
+      membershipExpired?: boolean
+    }
+  | { error: 'session_open'; session: GymSession; client: Client }
+  | null {
   const client = state.clients.find((c) => c.id === clientId)
   if (!client) return null
-  const kind: 'in' | 'out' = isClientPresentInGym(state, clientId) ? 'out' : 'in'
+  const kind: 'in' | 'out' =
+    opts?.forceKind ||
+    (isClientPresentInGym(state, clientId) ? 'out' : 'in')
+
+  if (kind === 'out' && !opts?.skipSession) {
+    const open = gymSessionForClient(state, clientId)
+    if (open) {
+      const held = (state.heldSales || []).find((h) => h.id === open.heldSaleId)
+      const hasLines =
+        !!held &&
+        (Object.keys(held.qtyMap || {}).some((k) => (held.qtyMap[k] || 0) > 0) ||
+          (held.flashLines?.length ?? 0) > 0)
+      if (hasLines || open.status === 'billing') {
+        return { error: 'session_open', session: open, client }
+      }
+      state = closeGymSession(state, open.id, { checkout: false })
+    }
+  }
+
   const entry: GymCheckIn = {
     id: uid('gin'),
     clientId: client.id,
@@ -1844,13 +2730,40 @@ export function toggleGymCheckIn(
     at: new Date().toISOString(),
     source,
   }
+  let next: AppState = {
+    ...state,
+    gymCheckIns: [entry, ...(state.gymCheckIns ?? [])].slice(0, 2000),
+  }
+
+  const membershipExpired =
+    !!client.membershipEnd && !membershipStillValid(client.membershipEnd)
+
+  let sessionId: string | undefined
+  if (
+    kind === 'in' &&
+    !opts?.skipSession &&
+    next.settings.gymSettings?.openTicketOnEntry !== false
+  ) {
+    next = openGymSessionTicket(next, {
+      clientId: client.id,
+      clientName: client.name,
+      kind: membershipExpired ? 'walk_in' : 'member',
+      disciplineId:
+        opts?.disciplineId ||
+        client.membershipDisciplineIds?.[0] ||
+        next.settings.gymSettings?.enabledDisciplines[0],
+      membershipPlanId: client.membershipPlanId,
+      nfcUid: client.nfcUid,
+    })
+    sessionId = gymSessionForClient(next, client.id)?.id
+  }
+
   return {
-    state: {
-      ...state,
-      gymCheckIns: [entry, ...(state.gymCheckIns ?? [])].slice(0, 2000),
-    },
+    state: next,
     kind,
     client,
+    sessionId,
+    membershipExpired: kind === 'in' ? membershipExpired : undefined,
   }
 }
 
@@ -1859,14 +2772,27 @@ export function gymCheckInByUid(
   rawUid: string,
   source: GymCheckIn['source'] = 'nfc',
 ):
-  | { state: AppState; kind: 'in' | 'out'; client: Client }
-  | { error: 'unknown_chip' | 'empty' } {
+  | {
+      state: AppState
+      kind: 'in' | 'out'
+      client: Client
+      sessionId?: string
+      membershipExpired?: boolean
+    }
+  | {
+      error: 'unknown_chip' | 'empty' | 'session_open'
+      session?: GymSession
+      client?: Client
+    } {
   const raw = rawUid.trim()
   if (!raw) return { error: 'empty' }
   const client = findClientByNfcUid(state, raw)
   if (!client) return { error: 'unknown_chip' }
   const res = toggleGymCheckIn(state, client.id, source)
   if (!res) return { error: 'unknown_chip' }
+  if ('error' in res) {
+    return { error: 'session_open', session: res.session, client: res.client }
+  }
   return res
 }
 
@@ -2779,15 +3705,30 @@ function migrateSellers(raw: PosSeller[] | undefined): PosSeller[] {
   const list = Array.isArray(raw) ? raw : []
   const mapped = list
     .filter((s) => s && typeof s.name === 'string' && s.name.trim())
-    .map((s) => ({
-      id: s.id || uid('sel'),
-      name: s.name.trim(),
-      role: (s.role === 'admin' ? 'admin' : 'vendeur') as PosSellerRole,
-      pin: String(s.pin || '').replace(/\D/g, '').slice(0, 6),
-      active: s.active !== false,
-      createdAt: s.createdAt || new Date().toISOString(),
-      canGrantFreeMinutes: s.canGrantFreeMinutes === true,
-    }))
+    .map((s) => {
+      const role = (s.role === 'admin' ? 'admin' : 'vendeur') as PosSellerRole
+      const permissions =
+        role === 'admin'
+          ? undefined
+          : migrateSellerPermissions({
+              ...s,
+              role,
+              canGrantFreeMinutes: s.canGrantFreeMinutes === true,
+            })
+      return {
+        id: s.id || uid('sel'),
+        name: s.name.trim(),
+        role,
+        pin: String(s.pin || '').replace(/\D/g, '').slice(0, 6),
+        active: s.active !== false,
+        createdAt: s.createdAt || new Date().toISOString(),
+        canGrantFreeMinutes:
+          role === 'vendeur' &&
+          (s.canGrantFreeMinutes === true ||
+            permissions?.gameFreeMinutes === true),
+        permissions,
+      }
+    })
   return mapped.length > 0 ? mapped : defaultSellers()
 }
 
@@ -2804,7 +3745,9 @@ function migrateGameFreeMinutes(
       stationName: typeof e.stationName === 'string' ? e.stationName : '',
       consoleKind: normalizeConsoleKind(e.consoleKind),
       mode:
-        e.mode === 'match' || e.mode === 'extra' ? e.mode : ('hour' as const),
+        e.mode === 'match' || e.mode === 'match4' || e.mode === 'extra'
+          ? e.mode
+          : ('hour' as const),
       minutes: Math.round(e.minutes),
       sellerId: typeof e.sellerId === 'string' ? e.sellerId : undefined,
       sellerName: typeof e.sellerName === 'string' ? e.sellerName : undefined,
@@ -2837,13 +3780,16 @@ export function addSeller(
   const name = input.name.trim()
   if (!name) return state
   const pin = String(input.pin || '').replace(/\D/g, '').slice(0, 6)
+  const role: PosSellerRole = input.role === 'admin' ? 'admin' : 'vendeur'
   const seller: PosSeller = {
     id: uid('sel'),
     name,
-    role: input.role === 'admin' ? 'admin' : 'vendeur',
+    role,
     pin,
     active: true,
     createdAt: new Date().toISOString(),
+    permissions:
+      role === 'vendeur' ? { ...DEFAULT_VENDEUR_PERMISSIONS } : undefined,
   }
   return { ...state, sellers: [...(state.sellers || []), seller] }
 }
@@ -2855,24 +3801,49 @@ export function updateSeller(
 ): AppState {
   return {
     ...state,
-    sellers: (state.sellers || []).map((s) =>
-      s.id === id
-        ? {
-            ...s,
-            ...patch,
-            name: patch.name !== undefined ? patch.name.trim() || s.name : s.name,
-            pin:
-              patch.pin !== undefined
-                ? String(patch.pin).replace(/\D/g, '').slice(0, 6)
-                : s.pin,
-            role: patch.role === 'admin' || patch.role === 'vendeur' ? patch.role : s.role,
-            canGrantFreeMinutes:
-              patch.canGrantFreeMinutes !== undefined
-                ? patch.canGrantFreeMinutes === true
-                : s.canGrantFreeMinutes,
-          }
-        : s,
-    ),
+    sellers: (state.sellers || []).map((s) => {
+      if (s.id !== id) return s
+      const role =
+        patch.role === 'admin' || patch.role === 'vendeur' ? patch.role : s.role
+      let permissions = s.permissions
+      if (role === 'admin') {
+        permissions = undefined
+      } else if (patch.permissions !== undefined) {
+        permissions = {
+          ...DEFAULT_VENDEUR_PERMISSIONS,
+          ...s.permissions,
+          ...patch.permissions,
+        }
+      } else if (!permissions) {
+        permissions = { ...DEFAULT_VENDEUR_PERMISSIONS }
+      }
+      const freeFromPerm = permissions?.gameFreeMinutes === true
+      const canGrantFreeMinutes =
+        patch.canGrantFreeMinutes !== undefined
+          ? patch.canGrantFreeMinutes === true
+          : patch.permissions?.gameFreeMinutes !== undefined
+            ? freeFromPerm
+            : s.canGrantFreeMinutes === true || freeFromPerm
+      if (
+        role === 'vendeur' &&
+        permissions &&
+        canGrantFreeMinutes !== permissions.gameFreeMinutes
+      ) {
+        permissions = { ...permissions, gameFreeMinutes: canGrantFreeMinutes }
+      }
+      return {
+        ...s,
+        ...patch,
+        name: patch.name !== undefined ? patch.name.trim() || s.name : s.name,
+        pin:
+          patch.pin !== undefined
+            ? String(patch.pin).replace(/\D/g, '').slice(0, 6)
+            : s.pin,
+        role,
+        permissions,
+        canGrantFreeMinutes: role === 'vendeur' ? canGrantFreeMinutes : undefined,
+      }
+    }),
   }
 }
 
@@ -3011,6 +3982,7 @@ export function migrateGameTariffs(
           label: consoleLabelOf(id),
           hourDa: 0,
           matchDa: 0,
+          match4Da: 0,
           extraRoundDa: 0,
         }
         const hour =
@@ -3023,6 +3995,15 @@ export function migrateGameTariffs(
           (item as GameConsoleTariff).matchDa >= 0
             ? +(item as GameConsoleTariff).matchDa.toFixed(2)
             : prev.matchDa
+        const match4Raw = (item as GameConsoleTariff).match4Da
+        const match4 =
+          typeof match4Raw === 'number' && match4Raw >= 0
+            ? +match4Raw.toFixed(2)
+            : typeof prev.match4Da === 'number' && prev.match4Da >= 0
+              ? prev.match4Da
+              : match > 0
+                ? +(match * 2).toFixed(2)
+                : 0
         const extra =
           typeof (item as GameConsoleTariff).extraRoundDa === 'number' &&
           (item as GameConsoleTariff).extraRoundDa >= 0
@@ -3038,6 +4019,7 @@ export function migrateGameTariffs(
           label,
           hourDa: hour,
           matchDa: match,
+          match4Da: match4,
           extraRoundDa: extra,
         })
       }
@@ -3047,6 +4029,13 @@ export function migrateGameTariffs(
     ps4.hourDa = +(legacyPerMin * 60).toFixed(2)
     const ps5 = byId.get('ps5')!
     ps5.hourDa = +(legacyPerMin * 60 * 1.25).toFixed(2)
+  }
+
+  // Garantit match4 = 2× match si non renseigné
+  for (const [id, row] of byId) {
+    if (row.matchDa > 0 && !(typeof row.match4Da === 'number' && row.match4Da > 0)) {
+      byId.set(id, { ...row, match4Da: +(row.matchDa * 2).toFixed(2) })
+    }
   }
 
   const consoles = CONSOLE_IDS.map((id) => byId.get(id)!).filter(Boolean)
@@ -3103,6 +4092,16 @@ export function matchRateDa(state: AppState, consoleKind: GameConsoleKind): numb
   return tariffForConsole(state, consoleKind).matchDa
 }
 
+/** Match 4 joueurs = double du match normal (sauf tarif admin explicite). */
+export function match4RateDa(state: AppState, consoleKind: GameConsoleKind): number {
+  const row = tariffForConsole(state, consoleKind)
+  if (typeof row.match4Da === 'number' && row.match4Da > 0) {
+    return row.match4Da
+  }
+  if (row.matchDa > 0) return +(row.matchDa * 2).toFixed(2)
+  return 0
+}
+
 export function extraRoundRateDa(
   state: AppState,
   consoleKind: GameConsoleKind,
@@ -3115,9 +4114,9 @@ export function gamePricePerMinute(state: AppState): number {
   return +(hourRateDa(state, 'ps4') / 60).toFixed(2)
 }
 
-export type GameBillMode = 'hour' | 'match' | 'extra'
+export type GameBillMode = 'hour' | 'match' | 'match4' | 'extra'
 
-/** Encaisser heure, match ou شوط إضافي → timer + caisse. */
+/** Encaisser heure, match, match 4J ou شوط إضافي → timer + caisse. */
 export function billGameSession(
   state: AppState,
   input: {
@@ -3139,6 +4138,7 @@ export function billGameSession(
   const consoleLabel = tariffForConsole(state, consoleKind).label
   const billCash = input.billCash !== false
   const matchPrice = matchRateDa(state, consoleKind)
+  const match4Price = match4RateDa(state, consoleKind)
   const extraPrice = extraRoundRateDa(state, consoleKind)
 
   let minutes = 0
@@ -3156,6 +4156,23 @@ export function billGameSession(
     label = station
       ? `${station.name} ${consoleLabel} · Prolongation 2 manches (${extraMin} min)`
       : `${consoleLabel} · Prolongation 2 manches`
+  } else if (input.mode === 'match4') {
+    const matchCount = Math.max(1, Math.round(input.matches || 1))
+    const matchMin =
+      input.matchMinutes && input.matchMinutes > 0
+        ? Math.round(input.matchMinutes)
+        : stationMatchMinutes(state, station)
+    minutes = matchMin * matchCount
+    const unit =
+      match4Price > 0
+        ? match4Price
+        : matchPrice > 0
+          ? +(matchPrice * 2).toFixed(2)
+          : +(((hourRateDa(state, consoleKind) * matchMin) / 60) * 2).toFixed(2)
+    totalDa = +(unit * matchCount).toFixed(2)
+    label = station
+      ? `${station.name} ${consoleLabel} · ${matchCount} match 4J (${matchMin} min)`
+      : `${consoleLabel} · ${matchCount} match 4J`
   } else if (input.mode === 'match') {
     if (matchPrice <= 0) {
       const matchMin =
@@ -3195,7 +4212,11 @@ export function billGameSession(
     input.clientLabel,
   )
 
-  if (input.mode === 'match' && input.matchMinutes && input.matchMinutes > 0) {
+  if (
+    (input.mode === 'match' || input.mode === 'match4') &&
+    input.matchMinutes &&
+    input.matchMinutes > 0
+  ) {
     next = updateGameStation(next, input.stationId, {
       matchMinutes: Math.round(input.matchMinutes),
     })
@@ -3205,40 +4226,29 @@ export function billGameSession(
     return { state: next, totalDa, minutes, label }
   }
 
-  const seller = currentSeller(next)
   const st = next.gameStations.find((g) => g.id === input.stationId)
-  const line = {
+  const tabLine: GameStationTabLine = {
+    id: uid('gstab'),
+    kind: 'game',
     productId: `flash_game_${input.mode}_${consoleKind}`,
     name: label,
-    unit: 'piece' as const,
     qty: 1,
     unitPriceDa: totalDa,
-    unitCostDa: 0,
-    lineTotalDa: totalDa,
-    flash: true as const,
+    unit: 'piece',
+    flash: true,
   }
-  next = createOrder(next, {
-    clientId: '',
-    clientName: input.clientLabel?.trim() || st?.clientLabel || 'Passage',
-    clientPhone: '',
-    lines: [line],
-    totalDa,
-    paidDa: totalDa,
-    remainingDa: 0,
-    payment: 'paye',
-    note: `Salle de jeux · ${label}`,
-    sellerId: seller?.id,
-    sellerName: seller?.name,
-  })
+  next = appendStationTabLine(next, input.stationId, tabLine)
+  if (input.clientLabel?.trim() && st && !st.clientLabel) {
+    next = updateGameStation(next, input.stationId, {
+      clientLabel: input.clientLabel.trim(),
+    })
+  }
   return { state: next, totalDa, minutes, label }
 }
 
 /** Admin toujours ; vendeur seulement si autorisé. */
 export function sellerCanGrantFreeMinutes(state: AppState): boolean {
-  const s = currentSeller(state)
-  if (!s) return false
-  if (s.role === 'admin') return true
-  return s.canGrantFreeMinutes === true
+  return sellerCan(state, 'gameFreeMinutes')
 }
 
 export function gameFreeMaxMinutes(state: AppState): number {
@@ -3248,7 +4258,7 @@ export function gameFreeMaxMinutes(state: AppState): number {
 }
 
 /**
- * Ajoute du temps gratuit (heure / match / prolongation).
+ * Ajoute du temps gratuit (heure / match / match 4J / prolongation).
  * Enregistre une ligne « minute gratuite » — 0 DA en caisse.
  */
 export function grantGameFreeMinutes(
@@ -3280,6 +4290,7 @@ export function grantGameFreeMinutes(
   const consoleKind = stationConsole(station)
   const consoleLabel = tariffForConsole(state, consoleKind).label
   const matchPrice = matchRateDa(state, consoleKind)
+  const match4Price = match4RateDa(state, consoleKind)
   const extraPrice = extraRoundRateDa(state, consoleKind)
   const cap = gameFreeMaxMinutes(state)
 
@@ -3297,6 +4308,17 @@ export function grantGameFreeMinutes(
         : stationExtraRoundMinutes(state)
     minutes = extraMin * count
     label = `${station.name} ${consoleLabel} · Prolongation gratuite (${extraMin} min)`
+  } else if (input.mode === 'match4') {
+    const matchCount = Math.max(1, Math.round(input.matches || 1))
+    const matchMin =
+      input.matchMinutes && input.matchMinutes > 0
+        ? Math.round(input.matchMinutes)
+        : stationMatchMinutes(state, station)
+    if (match4Price <= 0 && matchPrice <= 0 && matchMin < 1) {
+      return { state, minutes: 0, label: '', ok: false, reason: 'bad' }
+    }
+    minutes = matchMin * matchCount
+    label = `${station.name} ${consoleLabel} · Match 4J gratuit (${matchMin} min)`
   } else if (input.mode === 'match') {
     const matchCount = Math.max(1, Math.round(input.matches || 1))
     const matchMin =
