@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type {
   AppState,
-  GameConsoleKind,
   GameStation,
   Language,
   TvControlKind,
@@ -319,8 +318,11 @@ export function GameStationsPanel({
                 setConfigId(configId === st.id ? null : st.id)
               }
               onHour={(minutes) => void applyStart(st, 'hour', { minutes })}
-              onMatch={(matchMinutes) =>
-                void applyStart(st, 'match', { matches: 1, matchMinutes })
+              onMatch={() =>
+                void applyStart(st, 'match', {
+                  matches: 1,
+                  matchMinutes: stationMatchMinutes(state, st),
+                })
               }
               onExtra={() =>
                 void applyStart(st, 'extra', {
@@ -328,23 +330,6 @@ export function GameStationsPanel({
                   matchMinutes: tariffs.extraRoundMinutes,
                 })
               }
-              onSetConsole={(kind) => {
-                onState(updateGameStation(state, st.id, { consoleKind: kind }))
-                const label = tariffForConsole(state, kind).label
-                onFlash(`${st.name} → ${label}`)
-              }}
-              onSetMatchMinutes={(mins) => {
-                onState(
-                  updateGameStation(state, st.id, {
-                    matchMinutes: Math.max(1, Math.round(mins)),
-                  }),
-                )
-                onFlash(
-                  t(lang, 'gameMatchMinSaved')
-                    .replace('{name}', st.name)
-                    .replace('{min}', String(Math.round(mins))),
-                )
-              }}
               onStandby={async () => {
                 onState(setGameStationStandby(state, st.id))
                 onFlash(t(lang, 'gameStandbyOk').replace('{name}', st.name))
@@ -411,8 +396,6 @@ function StationTile({
   onHour,
   onMatch,
   onExtra,
-  onSetConsole,
-  onSetMatchMinutes,
   onStandby,
   onFree,
   onRemove,
@@ -428,10 +411,8 @@ function StationTile({
   customMin: string
   onToggleConfig: () => void
   onHour: (minutes: number) => void
-  onMatch: (matchMinutes: number) => void
+  onMatch: () => void
   onExtra: () => void
-  onSetConsole: (kind: GameConsoleKind) => void
-  onSetMatchMinutes: (mins: number) => void
   onStandby: () => void | Promise<void>
   onFree: () => void
   onRemove: () => void
@@ -449,16 +430,10 @@ function StationTile({
   const warn = st.status === 'active' && rem > 0 && rem <= 5 * 60_000
   const kind = stationConsole(st)
   const matchMin = stationMatchMinutes(state, st)
-  const [matchDraft, setMatchDraft] = useState(String(matchMin))
   const tariff = tariffForConsole(state, kind)
   const hourDa = tariff.hourDa
   const matchDa = tariff.matchDa
   const extraDa = tariff.extraRoundDa
-  const consoles = resolveGameTariffs(state).consoles
-
-  useEffect(() => {
-    setMatchDraft(String(matchMin))
-  }, [matchMin])
 
   const tileClass = [
     'game-tile',
@@ -473,26 +448,12 @@ function StationTile({
     <div className={tileClass}>
       <div className="game-tile-top">
         <strong>{st.name}</strong>
+        <span className="game-console-badge">{tariff.label}</span>
         {stationHasTvControl(st) ? (
           <span className="game-tv-badge" title={st.tvHost || ''}>
             TV
           </span>
         ) : null}
-      </div>
-
-      <div className="field" style={{ margin: '6px 0 4px' }}>
-        <select
-          className="game-console-select"
-          value={kind}
-          onChange={(e) => onSetConsole(e.target.value as GameConsoleKind)}
-          aria-label={t(lang, 'gameConsolePick')}
-        >
-          {consoles.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.label}
-            </option>
-          ))}
-        </select>
       </div>
 
       <div className="game-timer" aria-live="polite">
@@ -503,12 +464,17 @@ function StationTile({
             : t(lang, 'gameFree')}
       </div>
       <div className="muted game-tile-meta">
-        {st.clientLabel ||
-          `${hourDa} DA/h${
-            matchDa > 0
-              ? ` · ${matchDa} DA/${t(lang, 'gameMatchShort')}`
-              : ''
-          }`}
+        {st.clientLabel
+          ? st.clientLabel
+          : `${hourDa} DA/h${
+              matchDa > 0
+                ? ` · ${matchDa} DA/${t(lang, 'gameMatchShort')} (${matchMin} min)`
+                : ''
+            }${
+              extraDa > 0
+                ? ` · ${extraDa} DA/${t(lang, 'gameExtraShort')}`
+                : ''
+            }`}
       </div>
 
       <div className="game-presets">
@@ -537,43 +503,14 @@ function StationTile({
         </button>
       ) : null}
 
-      <div className="game-match-box">
-        <label className="muted">{t(lang, 'gameMatchDuration')}</label>
-        <div className="game-match-row">
-          <input
-            type="number"
-            min={1}
-            max={180}
-            value={matchDraft}
-            onChange={(e) => setMatchDraft(e.target.value)}
-            onBlur={() => {
-              const n = Number(matchDraft)
-              if (Number.isFinite(n) && n >= 1) onSetMatchMinutes(n)
-            }}
-          />
-          <span className="muted">min</span>
-          <button
-            type="button"
-            className="btn"
-            disabled={matchDa <= 0}
-            onClick={() => {
-              const n = Math.max(1, Math.round(Number(matchDraft) || matchMin))
-              onSetMatchMinutes(n)
-              onMatch(n)
-            }}
-          >
-            {matchDa > 0
-              ? `+${t(lang, 'gameMatchShort')} (${matchDa} DA)`
-              : t(lang, 'gameNoMatchTariff')}
+      <div className="btn-row game-tile-actions" style={{ marginTop: 8 }}>
+        {matchDa > 0 ? (
+          <button type="button" className="btn" onClick={onMatch}>
+            +{t(lang, 'gameMatchShort')} {matchMin}′ ({matchDa} DA)
           </button>
-        </div>
+        ) : null}
         {extraDa > 0 ? (
-          <button
-            type="button"
-            className="btn secondary block"
-            style={{ marginTop: 6 }}
-            onClick={onExtra}
-          >
+          <button type="button" className="btn secondary" onClick={onExtra}>
             +{t(lang, 'gameExtraShort')} ({extraDa} DA)
           </button>
         ) : null}

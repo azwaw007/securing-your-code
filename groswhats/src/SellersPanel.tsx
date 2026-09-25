@@ -1,12 +1,16 @@
 import { useState } from 'react'
-import type { AppState, Language, PosSeller, PosSellerRole } from './types'
+import type { AppState, GameConsoleKind, Language, PosSeller, PosSellerRole } from './types'
 import { t } from './i18n'
 import {
   addSeller,
   currentSeller,
   deleteSeller,
+  ensureGameStations,
   resolveGameTariffs,
   setCurrentSeller,
+  stationConsole,
+  tariffForConsole,
+  updateGameStation,
   updateSettings,
   verifyAdminPin,
 } from './store'
@@ -485,8 +489,82 @@ export function GamePriceAdminCard({
           <button type="button" className="btn block" onClick={save}>
             {t(lang, 'save')}
           </button>
+
+          <hr style={{ margin: '16px 0', border: 0, borderTop: '1px solid var(--line)' }} />
+          <h3 style={{ margin: '0 0 6px' }}>{t(lang, 'gameAssignConsoles')}</h3>
+          <p className="muted" style={{ marginTop: 0 }}>
+            {t(lang, 'gameAssignConsolesHint')}
+          </p>
+          <AdminStationConsoleList
+            state={state}
+            lang={lang}
+            onState={onState}
+            onFlash={onFlash}
+          />
         </>
       )}
+    </div>
+  )
+}
+
+function AdminStationConsoleList({
+  state,
+  lang,
+  onState,
+  onFlash,
+}: {
+  state: AppState
+  lang: Language
+  onState: (next: AppState) => void
+  onFlash: (msg: string) => void
+}) {
+  const withStations = ensureGameStations(state)
+  const stations = withStations.gameStations ?? []
+  const consoles = resolveGameTariffs(state).consoles
+
+  if (stations.length === 0) {
+    return <div className="empty">{t(lang, 'gameStationsEmpty')}</div>
+  }
+
+  return (
+    <div className="game-assign-list">
+      {stations.map((st) => {
+        const kind = stationConsole(st)
+        return (
+          <div key={st.id} className="game-assign-row list-item">
+            <div>
+              <strong>{st.name}</strong>
+              <div className="muted">
+                {tariffForConsole(state, kind).label}
+              </div>
+            </div>
+            <select
+              value={kind}
+              onChange={(e) => {
+                const nextKind = e.target.value as GameConsoleKind
+                let next = withStations === state ? state : withStations
+                next = updateGameStation(next, st.id, { consoleKind: nextKind })
+                onState(next)
+                onFlash(
+                  t(lang, 'gameConsoleAssigned')
+                    .replace('{poste}', st.name)
+                    .replace(
+                      '{console}',
+                      tariffForConsole(next, nextKind).label,
+                    ),
+                )
+              }}
+              aria-label={`${st.name} console`}
+            >
+              {consoles.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )
+      })}
     </div>
   )
 }

@@ -1589,6 +1589,27 @@ button {
 .game-tariff-chip {
   white-space: nowrap;
 }
+.game-console-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(0, 163, 224, 0.2);
+  color: var(--brand, #00a3e0);
+}
+.game-assign-list {
+  margin-top: 8px;
+}
+.game-assign-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.game-assign-row select {
+  max-width: 160px;
+}
 .game-console-select {
   width: 100%;
   font-size: 0.85rem;
