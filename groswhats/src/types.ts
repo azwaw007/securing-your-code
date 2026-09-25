@@ -458,7 +458,7 @@ export interface FloorTable {
 export type GameStationStatus = 'free' | 'active' | 'standby'
 
 /** Prise / TV Wi‑Fi sur le réseau local */
-export type TvControlKind = 'shelly' | 'tasmota' | 'custom'
+export type TvControlKind = 'smart_tv' | 'shelly' | 'tasmota' | 'custom'
 
 export type GameConsoleKind =
   | 'xbox_one'
@@ -519,15 +519,19 @@ export interface GameStation {
   clientLabel?: string
   note?: string
   /**
-   * Contrôle TV / prise Wi‑Fi (réseau local).
-   * Ex. Shelly Plug sur l’alimentation TV : host = 192.168.1.50
+   * Contrôle TV sur le réseau local (même Wi‑Fi).
+   * - smart_tv : IP de la Smart TV (+ MAC Wake-on-LAN / URLs ON-OFF)
+   * - shelly / tasmota : prise Wi‑Fi sur l’alimentation TV
+   * - custom : URLs HTTP libres
    */
   tvKind?: TvControlKind
   /** Adresse IP ou hostname local (ex. 192.168.1.50) */
   tvHost?: string
-  /** URL HTTP complète ON (si kind = custom) */
+  /** MAC de la Smart TV (Wake-on-LAN pour allumer) — ex. AA:BB:CC:DD:EE:FF */
+  tvMac?: string
+  /** URL HTTP complète ON (smart_tv / custom) */
   tvOnUrl?: string
-  /** URL HTTP complète OFF (si kind = custom) */
+  /** URL HTTP complète OFF (smart_tv / custom) */
   tvOffUrl?: string
 }
 

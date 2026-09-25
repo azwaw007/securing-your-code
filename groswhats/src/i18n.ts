@@ -1183,10 +1183,19 @@ const fr: Dict = {
   gameClientLabel: 'Joueur / ticket (optionnel)',
   gameClientLabelHint: 'Nom ou n° ticket',
   gameTvLanNote:
-    'Branchement : prise Wi‑Fi (Shelly/Tasmota) entre la murale et la TV, même Wi‑Fi que le PC. Voir docs/SALLE-JEUX-TV-WIFI.md. AZ POS Windows recommandé.',
+    'Smart TV ou prise Wi‑Fi sur le même réseau que le PC. Poste → TV Wi‑Fi → IP (+ MAC si Smart TV). AZ POS Windows recommandé.',
   gameTvConfig: 'TV Wi‑Fi',
-  gameTvKind: 'Type de boîtier',
+  gameTvKind: 'Type de branchement',
   gameTvHost: 'Adresse IP (réseau local)',
+  gameTvHostSmart: 'IP de la Smart TV',
+  gameTvSmart: 'Smart TV (Wi‑Fi / LAN)',
+  gameTvSmartHint:
+    'Si la TV a le Wi‑Fi : même réseau que le PC, entre son IP. Allumage = Wake-on-LAN (MAC). Extinction = URL OFF du fabricant, ou une prise Wi‑Fi.',
+  gameTvMac: 'MAC TV (Wake-on-LAN)',
+  gameTvMacHint:
+    'Active « Wake on LAN / Wake on Wi‑Fi » dans les réglages réseau de la TV. Requis pour allumer à distance (.exe).',
+  gameTvSmartUrlsHint:
+    'URL OFF obligatoire pour éteindre sans prise. Certaines TV (Sony Bravia, etc.) donnent une URL HTTP locale.',
   gameTvCustom: 'URL personnalisées',
   gameTvOnUrl: 'URL allumer TV',
   gameTvOffUrl: 'URL éteindre TV',
@@ -2461,10 +2470,19 @@ const ar: Dict = {
   gameClientLabel: 'اللاعب / التذكرة (اختياري)',
   gameClientLabelHint: 'الاسم أو رقم التذكرة',
   gameTvLanNote:
-    'كل منصب: مقبس واي فاي (Shelly/Tasmota) بين الحائط والتلفزيون، نفس شبكة الجهاز. يُفضَّل AZ POS ويندوز.',
+    'تلفزيون ذكي أو مقبس واي فاي على نفس شبكة الجهاز. المنصب → تلفزيون واي فاي → IP (+ MAC للتلفزيون الذكي). يُفضَّل AZ POS ويندوز.',
   gameTvConfig: 'تلفزيون واي فاي',
-  gameTvKind: 'نوع الجهاز',
+  gameTvKind: 'نوع الربط',
   gameTvHost: 'عنوان IP (شبكة محلية)',
+  gameTvHostSmart: 'IP التلفزيون الذكي',
+  gameTvSmart: 'تلفزيون ذكي (واي فاي / LAN)',
+  gameTvSmartHint:
+    'إذا كان للتلفزيون واي فاي: نفس شبكة الجهاز، أدخل الـ IP. التشغيل = Wake-on-LAN (MAC). الإيقاف = رابط OFF من الشركة أو مقبس واي فاي.',
+  gameTvMac: 'MAC التلفزيون (Wake-on-LAN)',
+  gameTvMacHint:
+    'فعّل Wake on LAN / Wake on Wi‑Fi في إعدادات شبكة التلفزيون. مطلوب للتشغيل عن بُعد (.exe).',
+  gameTvSmartUrlsHint:
+    'رابط OFF ضروري للإيقاف بدون مقبس. بعض التلفزيونات (Sony Bravia…) تعطي رابط HTTP محلي.',
   gameTvCustom: 'روابط مخصصة',
   gameTvOnUrl: 'رابط تشغيل التلفزيون',
   gameTvOffUrl: 'رابط إيقاف التلفزيون',

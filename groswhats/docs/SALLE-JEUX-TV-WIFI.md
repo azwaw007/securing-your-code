@@ -1,56 +1,65 @@
 # Relier les TV au logiciel (Wi‑Fi)
 
-AZ POS **n’envoie pas** de commande à la Smart TV Sony / Samsung directement.  
-Chaque TV est branchée sur une **prise Wi‑Fi** (Shelly ou Tasmota / Sonoff). Le logiciel coupe ou allume cette prise → la TV s’éteint ou se rallume.
+Oui : si la **Smart TV a le Wi‑Fi** (ou le câble LAN) et est sur le **même réseau** que le PC AZ POS, tu la relies **directement** — sans prise obligatoire.
 
-## Matériel
+Deux façons (au choix par poste) :
 
-1. Une **prise Wi‑Fi** par poste (Shelly Plug / Plus Plug, ou Sonoff avec **Tasmota**).
-2. PC / tablette AZ POS et toutes les prises sur le **même Wi‑Fi local** (pas de 4G).
-3. Version **Windows (.exe)** recommandée (HTTP local, sans blocage CORS du navigateur).
+| Mode | Quand l’utiliser |
+|------|------------------|
+| **Smart TV (Wi‑Fi / LAN)** | La TV a une IP sur le réseau |
+| **Prise Shelly / Tasmota** | Plus simple / fiable pour couper l’alimentation |
 
-## Brancher
+## A) Smart TV avec Wi‑Fi (recommandé si elle est connectée)
+
+1. Connecte la TV au **même Wi‑Fi** que le PC (pas de 4G).
+2. Dans les réglages réseau de la TV, note :
+   - l’**adresse IP** (ex. `192.168.1.42`)
+   - l’adresse **MAC**
+3. Active **Wake on LAN** / **Wake on Wi‑Fi** (souvent dans Réseau / Options avancées).
+4. Dans AZ POS → poste → **TV Wi‑Fi** :
+   - Type : **Smart TV (Wi‑Fi / LAN)**
+   - IP de la Smart TV
+   - MAC (pour allumer)
+   - **URL OFF** du fabricant si tu veux éteindre sans prise (Sony Bravia, etc.)
+5. **Test ON** / **Test OFF**.
+
+> Utilise de préférence **AZ POS Windows (.exe)** — le navigateur web distant ne parle pas bien au Wi‑Fi local.
+
+### Allumer / éteindre
+
+- **ON** : Wake-on-LAN (paquet envoyé à la MAC) — TV doit être en veille réseau, pas débranchée.
+- **OFF** : URL HTTP locale de la TV (réglages fabricant) **ou** une prise Wi‑Fi en secours.
+
+Si ta TV n’a pas d’URL OFF, utilise l’option B (prise) uniquement pour l’extinction, ou reste en veille manuelle.
+
+## B) Prise Wi‑Fi (Shelly / Tasmota)
 
 ```
-Prise murale → Prise Wi‑Fi → Câble TV → TV
-                         ↑
-              console PS / Xbox (reste allumée)
+Mur → prise Wi‑Fi → TV
 ```
 
-La console reste sous tension ; seule l’alimentation **TV** passe par la prise Wi‑Fi.
+1. Prise sur le même Wi‑Fi, noter son IP.
+2. AZ POS → type **Shelly** ou **Tasmota** → IP → Test ON/OFF.
 
-## Configurer la prise
-
-### Shelly
-1. App Shelly → connecter la prise au Wi‑Fi de la salle.
-2. Noter l’**adresse IP** (ex. `192.168.1.50`) — fixe si possible (DHCP réservation sur le routeur).
-3. Dans AZ POS → poste → **TV Wi‑Fi** → type **Shelly** → coller l’IP → Enregistrer.
-4. Boutons **Test ON** / **Test OFF**.
-
-### Tasmota / Sonoff
-1. Flasher Tasmota, joindre le Wi‑Fi, noter l’IP.
-2. AZ POS → type **Tasmota** → IP → Test ON/OFF.
-
-### URL personnalisées
-Si autre boîtier : type **URL personnalisées** et coller les liens HTTP ON / OFF du fabricant.
+La console (PS / Xbox) reste branchée à part.
 
 ## Dans AZ POS
 
 1. Métier **Salle de jeux**.
-2. Sur chaque poste : **TV Wi‑Fi** → type + IP.
-3. Au démarrage d’une session → TV ON (si configurée).
+2. Chaque poste → **TV Wi‑Fi**.
+3. Démarrage session → TV ON.
 4. Fin de temps / **Veille TV** → TV OFF.
 
 ## Dépannage
 
 | Problème | À vérifier |
 |----------|------------|
-| Test OFF ne fait rien | Même Wi‑Fi que le PC ; IP correcte ; ping depuis le PC |
-| Marche en .exe pas sur le web | Normal : le site HTTPS distant ne parle pas au LAN |
+| Test ON ne réveille pas | Wake on LAN activé ; MAC correcte ; .exe Windows ; TV en veille (pas 0 V) |
+| Test OFF ne fait rien | URL OFF renseignée, ou passer en prise Shelly |
 | IP change | Réserver l’IP sur le routeur |
-| TV s’allume seule | Mode « dernière entrée » / HDMI-CEC selon la TV |
+| Marche en .exe pas sur le site | Normal (LAN local) |
 
 ## Console ≠ TV
 
-- **Console** (PS4 / PS5 / Xbox…) = choisie **par poste en admin** → tarifs.
-- **TV** = prise Wi‑Fi IP sur la fenêtre du poste.
+- **Console** = type choisi en **admin** (tarifs).
+- **TV** = IP / MAC / URLs sur la **fenêtre du poste**.

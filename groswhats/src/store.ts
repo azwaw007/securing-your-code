@@ -1523,7 +1523,11 @@ function migrateGameStations(raw: GameStation[] | undefined): GameStation[] {
     .slice(0, MAX_GAME_STATIONS)
     .map((g, i) => {
       const num = g.number > 0 ? g.number : i + 1
-      const kindOk = g.tvKind === 'tasmota' || g.tvKind === 'custom' || g.tvKind === 'shelly'
+      const kindOk =
+        g.tvKind === 'tasmota' ||
+        g.tvKind === 'custom' ||
+        g.tvKind === 'shelly' ||
+        g.tvKind === 'smart_tv'
       return {
         id: g.id || uid('gs'),
         name: typeof g.name === 'string' && g.name.trim() ? g.name : `Poste ${num}`,
@@ -1549,6 +1553,7 @@ function migrateGameStations(raw: GameStation[] | undefined): GameStation[] {
             : undefined,
         tvKind: kindOk ? g.tvKind : undefined,
         tvHost: typeof g.tvHost === 'string' ? g.tvHost : undefined,
+        tvMac: typeof g.tvMac === 'string' ? g.tvMac : undefined,
         tvOnUrl: typeof g.tvOnUrl === 'string' ? g.tvOnUrl : undefined,
         tvOffUrl: typeof g.tvOffUrl === 'string' ? g.tvOffUrl : undefined,
       }
@@ -1564,7 +1569,7 @@ function buildDefaultGameStations(count = DEFAULT_GAME_STATION_COUNT): GameStati
       number,
       status: 'free' as const,
       consoleKind: 'ps4' as const,
-      tvKind: 'shelly' as const,
+      tvKind: 'smart_tv' as const,
     }
   })
 }
@@ -1590,6 +1595,7 @@ export function updateGameStation(
       | 'matchMinutes'
       | 'tvKind'
       | 'tvHost'
+      | 'tvMac'
       | 'tvOnUrl'
       | 'tvOffUrl'
       | 'clientLabel'
@@ -2884,7 +2890,7 @@ export function addGameStation(state: AppState, name?: string): AppState {
     number,
     status: 'free',
     consoleKind: 'ps4',
-    tvKind: 'shelly',
+    tvKind: 'smart_tv',
   }
   return { ...state, gameStations: [...stations, station] }
 }
