@@ -15,8 +15,8 @@ https://az-pos-dz.vercel.app/privacy.html
 
 Fichiers générés :
 
-- `release/AZ-POS-Setup-1.2.2.exe` — installeur
-- `release/AZ-POS-Portable-1.2.2.exe` — portable
+- `release/AZ-POS-Setup-1.2.3.exe` — installeur
+- `release/AZ-POS-Portable-1.2.3.exe` — portable
 
 Rebuild :
 
@@ -25,7 +25,7 @@ npm run native:deps
 npm run desktop:build
 ```
 
-Tag release GitHub : `v1.2.2-win`
+Tag release GitHub : `v1.2.3-win`
 
 Salle de jeux — TV Wi‑Fi : voir [SALLE-JEUX-TV-WIFI.md](./SALLE-JEUX-TV-WIFI.md).
 

@@ -122,31 +122,42 @@ function fetchLocal(url) {
 function resolveAdbPath() {
   const env = process.env.AZ_POS_ADB || process.env.ADB
   if (env && fs.existsSync(env)) return env
+  const exe = process.platform === 'win32' ? 'adb.exe' : 'adb'
   const candidates = [
-    path.join(process.resourcesPath || '', 'adb', process.platform === 'win32' ? 'adb.exe' : 'adb'),
-    path.join(__dirname, 'adb', process.platform === 'win32' ? 'adb.exe' : 'adb'),
-    process.platform === 'win32' ? 'adb.exe' : 'adb',
+    // Embarqué dans AZ POS.exe (extraResources → resources/adb)
+    path.join(process.resourcesPath || '', 'adb', exe),
+    // Dev local
+    path.join(__dirname, 'vendor', 'adb-win', exe),
+    path.join(__dirname, 'adb', exe),
   ]
   for (const c of candidates) {
-    if (c === 'adb' || c === 'adb.exe') return c
-    if (fs.existsSync(c)) return c
+    if (c && fs.existsSync(c)) return c
   }
-  return process.platform === 'win32' ? 'adb.exe' : 'adb'
+  return exe
 }
 
 function runAdb(args, timeoutMs = 8000) {
   return new Promise((resolve) => {
     const bin = resolveAdbPath()
+    const cwd = path.dirname(bin)
     const child = execFile(
       bin,
       args,
-      { timeout: timeoutMs, windowsHide: true, encoding: 'utf8' },
+      {
+        timeout: timeoutMs,
+        windowsHide: true,
+        encoding: 'utf8',
+        // DLL AdbWin*.dll à côté de adb.exe
+        cwd: fs.existsSync(cwd) ? cwd : undefined,
+        env: { ...process.env },
+      },
       (err, stdout, stderr) => {
         const out = `${stdout || ''}\n${stderr || ''}`.trim()
         if (err) {
-          const msg = err.code === 'ENOENT'
-            ? 'ADB introuvable — installe Platform-Tools et ajoute adb au PATH'
-            : out || err.message
+          const msg =
+            err.code === 'ENOENT'
+              ? 'ADB introuvable dans AZ POS — rebuild avec npm run adb:vendor'
+              : out || err.message
           resolve({ ok: false, detail: msg })
           return
         }
@@ -158,7 +169,7 @@ function runAdb(args, timeoutMs = 8000) {
         ok: false,
         detail:
           err.code === 'ENOENT'
-            ? 'ADB introuvable — installe Platform-Tools (Google) et adb dans le PATH'
+            ? 'ADB introuvable dans AZ POS — rebuild desktop avec adb embarqué'
             : err.message,
       })
     })

@@ -25,16 +25,8 @@ La première fois qu’AZ POS se connecte, la TV affiche **« Autoriser le débo
 
 ## 2. Sur le PC Windows
 
-1. Installe **[SDK Platform-Tools](https://developer.android.com/tools/releases/platform-tools)** (contient `adb.exe`).
-2. Dézippe, et ajoute le dossier au **PATH** Windows  
-   (ou place `adb.exe` accessible ; AZ POS cherche `adb` dans le PATH).
-3. Installe **AZ POS** (.exe).
-4. Ouvre une invite de commandes et teste :
-   ```text
-   adb connect 192.168.1.42:5555
-   adb devices
-   ```
-   Tu dois voir `device` (pas `unauthorized`).
+1. Installe **AZ POS** (.exe) — **`adb.exe` est déjà inclus** dans l’application (pas besoin d’installer Platform-Tools).
+2. Ouvre AZ POS, métier **Salle de jeux**.
 
 ---
 
@@ -60,7 +52,7 @@ La première fois qu’AZ POS se connecte, la TV affiche **« Autoriser le débo
 
 | Message / symptôme | Que faire |
 |--------------------|-----------|
-| ADB introuvable | Installer Platform-Tools + PATH |
+| ADB introuvable | Réinstalle AZ POS 1.2.3+ (adb.exe embarqué) |
 | unauthorized | Sur la TV → Autoriser le débogage |
 | unable to connect | Même Wi‑Fi ; débogage réseau ON ; bon IP/port |
 | Allume pas depuis éteint | MAC + Wake on LAN ; sinon prise Shelly |
