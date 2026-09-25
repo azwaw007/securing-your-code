@@ -1191,7 +1191,7 @@ const fr: Dict = {
   gameTvHostGoogle: 'IP de la Google TV',
   gameTvGoogle: 'Google TV / Android TV',
   gameTvGoogleHint:
-    'Google TV : active Options développeur → Débogage réseau. Même Wi‑Fi. IP + MAC. AZ POS .exe + ADB (Platform-Tools Google).',
+    'Google TV : Options développeur → Débogage réseau. Même Wi‑Fi. IP + MAC. AZ POS .exe (adb.exe inclus).',
   gameTvAdbPort: 'Port ADB (défaut 5555)',
   gameTvSmart: 'Smart TV (Wi‑Fi / LAN)',
   gameTvSmartHint:
@@ -2483,7 +2483,7 @@ const ar: Dict = {
   gameTvHostGoogle: 'IP تلفزيون Google TV',
   gameTvGoogle: 'Google TV / Android TV',
   gameTvGoogleHint:
-    'Google TV: فعّل خيارات المطوّر → تصحيح الشبكة. نفس الواي فاي. IP + MAC. AZ POS exe + ADB.',
+    'Google TV: خيارات المطوّر → تصحيح الشبكة. نفس الواي فاي. IP + MAC. AZ POS exe (adb.exe مدمج).',
   gameTvAdbPort: 'منفذ ADB (افتراضي 5555)',
   gameTvSmart: 'تلفزيون ذكي (واي فاي / LAN)',
   gameTvSmartHint:

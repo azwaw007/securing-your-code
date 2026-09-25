@@ -32,8 +32,11 @@ release
 release-new
 dist-electron
 *.exe
+!electron/vendor/adb-win/adb.exe
 *.apk
 *.aab
+electron/vendor/platform-tools-win.zip
+electron/vendor/_pt_extract
 android/.gradle
 android/app/build
 android/build

@@ -20,7 +20,7 @@ Sur ton PC : **clic droit → Extraire** → ouvrir **`OUVRIR-MOI.txt`** ou **`l
 |--------|------|
 | **Vitrine produit** | https://az-pos-dz.vercel.app/az-soft/ |
 | **Démo en ligne** | https://az-pos-dz.vercel.app |
-| **Télécharger Windows (.exe)** | https://github.com/azwaw007/securing-your-code/releases/download/v1.2.2-win/AZ-POS-Setup-1.2.2.exe |
+| **Télécharger Windows (.exe)** | https://github.com/azwaw007/securing-your-code/releases/download/v1.2.3-win/AZ-POS-Setup-1.2.3.exe |
 | **Offre Pro (vendeur)** | https://az-pos-dz.vercel.app/seller/pro.html |
 | **Générateur de licences** | https://az-pos-dz.vercel.app/seller/license-generator.html |
 | **Guide utilisateur** | https://az-pos-dz.vercel.app/guide.html |

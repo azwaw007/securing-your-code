@@ -1,7 +1,7 @@
 {
   "name": "az-pos",
   "private": true,
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "AZ POS — point de vente Algérie (web, Android, Windows)",
   "author": "AZ POS",
   "type": "module",
@@ -15,13 +15,14 @@
     "license": "node tools/generate-license.mjs",
     "icons": "node scripts/make-icons.mjs",
     "tessdata": "node scripts/vendor-tessdata.mjs",
+    "adb:vendor": "node scripts/vendor-adb.mjs",
     "off:pack": "python3 scripts/fetch-off-algeria.py --max-pages 1 --download-images --images-dir public/catalog/off --az-pos-out /tmp/off-az-pos-import.json --only-with-images",
     "native:deps": "npm install --no-save @capacitor/core@^7.4.3 @capacitor/cli@^7.4.3 @capacitor/android@^7.4.3 electron@^37.2.6 electron-builder@^26.0.12",
     "android:sync": "npm run build:native && npx cap sync android",
     "android:open": "npx cap open android",
-    "desktop:dev": "npm run build:native && electron .",
-    "desktop:build": "npm run build:native && electron-builder --win",
-    "desktop:dir": "npm run build:native && electron-builder --win --dir"
+    "desktop:dev": "npm run adb:vendor && npm run build:native && electron .",
+    "desktop:build": "npm run adb:vendor && npm run build:native && electron-builder --win",
+    "desktop:dir": "npm run adb:vendor && npm run build:native && electron-builder --win --dir"
   },
   "dependencies": {
     "@vercel/blob": "^2.8.0",
@@ -57,7 +58,17 @@
     "files": [
       "dist/**/*",
       "electron/**/*",
+      "!electron/vendor/**/*",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "electron/vendor/adb-win",
+        "to": "adb",
+        "filter": [
+          "**/*"
+        ]
+      }
     ],
     "win": {
       "signAndEditExecutable": false,
