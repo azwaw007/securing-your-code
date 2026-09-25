@@ -65,6 +65,7 @@ import {
   sellerCan,
 } from './sellerPermissions'
 import { APP_BRAND } from './brand'
+import { t, tf } from './i18n'
 import { getCachedSeatLimit } from './license/license'
 import { countryByCode, convertPriceDa } from './data/countries'
 import { bestForeignCatalogHit, catalogFor, catalogNameHits } from './data/catalogs'
@@ -90,7 +91,19 @@ const LEGACY_STORAGE_KEYS = [
 ]
 
 export const DEFAULT_LOCATION_ID = 'loc_main'
+/** Nom stocké historique (FR) — afficher via `locationDisplayName`. */
 export const DEFAULT_LOCATION_NAME = 'Magasin principal'
+
+export function locationDisplayName(name: string, lang: Language): string {
+  if (
+    name === DEFAULT_LOCATION_NAME ||
+    name === 'المتجر الرئيسي' ||
+    name === t('ar', 'defaultLocationName')
+  ) {
+    return t(lang, 'defaultLocationName')
+  }
+  return name
+}
 
 export function uid(prefix: string): string {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`
@@ -1268,7 +1281,9 @@ export function applyShopSetup(state: AppState, input: ShopSetupInput): AppState
       commerceMode: input.commerceMode,
       domainId: resolveSportDomainId(domain.id),
       currency: country.currency,
-      shopName: input.shopName.trim() || domain.nameFr,
+      shopName:
+        input.shopName.trim() ||
+        (input.language === 'ar' ? domain.nameAr : domain.nameFr),
       phone: input.phone.trim(),
       language: input.language,
       showZakat: defaultZakatOn(country.code),
@@ -1709,7 +1724,10 @@ function migrateGameStations(raw: GameStation[] | undefined): GameStation[] {
         g.tvKind === 'google_tv'
       return {
         id: g.id || uid('gs'),
-        name: typeof g.name === 'string' && g.name.trim() ? g.name : `Poste ${num}`,
+        name:
+          typeof g.name === 'string' && g.name.trim()
+            ? g.name
+            : tf('fr', 'gameStationPoste', { n: num }),
         number: num,
         status:
           g.status === 'active' || g.status === 'standby' ? g.status : 'free',
@@ -1775,12 +1793,15 @@ function migrateGameStationTabLines(
   return lines.length > 0 ? lines : undefined
 }
 
-function buildDefaultGameStations(count = DEFAULT_GAME_STATION_COUNT): GameStation[] {
+function buildDefaultGameStations(
+  count = DEFAULT_GAME_STATION_COUNT,
+  lang: Language = 'fr',
+): GameStation[] {
   return Array.from({ length: count }, (_, i) => {
     const number = i + 1
     return {
       id: uid('gs'),
-      name: `Poste ${number}`,
+      name: tf(lang, 'gameStationPoste', { n: number }),
       number,
       status: 'free' as const,
       consoleKind: 'ps4' as const,
@@ -1796,7 +1817,10 @@ export function ensureGameStations(
 ): AppState {
   const existing = state.gameStations ?? []
   if (existing.length > 0) return state
-  return { ...state, gameStations: buildDefaultGameStations(count) }
+  return {
+    ...state,
+    gameStations: buildDefaultGameStations(count, state.settings.language),
+  }
 }
 
 export function updateGameStation(
@@ -2048,16 +2072,20 @@ export function settleGameStation(
     .reduce((s, l) => s + l.lineTotalDa, 0)
     .toFixed(2)
   const seller = currentSeller(state)
+  const lang = state.settings.language
   let next = createOrder(state, {
     clientId: '',
-    clientName: station.clientLabel?.trim() || station.name || 'Passage',
+    clientName:
+      station.clientLabel?.trim() ||
+      station.name ||
+      t(lang, 'gameStationWalkIn'),
     clientPhone: '',
     lines: orderLines,
     totalDa,
     paidDa: totalDa,
     remainingDa: 0,
     payment: 'paye',
-    note: `Salle de jeux · ${station.name} · encaissement`,
+    note: tf(lang, 'gameStationCashNote', { name: station.name }),
     sellerId: seller?.id,
     sellerName: seller?.name,
   })
@@ -2877,7 +2905,7 @@ export function sendToReceptionCash(
     clientId: client.id,
     clientName: client.name,
     clientPhone: client.phone,
-    label: input.label.trim() || 'Consultation',
+    label: input.label.trim() || t(state.settings.language, 'defaultConsultation'),
     amountDa: amount,
     note: (input.note || '').trim(),
     status: 'pending',
@@ -3371,7 +3399,7 @@ export function applyClientPayment(
     amountDa: received,
     clientId,
     missionStopId: opts?.missionStopId,
-    note: opts?.note || 'Versement client',
+    note: opts?.note || t(state.settings.language, 'paymentNoteClient'),
     createdAt: opts?.createdAt || new Date().toISOString(),
   }
 
@@ -3878,7 +3906,9 @@ export function addGameStation(state: AppState, name?: string): AppState {
     stations.reduce((m, g) => Math.max(m, g.number), 0) + 1 || stations.length + 1
   const station: GameStation = {
     id: uid('gs'),
-    name: (name || '').trim() || `Poste ${number}`,
+    name:
+      (name || '').trim() ||
+      tf(state.settings.language, 'gameStationPoste', { n: number }),
     number,
     status: 'free',
     consoleKind: 'ps4',

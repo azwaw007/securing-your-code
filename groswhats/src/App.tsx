@@ -77,6 +77,7 @@ import {
   stockAt,
   activeLocationId,
   activeLocation,
+  locationDisplayName,
   addLocation,
   updateLocation,
   deleteLocation,
@@ -96,7 +97,7 @@ import {
   sellerCan,
   sellerCanAccessScreen,
 } from './sellerPermissions'
-import { isDecimalUnit, qtyStep, t, unitLabel } from './i18n'
+import { isDecimalUnit, qtyStep, t, tf, unitLabel } from './i18n'
 import { mt } from './locale/modeCopy'
 import { formatDa, formatQty, setActiveCurrency, setActiveLocale } from './utils/format'
 import { productDisplaySrc } from './utils/productArt'
@@ -717,14 +718,16 @@ export default function App() {
                 onChange={(e) => {
                   const id = e.target.value
                   setState((s) => setActiveLocation(s, id))
-                  const name =
-                    state.locations.find((l) => l.id === id)?.name || id
+                  const name = locationDisplayName(
+                    state.locations.find((l) => l.id === id)?.name || id,
+                    lang,
+                  )
                   setToast(`${t(lang, 'activeLocation')}: ${name}`)
                 }}
               >
                 {state.locations.map((l) => (
                   <option key={l.id} value={l.id}>
-                    {l.name}
+                    {locationDisplayName(l.name, lang)}
                   </option>
                 ))}
               </select>
@@ -1737,16 +1740,21 @@ function SettingsPage({
   }, [state.settings.activeLocationId, state.locations])
 
   useEffect(() => {
-    void getAccessStatus().then((s) => {
+    void getAccessStatus(lang).then((s) => {
       if (s.ok && s.mode === 'licensed') {
-        setLicenseInfo(`Licence: ${s.customer} — expire ${s.expiresAt}`)
+        setLicenseInfo(
+          tf(lang, 'licenseInfoActive', {
+            customer: s.customer,
+            date: s.expiresAt,
+          }),
+        )
       } else if (s.ok && s.mode === 'trial') {
-        setLicenseInfo(`Essai: ${s.daysLeft} j restants`)
+        setLicenseInfo(tf(lang, 'licenseInfoTrial', { days: s.daysLeft }))
       } else {
         setLicenseInfo(s.message)
       }
     })
-  }, [])
+  }, [lang])
 
   function patchPerm(key: keyof AgentPermissions, value: boolean) {
     setAgentPerms((p) => ({ ...p, [key]: value }))
@@ -1858,7 +1866,7 @@ function SettingsPage({
           </div>
         </div>
         <div className="field">
-          <label>Clé de licence</label>
+          <label>{t(lang, 'licenseKeyLabel')}</label>
           <textarea
             rows={2}
             value={licenseKey}
@@ -1870,9 +1878,14 @@ function SettingsPage({
           className="btn secondary block"
           disabled={!licenseKey.trim()}
           onClick={async () => {
-            const res = await activateLicense(licenseKey)
+            const res = await activateLicense(licenseKey, lang)
             if (res.ok) {
-              setLicenseInfo(`Licence: ${res.payload.c} — expire ${res.payload.e}`)
+              setLicenseInfo(
+                tf(lang, 'licenseInfoActive', {
+                  customer: res.payload.c,
+                  date: res.payload.e,
+                }),
+              )
               setLicenseKey('')
               saveAll()
             } else {
@@ -1880,10 +1893,10 @@ function SettingsPage({
             }
           }}
         >
-          Activer / renouveler licence
+          {t(lang, 'licenseActivateRenew')}
         </button>
         <a className="btn ghost block" href="/guide.html" target="_blank" rel="noreferrer">
-          Guide d’utilisation
+          {t(lang, 'licenseGuide')}
         </a>
 
         <div className="field">
@@ -2188,9 +2201,7 @@ function SettingsPage({
             disabled={!isProPlan(getCachedPlanId()) && getCachedPlanId() !== 'trial'}
             onChange={(e) => {
               if (!isProPlan(getCachedPlanId()) && getCachedPlanId() !== 'trial') {
-                window.alert(
-                  'Multi-magasin réservé à AZ POS Pro (3 / 10 / illimité postes).',
-                )
+                window.alert(t(lang, 'multiLocationProOnly'))
                 return
               }
               onToggleMultiLocation(e.target.checked)
@@ -2200,11 +2211,13 @@ function SettingsPage({
             <strong>{t(lang, 'multiLocation')}</strong>
             <div className="muted">{t(lang, 'multiLocationHint')}</div>
             {!isProPlan(getCachedPlanId()) && getCachedPlanId() !== 'trial' ? (
-              <div className="muted">Licence 1 poste : un seul magasin. Passez en Pro pour plusieurs postes.</div>
+              <div className="muted">{t(lang, 'multiLocationStandardHint')}</div>
             ) : (
               <div className="muted">
-                Postes / dépôts autorisés :{' '}
-                {getCachedSeatLimit() >= 9999 ? 'illimités' : getCachedSeatLimit()}
+                {t(lang, 'multiLocationSeatsHint')}{' '}
+                {getCachedSeatLimit() >= 9999
+                  ? t(lang, 'seatsUnlimitedShort')
+                  : getCachedSeatLimit()}
               </div>
             )}
           </span>
@@ -2221,7 +2234,7 @@ function SettingsPage({
               >
                 {state.locations.map((l) => (
                   <option key={l.id} value={l.id}>
-                    {l.name}
+                    {locationDisplayName(l.name, lang)}
                   </option>
                 ))}
               </select>
@@ -2229,7 +2242,11 @@ function SettingsPage({
             {state.locations.map((l) => (
               <div className="list-item location-row" key={l.id}>
                 <input
-                  value={l.name}
+                  value={
+                    l.name === 'Magasin principal' || l.name === 'المتجر الرئيسي'
+                      ? locationDisplayName(l.name, lang)
+                      : l.name
+                  }
                   onChange={(e) => onRenameLocation(l.id, e.target.value)}
                   aria-label={t(lang, 'locationName')}
                 />
@@ -2300,7 +2317,7 @@ function SettingsPage({
                     >
                       {state.locations.map((l) => (
                         <option key={l.id} value={l.id}>
-                          {l.name}
+                          {locationDisplayName(l.name, lang)}
                         </option>
                       ))}
                     </select>
@@ -2313,7 +2330,7 @@ function SettingsPage({
                     >
                       {state.locations.map((l) => (
                         <option key={l.id} value={l.id}>
-                          {l.name}
+                          {locationDisplayName(l.name, lang)}
                         </option>
                       ))}
                     </select>

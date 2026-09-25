@@ -8,40 +8,76 @@ import {
   type AccessStatus,
 } from './license'
 import { APP_BRAND } from '../brand'
+import { t, tf } from '../i18n'
+import { isRtl, parseLanguage } from '../locale/langs'
+import type { Language } from '../types'
 import { openSupportWhatsapp } from '../utils/whatsapp'
 
+const STORAGE_KEYS = ['az-pos-v1', 'groswhats-v3', 'groswhats-v2', 'groswhats-v1']
+
+/** Langue UI avant chargement de l’app (réglages persistés ou navigateur). */
+export function readStoredUiLanguage(): Language {
+  try {
+    for (const key of STORAGE_KEYS) {
+      const raw = localStorage.getItem(key)
+      if (!raw) continue
+      const parsed = JSON.parse(raw) as { settings?: { language?: unknown } }
+      if (parsed?.settings?.language != null) {
+        return parseLanguage(parsed.settings.language, 'fr')
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  try {
+    const nav = navigator.language || ''
+    if (nav.toLowerCase().startsWith('ar')) return 'ar'
+  } catch {
+    /* ignore */
+  }
+  return 'fr'
+}
+
 export function LicenseGate({ children }: { children: ReactNode }) {
+  const [lang, setLang] = useState<Language>(() => readStoredUiLanguage())
   const [status, setStatus] = useState<AccessStatus | null>(null)
   const [key, setKey] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
-  async function refresh() {
-    const s = await getAccessStatus()
+  async function refresh(nextLang = lang) {
+    const s = await getAccessStatus(nextLang)
     setStatus(s)
   }
 
   useEffect(() => {
-    void refresh()
+    const next = readStoredUiLanguage()
+    setLang(next)
+    document.documentElement.dir = isRtl(next) ? 'rtl' : 'ltr'
+    document.documentElement.lang = next === 'ar' ? 'ar' : next
+    void refresh(next)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- bootstrap once
   }, [])
 
   async function onActivate() {
     setBusy(true)
     setError('')
-    const res = await activateLicense(key)
+    const res = await activateLicense(key, lang)
     setBusy(false)
     if (!res.ok) {
       setError(res.error)
       return
     }
     setKey('')
-    await refresh()
+    await refresh(lang)
   }
+
+  const supportLang = lang === 'ar' ? 'ar' : 'fr'
 
   if (!status) {
     return (
       <div className="app-shell">
-        <div className="card">Chargement licence…</div>
+        <div className="card">{t(lang, 'licenseLoading')}</div>
       </div>
     )
   }
@@ -60,16 +96,16 @@ export function LicenseGate({ children }: { children: ReactNode }) {
               decoding="async"
             />
           </div>
-          <p className="muted">Version {APP_VERSION}</p>
-          <h2>Activation requise</h2>
+          <p className="muted">{tf(lang, 'versionLabel', { v: APP_VERSION })}</p>
+          <h2>{t(lang, 'licenseActivationRequired')}</h2>
           <div className="notice">{status.message}</div>
           <p>
-            Essai gratuit : <strong>{TRIAL_DAYS} jours</strong>.
+            {tf(lang, 'licenseTrialInfo', { days: TRIAL_DAYS })}
             <br />
-            AZ POS = <strong>1 poste</strong> · Pro = 3 / 10 / illimité.
+            {t(lang, 'licensePlansHint')}
           </p>
           <div className="field">
-            <label>Clé de licence</label>
+            <label>{t(lang, 'licenseKeyLabel')}</label>
             <textarea
               rows={3}
               value={key}
@@ -83,22 +119,22 @@ export function LicenseGate({ children }: { children: ReactNode }) {
             disabled={busy || !key.trim()}
             onClick={() => void onActivate()}
           >
-            Activer la licence
+            {t(lang, 'licenseActivate')}
           </button>
           <p className="muted" style={{ marginTop: 12 }}>
-            Service après-vente AZ Soft — WhatsApp {APP_BRAND.supportDisplay}
+            {t(lang, 'licenseSupportSav')} {APP_BRAND.supportDisplay}
           </p>
           <button
             type="button"
             className="btn secondary block"
             onClick={() =>
               openSupportWhatsapp({
-                language: 'fr',
+                language: supportLang,
                 version: APP_VERSION,
               })
             }
           >
-            💬 Contacter le support
+            💬 {t(lang, 'licenseContactSupport')}
           </button>
           <a
             className="btn ghost block"
@@ -106,7 +142,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
             target="_blank"
             rel="noreferrer"
           >
-            Guide d’utilisation
+            {t(lang, 'licenseGuide')}
           </a>
         </div>
       </div>
@@ -118,13 +154,20 @@ export function LicenseGate({ children }: { children: ReactNode }) {
       <div className={`license-banner ${status.mode === 'trial' ? 'trial' : 'ok'}`}>
         {status.mode === 'trial' ? (
           <span>
-            Essai AZ POS — <strong>{status.daysLeft} j</strong> restants (fin{' '}
-            {status.trialEndsAt})
+            {tf(lang, 'licenseTrialBanner', {
+              days: status.daysLeft,
+              date: status.trialEndsAt,
+            })}
           </span>
         ) : (
           <span>
-            {status.planLabel} — {status.customer} — {seatsLabel(status.seats)} — expire le{' '}
-            {status.expiresAt} ({status.daysLeft} j)
+            {tf(lang, 'licenseOkBanner', {
+              plan: status.planLabel,
+              customer: status.customer,
+              seats: seatsLabel(status.seats, lang),
+              date: status.expiresAt,
+              days: status.daysLeft,
+            })}
           </span>
         )}
         <button
@@ -132,7 +175,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
           className="license-support-link"
           onClick={() =>
             openSupportWhatsapp({
-              language: 'fr',
+              language: supportLang,
               version: APP_VERSION,
             })
           }
@@ -140,7 +183,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
           SAV
         </button>
         <a href="/guide.html" target="_blank" rel="noreferrer">
-          Guide
+          {t(lang, 'licenseGuideShort')}
         </a>
       </div>
       {children}

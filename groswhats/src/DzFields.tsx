@@ -91,7 +91,11 @@ export function CityField({
         <input
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder={countryByCode(countryCode).cityLabelFr}
+          placeholder={
+            lang === 'ar'
+              ? countryByCode(countryCode).cityLabelAr
+              : countryByCode(countryCode).cityLabelFr
+          }
         />
       )}
     </div>
