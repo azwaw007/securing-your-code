@@ -3,7 +3,7 @@
 ## Liens publics
 - Site vitrine : https://az-pos-dz.vercel.app/az-soft/
 - Démo app : https://az-pos-dz.vercel.app
-- Windows : https://github.com/azwaw007/securing-your-code/releases/download/v1.2.4/AZ-POS-Setup-1.2.4.exe
+- Windows : https://github.com/azwaw007/securing-your-code/releases/download/v1.2.5/AZ-POS-Setup-1.2.5.exe
 
 ## Tarifs
 - Standard : 12 000 DA / an
