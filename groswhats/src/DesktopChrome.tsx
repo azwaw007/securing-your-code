@@ -1,10 +1,11 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CommerceMode, Language, Screen } from './types'
 import { t } from './i18n'
 import type { MetierFamily } from './locale/metierPacks'
 import {
   desktopRailsFor,
   isScreenAction,
+  railHint,
   type RailAction,
   type RailActionId,
 } from './locale/desktopRails'
@@ -28,31 +29,108 @@ const LANGS: Array<{ id: Language; label: string }> = [
   { id: 'ar', label: 'ع' },
 ]
 
+const TIP_DELAY_MS = 700
+
+type TipSide = 'right' | 'left' | 'bottom'
+
+function DesktopTipButton({
+  title,
+  hint,
+  side,
+  className,
+  active,
+  onClick,
+  children,
+  shortcutHint,
+}: {
+  title: string
+  hint: string
+  side: TipSide
+  className: string
+  active?: boolean
+  onClick: () => void
+  children: React.ReactNode
+  shortcutHint?: string
+}) {
+  const [open, setOpen] = useState(false)
+  const timer = useRef<number | null>(null)
+
+  function clear() {
+    if (timer.current != null) {
+      window.clearTimeout(timer.current)
+      timer.current = null
+    }
+    setOpen(false)
+  }
+
+  function arm() {
+    clear()
+    timer.current = window.setTimeout(() => setOpen(true), TIP_DELAY_MS)
+  }
+
+  useEffect(() => () => clear(), [])
+
+  return (
+    <span
+      className={`desktop-tip-wrap desktop-tip-${side}`}
+      onMouseEnter={arm}
+      onMouseLeave={clear}
+      onFocus={arm}
+      onBlur={clear}
+    >
+      <button
+        type="button"
+        className={`${className}${active ? ' is-active' : ''}`}
+        onClick={() => {
+          clear()
+          onClick()
+        }}
+        aria-label={`${title}. ${hint}`}
+      >
+        {children}
+      </button>
+      {open && hint ? (
+        <span className="desktop-tip" role="tooltip">
+          <strong className="desktop-tip-title">
+            {title}
+            {shortcutHint ? (
+              <kbd className="desktop-tip-kbd">{shortcutHint}</kbd>
+            ) : null}
+          </strong>
+          <span className="desktop-tip-body">{hint}</span>
+        </span>
+      ) : null}
+    </span>
+  )
+}
+
 function RailButtons({
   items,
   lang,
   active,
+  side,
   onAction,
 }: {
   items: RailAction[]
   lang: Language
   active?: Screen
+  side: TipSide
   onAction: (id: RailActionId) => void
 }) {
   return (
     <>
       {items.map((s) => (
-        <button
+        <DesktopTipButton
           key={s.id}
-          type="button"
-          className={`desktop-rail-btn desktop-rail-action ${
-            isScreenAction(s.id) && active === s.id ? 'is-active' : ''
-          }`}
-          onClick={() => onAction(s.id)}
           title={t(lang, s.labelKey)}
+          hint={railHint(lang, s.id)}
+          side={side}
+          className="desktop-rail-btn desktop-rail-action"
+          active={isScreenAction(s.id) && active === s.id}
+          onClick={() => onAction(s.id)}
         >
           <span aria-hidden>{s.icon}</span>
-        </button>
+        </DesktopTipButton>
       ))}
     </>
   )
@@ -74,7 +152,6 @@ export function DesktopChrome({
   activeScreen?: Screen
   onLang: (l: Language) => void
   onGo: (s: Screen) => void
-  /** Actions spéciales (recherche, nouveau produit, alertes) */
   onAction?: (id: RailActionId) => void
   children: React.ReactNode
 }) {
@@ -131,24 +208,26 @@ export function DesktopChrome({
       data-platform={window.azDesktop?.platform || ''}
       data-metier={family || mode || ''}
     >
-      {/* LTR : langues + raccourcis quotidiens */}
       <aside className="desktop-rail desktop-rail-start" aria-label="FR EN tools">
         {ltrLangs.map((l) => (
-          <button
+          <DesktopTipButton
             key={l.id}
-            type="button"
-            className={`desktop-rail-btn desktop-rail-lang ${lang === l.id ? 'is-active' : ''}`}
-            onClick={() => onLang(l.id)}
             title={t(lang, `lang_${l.id}`)}
+            hint={railHint(lang, `lang_${l.id}`)}
+            side="right"
+            className="desktop-rail-btn desktop-rail-lang"
+            active={lang === l.id}
+            onClick={() => onLang(l.id)}
           >
             {l.label}
-          </button>
+          </DesktopTipButton>
         ))}
         <div className="desktop-rail-sep" aria-hidden />
         <RailButtons
           items={rails.left}
           lang={lang}
           active={activeScreen}
+          side="right"
           onAction={handle}
         />
       </aside>
@@ -156,37 +235,40 @@ export function DesktopChrome({
       <div className="desktop-chrome-main">
         <nav className="desktop-shortcuts" aria-label="Shortcuts">
           {rails.top.map((s, i) => (
-            <button
+            <DesktopTipButton
               key={s.id}
-              type="button"
-              className={`desktop-shortcut ${
-                isScreenAction(s.id) && activeScreen === s.id ? 'is-active' : ''
-              }`}
+              title={t(lang, s.labelKey)}
+              hint={railHint(lang, s.id)}
+              side="bottom"
+              className="desktop-shortcut"
+              active={isScreenAction(s.id) && activeScreen === s.id}
               onClick={() => handle(s.id)}
-              title={`${t(lang, s.labelKey)} (Ctrl+${i + 1})`}
+              shortcutHint={`Ctrl+${i + 1}`}
             >
               <span aria-hidden>{s.icon}</span>
-            </button>
+            </DesktopTipButton>
           ))}
         </nav>
         <div className="desktop-chrome-body">{children}</div>
       </div>
 
-      {/* RTL : arabe + aide / calendrier / alertes */}
       <aside className="desktop-rail desktop-rail-end" aria-label="AR tools">
-        <button
-          type="button"
-          className={`desktop-rail-btn desktop-rail-lang ${lang === 'ar' ? 'is-active' : ''}`}
-          onClick={() => onLang('ar')}
+        <DesktopTipButton
           title={t(lang, 'lang_ar')}
+          hint={railHint(lang, 'lang_ar')}
+          side="left"
+          className="desktop-rail-btn desktop-rail-lang"
+          active={lang === 'ar'}
+          onClick={() => onLang('ar')}
         >
           {arLang.label}
-        </button>
+        </DesktopTipButton>
         <div className="desktop-rail-sep" aria-hidden />
         <RailButtons
           items={rails.right}
           lang={lang}
           active={activeScreen}
+          side="left"
           onAction={handle}
         />
       </aside>

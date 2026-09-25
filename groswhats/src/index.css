@@ -3880,6 +3880,99 @@ html[data-theme='night'] option {
   background: #0d9488;
 }
 
+/* Info-bulle au survol (~0,7 s) */
+.desktop-tip-wrap {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.desktop-tip {
+  position: absolute;
+  z-index: 80;
+  min-width: 160px;
+  max-width: 240px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #0f172a;
+  color: #f8fafc;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+  animation: desktop-tip-in 0.15s ease-out;
+}
+
+.desktop-tip-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  margin: 0 0 4px;
+}
+
+.desktop-tip-body {
+  display: block;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: #cbd5e1;
+  font-weight: 400;
+}
+
+.desktop-tip-kbd {
+  margin-inline-start: auto;
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  font-family: ui-monospace, monospace;
+}
+
+.desktop-tip-right .desktop-tip {
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.desktop-tip-left .desktop-tip {
+  right: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.desktop-tip-bottom .desktop-tip {
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+@keyframes desktop-tip-in {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+}
+
+.desktop-tip-bottom .desktop-tip {
+  animation: desktop-tip-in-bottom 0.15s ease-out;
+}
+
+@keyframes desktop-tip-in-bottom {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
 .desktop-chrome-body {
   flex: 1;
   min-height: 0;

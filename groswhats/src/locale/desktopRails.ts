@@ -258,3 +258,179 @@ export function isScreenAction(id: RailActionId): id is Screen {
     id !== 'alerts'
   )
 }
+
+/** Explications au survol (FR / AR / EN) */
+const HINTS: Record<string, { fr: string; ar: string; en: string }> = {
+  order: {
+    fr: 'Ouvrir la vente / caisse pour encaisser',
+    ar: 'فتح البيع / الصندوق للتحصيل',
+    en: 'Open sale / checkout to take payment',
+  },
+  products: {
+    fr: 'Voir et gérer le stock / les produits',
+    ar: 'عرض وإدارة المخزون / المنتجات',
+    en: 'View and manage stock / products',
+  },
+  newProduct: {
+    fr: 'Ajouter un nouveau produit au catalogue',
+    ar: 'إضافة منتج جديد إلى القائمة',
+    en: 'Add a new product to the catalog',
+  },
+  clients: {
+    fr: 'Liste des clients, crédits et fiches',
+    ar: 'قائمة الزبائن والديون والبطاقات',
+    en: 'Customers, credit and profiles',
+  },
+  caisse: {
+    fr: 'Ouvrir / clôturer la session de caisse',
+    ar: 'فتح / إغلاق جلسة الصندوق',
+    en: 'Open / close the cash drawer session',
+  },
+  history: {
+    fr: 'Historique des ventes et calendrier',
+    ar: 'سجل المبيعات والتقويم',
+    en: 'Sales history and calendar',
+  },
+  stock: {
+    fr: 'Valeur du stock et marges',
+    ar: 'قيمة المخزون والهوامش',
+    en: 'Stock value and margins',
+  },
+  expenses: {
+    fr: 'Enregistrer les dépenses du commerce',
+    ar: 'تسجيل مصاريف المحل',
+    en: 'Record business expenses',
+  },
+  profits: {
+    fr: 'Voir les gains et le bénéfice',
+    ar: 'عرض الأرباح والمكسب',
+    en: 'View profits and earnings',
+  },
+  settings: {
+    fr: 'Réglages du magasin, langue, outils',
+    ar: 'إعدادات المحل واللغة والأدوات',
+    en: 'Shop settings, language, tools',
+  },
+  calculator: {
+    fr: 'Calculatrice rapide (prix, quantités…)',
+    ar: 'آلة حاسبة سريعة (أسعار، كميات…)',
+    en: 'Quick calculator (prices, quantities…)',
+  },
+  search: {
+    fr: 'Rechercher un produit, client ou facture',
+    ar: 'البحث عن منتج أو زبون أو فاتورة',
+    en: 'Search product, customer or invoice',
+  },
+  agent: {
+    fr: 'Aide AZ POS — questions et conseils',
+    ar: 'مساعدة AZ POS — أسئلة ونصائح',
+    en: 'AZ POS help — questions and tips',
+  },
+  alerts: {
+    fr: 'Alertes stock bas / ruptures',
+    ar: 'تنبيهات نفاد أو نقص المخزون',
+    en: 'Low stock / out-of-stock alerts',
+  },
+  inventory: {
+    fr: 'Inventaire : compter et corriger le stock',
+    ar: 'الجرد: عدّ وتصحيح المخزون',
+    en: 'Inventory: count and fix stock',
+  },
+  expiry: {
+    fr: 'Dates de péremption (DLC) et lots',
+    ar: 'تواريخ الصلاحية والدفعات',
+    en: 'Expiry dates and lot numbers',
+  },
+  arrivages: {
+    fr: 'Enregistrer les arrivages fournisseurs',
+    ar: 'تسجيل وصول البضاعة من الموردين',
+    en: 'Record supplier arrivals',
+  },
+  delivery: {
+    fr: 'Carte et livraisons',
+    ar: 'الخريطة والتوصيل',
+    en: 'Map and deliveries',
+  },
+  missions: {
+    fr: 'Tournées livreurs / missions',
+    ar: 'جولات الموزعين / المهام',
+    en: 'Driver routes / missions',
+  },
+  purchases: {
+    fr: 'Achats et réapprovisionnement',
+    ar: 'المشتريات وإعادة التموين',
+    en: 'Purchases and restocking',
+  },
+  returns: {
+    fr: 'Retours et avoirs clients',
+    ar: 'المرتجعات وأرصدة الزبائن',
+    en: 'Returns and credit notes',
+  },
+  gallery: {
+    fr: 'Galerie photos des produits',
+    ar: 'معرض صور المنتجات',
+    en: 'Product photo gallery',
+  },
+  staff: {
+    fr: 'Équipe, RH et présence',
+    ar: 'الفريق والموارد البشرية',
+    en: 'Staff, HR and attendance',
+  },
+  membership: {
+    fr: 'Abonnements (gym, club…)',
+    ar: 'الاشتراكات (رياضة، نادي…)',
+    en: 'Memberships (gym, club…)',
+  },
+  debtRemind: {
+    fr: 'Relancer les clients en retard (WhatsApp)',
+    ar: 'تذكير الزبائن المتأخرين (واتساب)',
+    en: 'Remind overdue customers (WhatsApp)',
+  },
+  supplierDebts: {
+    fr: 'Dettes envers les fournisseurs',
+    ar: 'الديون للموردين',
+    en: 'Money owed to suppliers',
+  },
+  payments: {
+    fr: 'Modes de paiement (espèce, BaridiMob…)',
+    ar: 'طرق الدفع (نقد، بريدي موب…)',
+    en: 'Payment methods (cash, BaridiMob…)',
+  },
+  exportCompta: {
+    fr: 'Exporter les données pour la compta',
+    ar: 'تصدير البيانات للمحاسبة',
+    en: 'Export data for accounting',
+  },
+  home: {
+    fr: 'Retour à l’accueil',
+    ar: 'العودة للرئيسية',
+    en: 'Back to home',
+  },
+  lang_fr: {
+    fr: 'Passer l’interface en français',
+    ar: 'تحويل الواجهة إلى الفرنسية',
+    en: 'Switch interface to French',
+  },
+  lang_en: {
+    fr: 'Passer l’interface en anglais',
+    ar: 'تحويل الواجهة إلى الإنجليزية',
+    en: 'Switch interface to English',
+  },
+  lang_ar: {
+    fr: 'Passer l’interface en arabe',
+    ar: 'تحويل الواجهة إلى العربية',
+    en: 'Switch interface to Arabic',
+  },
+}
+
+export function railHint(
+  lang: 'fr' | 'ar' | 'en' | string,
+  id: string,
+): string {
+  const row = HINTS[id]
+  if (!row) return ''
+  if (lang === 'ar') return row.ar
+  if (lang === 'en') return row.en
+  return row.fr
+}
+
