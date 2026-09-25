@@ -16,6 +16,7 @@ declare global {
     azDesktop?: {
       isElectron: boolean
       platform?: string
+      onFKey?: (cb: (key: string) => void) => () => void
     }
   }
 }
@@ -31,6 +32,7 @@ const LANGS: Array<{ id: Language; label: string }> = [
 ]
 
 const TIP_DELAY_MS = 700
+const FKEY_RE = /^F([1-9]|1[0-2])$/
 
 type TipSide = 'right' | 'left' | 'bottom'
 
@@ -254,19 +256,34 @@ export function DesktopChrome({
     if (isScreenAction(id)) onGo(id)
   }
 
+  const handleRef = useRef(handle)
+  handleRef.current = handle
+  const bindingsRef = useRef(bindings)
+  bindingsRef.current = bindings
+
   useEffect(() => {
     if (!isElectronDesktop()) return
+
+    const runFKey = (key: string) => {
+      if (!FKEY_RE.test(key)) return
+      const hit = bindingsRef.current.find((b) => b.key === key)
+      if (hit) handleRef.current(hit.id)
+    }
+
+    // IPC principal : source de vérité (Help Windows / menu ne mangent plus F1–F12)
+    const unsub = window.azDesktop?.onFKey?.(runFKey)
+    const usesIpc = typeof window.azDesktop?.onFKey === 'function'
+
     const onKey = (e: KeyboardEvent) => {
-      if (isTypingTarget(e.target)) return
-      // F1…F12
-      if (/^F([1-9]|1[0-2])$/.test(e.key)) {
-        const hit = bindings.find((b) => b.key === e.key)
-        if (hit) {
-          e.preventDefault()
-          handle(hit.id)
-          return
-        }
+      // F1…F12 : toujours actifs (même focus dans un champ — caisse rapide)
+      if (FKEY_RE.test(e.key)) {
+        e.preventDefault()
+        e.stopPropagation()
+        // Évite double déclenchement si le main a déjà envoyé az-desktop-fkey
+        if (!usesIpc) runFKey(e.key)
+        return
       }
+      if (isTypingTarget(e.target)) return
       if (!(e.ctrlKey || e.metaKey) || e.altKey) return
       if (e.key === '0') {
         e.preventDefault()
@@ -282,9 +299,14 @@ export function DesktopChrome({
         onAction?.('newProduct')
       }
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onGo, onAction, bindings, rails])
+
+    // capture: avant que l’input ne mange l’événement (repli sans IPC)
+    window.addEventListener('keydown', onKey, true)
+    return () => {
+      window.removeEventListener('keydown', onKey, true)
+      unsub?.()
+    }
+  }, [onGo, onAction])
 
   if (!isElectronDesktop()) {
     return <>{children}</>

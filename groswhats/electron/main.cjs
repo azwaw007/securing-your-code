@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, ipcMain } = require('electron')
+const { app, BrowserWindow, shell, ipcMain, Menu } = require('electron')
 const path = require('path')
 const dgram = require('dgram')
 const http = require('http')
@@ -11,7 +11,13 @@ const isDev = !app.isPackaged
 /** Souris + tactile (tablettes Windows / écran tactile) */
 app.commandLine.appendSwitch('enable-features', 'TouchEventFeatureDetection')
 
+/** F1…F12 réservés aux raccourcis AZ POS (pas Help / DevTools / plein écran). */
+const FKEY_RE = /^F([1-9]|1[0-2])$/
+
 function createWindow() {
+  // Menu Electron par défaut vole F11 (plein écran) et F12 (DevTools).
+  Menu.setApplicationMenu(null)
+
   const win = new BrowserWindow({
     width: 1360,
     height: 860,
@@ -25,6 +31,8 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      // DevTools via menu désactivé ; F12 = raccourci métier
+      devTools: isDev,
     },
     autoHideMenuBar: true,
   })
@@ -32,6 +40,14 @@ function createWindow() {
   win.once('ready-to-show', () => {
     win.show()
     win.maximize()
+  })
+
+  // Empêche Help Windows / Chromium de manger F1–F12 ; le renderer reçoit via IPC.
+  win.webContents.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown' || input.control || input.alt || input.meta) return
+    if (!FKEY_RE.test(input.key)) return
+    event.preventDefault()
+    win.webContents.send('az-desktop-fkey', input.key)
   })
 
   // Clics / touch : focus immédiat pour caisse rapide
