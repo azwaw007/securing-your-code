@@ -526,6 +526,13 @@ const fr: Dict = {
   showIconsTitle: 'Icônes sur l’accueil',
   optionalToolsHint:
     'Coche les outils à afficher sur l’accueil. Décoché = masqué (interface simple).',
+  desktopRailsTitle: 'Raccourcis desktop (rails)',
+  desktopRailsHint:
+    'Admin : choisis les icônes sur les rails gauche / droite et la barre du haut (app .exe).',
+  desktopRailsLeft: 'Rail gauche (FR/EN)',
+  desktopRailsRight: 'Rail droite (ع)',
+  desktopRailsTop: 'Barre du haut',
+  desktopRailsReset: 'Réinitialiser (pack métier)',
   productExpiry: 'DLC / péremption',
   productLot: 'N° lot',
   clientCreditLimit: 'Plafond crédit (DA)',
@@ -1890,6 +1897,13 @@ const ar: Dict = {
   showIconsTitle: 'أيقونات الصفحة الرئيسية',
   optionalToolsHint:
     'فعّل الأدوات التي تريدها في الصفحة الرئيسية. غير مفعّل = مخفي (واجهة بسيطة).',
+  desktopRailsTitle: 'اختصارات سطح المكتب (القضبان)',
+  desktopRailsHint:
+    'المدير: اختر أيقونات القضيب الأيسر / الأيمن وشريط الأعلى (تطبيق .exe).',
+  desktopRailsLeft: 'القضيب الأيسر (FR/EN)',
+  desktopRailsRight: 'القضيب الأيمن (ع)',
+  desktopRailsTop: 'الشريط العلوي',
+  desktopRailsReset: 'إعادة ضبط (حزمة المهنة)',
   productExpiry: 'تاريخ الصلاحية',
   productLot: 'رقم الدفعة',
   clientCreditLimit: 'سقف الدين (دج)',

@@ -21,6 +21,7 @@ import type {
 import { EXPENSE_CATEGORIES } from './types'
 import { unitsForMetier } from './locale/unitsCatalog'
 import { DesktopChrome } from './DesktopChrome'
+import { DesktopRailsSettings } from './DesktopRailsSettings'
 import {
   addClient,
   addClientsBulk,
@@ -548,6 +549,7 @@ export default function App() {
       lang={lang}
       mode={state.settings.commerceMode}
       family={metier.family}
+      railsConfig={state.settings.desktopRails}
       activeScreen={screen}
       onLang={(l) => setState((s) => updateSettings(s, { language: l }))}
       onGo={(s) =>
@@ -1592,6 +1594,9 @@ function SettingsPage({
   const [enabledTools, setEnabledTools] = useState<
     Partial<Record<OptionalToolId, boolean>>
   >(() => ({ ...(state.settings.enabledTools || {}) }))
+  const [desktopRails, setDesktopRails] = useState(
+    () => state.settings.desktopRails,
+  )
   const [agentPerms, setAgentPerms] = useState<AgentPermissions>(() => ({
     ...DEFAULT_AGENT_PERMISSIONS,
     ...state.settings.agentPermissions,
@@ -1653,6 +1658,7 @@ function SettingsPage({
       showCalculator,
       showGallery,
       enabledTools,
+      desktopRails,
       agentPermissions: agentPerms,
       ...extra,
     })
@@ -1967,6 +1973,20 @@ function SettingsPage({
             </label>
           ))}
         </div>
+
+        <DesktopRailsSettings
+          lang={lang}
+          family={
+            metierPackFor(state.settings.domainId, state.settings.commerceMode)
+              .family
+          }
+          mode={state.settings.commerceMode}
+          value={desktopRails}
+          onChange={(next) => {
+            setDesktopRails(next)
+            saveAll({ desktopRails: next })
+          }}
+        />
 
         <label className="field check-row">
           <input

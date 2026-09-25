@@ -60,8 +60,47 @@ const CATALOG: Record<string, RailAction> = {
   home: { id: 'home', icon: '🏠', labelKey: 'home' },
 }
 
+/** Catalogue complet pour le réglage admin */
+export const ALL_RAIL_ACTIONS: RailAction[] = Object.values(CATALOG)
+
+export type DesktopRailsConfig = {
+  top?: string[]
+  left?: string[]
+  right?: string[]
+}
+
+export const RAIL_SLOT_LIMITS = { top: 10, left: 8, right: 8 } as const
+
 function pick(...ids: string[]): RailAction[] {
   return ids.map((id) => CATALOG[id]).filter(Boolean) as RailAction[]
+}
+
+export function actionsFromIds(ids: string[] | undefined): RailAction[] {
+  if (!ids?.length) return []
+  const seen = new Set<string>()
+  const out: RailAction[] = []
+  for (const id of ids) {
+    if (!id || seen.has(id) || !CATALOG[id]) continue
+    seen.add(id)
+    out.push(CATALOG[id]!)
+  }
+  return out
+}
+
+export function sanitizeRailsConfig(
+  raw: DesktopRailsConfig | undefined,
+): DesktopRailsConfig | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const clean = (arr: string[] | undefined, max: number) => {
+    if (!Array.isArray(arr)) return undefined
+    const ids = actionsFromIds(arr.map(String)).map((a) => a.id as string)
+    return ids.slice(0, max)
+  }
+  const top = clean(raw.top, RAIL_SLOT_LIMITS.top)
+  const left = clean(raw.left, RAIL_SLOT_LIMITS.left)
+  const right = clean(raw.right, RAIL_SLOT_LIMITS.right)
+  if (!top && !left && !right) return undefined
+  return { top, left, right }
 }
 
 /** Packs par famille — top / left / right */
@@ -245,10 +284,19 @@ const FALLBACK: DesktopRails = MODE_DEFAULT.detail
 export function desktopRailsFor(
   family: MetierFamily | undefined,
   mode: CommerceMode | undefined,
+  custom?: DesktopRailsConfig | null,
 ): DesktopRails {
-  if (family && BY_FAMILY[family]) return BY_FAMILY[family]!
-  if (mode && MODE_DEFAULT[mode]) return MODE_DEFAULT[mode]
-  return FALLBACK
+  const base =
+    (family && BY_FAMILY[family]) ||
+    (mode && MODE_DEFAULT[mode]) ||
+    FALLBACK
+  const cfg = sanitizeRailsConfig(custom || undefined)
+  if (!cfg) return base
+  return {
+    top: cfg.top?.length ? actionsFromIds(cfg.top) : base.top,
+    left: cfg.left?.length ? actionsFromIds(cfg.left) : base.left,
+    right: cfg.right?.length ? actionsFromIds(cfg.right) : base.right,
+  }
 }
 
 export function isScreenAction(id: RailActionId): id is Screen {

@@ -735,6 +735,15 @@ export interface ShopSettings {
    * Absent / false = masqué (défaut).
    */
   enabledTools?: Partial<Record<OptionalToolId, boolean>>
+  /**
+   * Raccourcis desktop (rails) réglables par l’admin.
+   * Absent = pack métier par défaut.
+   */
+  desktopRails?: {
+    top?: string[]
+    left?: string[]
+    right?: string[]
+  }
   /** PIN caissier (4–6 chiffres) — outil cashierPin */
   cashierPin?: string
   /** PIN admin (4–6 chiffres) — protège prix/minute jeux, gestion vendeurs, etc.

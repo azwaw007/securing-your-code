@@ -6,6 +6,7 @@ import {
   desktopRailsFor,
   isScreenAction,
   railHint,
+  type DesktopRailsConfig,
   type RailAction,
   type RailActionId,
 } from './locale/desktopRails'
@@ -169,6 +170,7 @@ export function DesktopChrome({
   lang,
   mode,
   family,
+  railsConfig,
   activeScreen,
   onLang,
   onGo,
@@ -178,13 +180,18 @@ export function DesktopChrome({
   lang: Language
   mode?: CommerceMode
   family?: MetierFamily
+  /** Préférences admin (sinon pack métier) */
+  railsConfig?: DesktopRailsConfig | null
   activeScreen?: Screen
   onLang: (l: Language) => void
   onGo: (s: Screen) => void
   onAction?: (id: RailActionId) => void
   children: React.ReactNode
 }) {
-  const rails = useMemo(() => desktopRailsFor(family, mode), [family, mode])
+  const rails = useMemo(
+    () => desktopRailsFor(family, mode, railsConfig),
+    [family, mode, railsConfig],
+  )
 
   const handle = (id: RailActionId) => {
     if (onAction && (id === 'search' || id === 'newProduct' || id === 'alerts')) {

@@ -491,6 +491,20 @@ export function migrate(raw: unknown): AppState {
       incoming.enabledTools && typeof incoming.enabledTools === 'object'
         ? (incoming.enabledTools as ShopSettings['enabledTools'])
         : undefined,
+    desktopRails:
+      incoming.desktopRails && typeof incoming.desktopRails === 'object'
+        ? {
+            top: Array.isArray(incoming.desktopRails.top)
+              ? incoming.desktopRails.top.map(String)
+              : undefined,
+            left: Array.isArray(incoming.desktopRails.left)
+              ? incoming.desktopRails.left.map(String)
+              : undefined,
+            right: Array.isArray(incoming.desktopRails.right)
+              ? incoming.desktopRails.right.map(String)
+              : undefined,
+          }
+        : undefined,
     cashierPin:
       typeof incoming.cashierPin === 'string' &&
       /^\d{4,6}$/.test(incoming.cashierPin.trim())
