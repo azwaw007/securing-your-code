@@ -276,6 +276,10 @@ export interface Client {
   membershipEnd?: string
   /** Formule (mensuel, trimestriel, séances…) */
   membershipPlan?: string
+  /** Id du plan admin (GymMembershipPlan) si salle unifiée */
+  membershipPlanId?: string
+  /** Disciplines autorisées pour cet adhérent */
+  membershipDisciplineIds?: GymDisciplineId[]
   /** Objectif (perte de poids, force, compétition…) */
   sportGoal?: string
   /** Programme d’entraînement assigné par le coach */
@@ -342,6 +346,61 @@ export interface GymCheckIn {
   kind: 'in' | 'out'
   at: string
   source: 'nfc' | 'qr' | 'manual' | 'wedge'
+}
+
+/** Disciplines d’une salle de sport (admin coche celles présentes). */
+export type GymDisciplineId =
+  | 'boxe'
+  | 'gym'
+  | 'gym_cardio'
+  | 'cardio'
+  | 'musculation'
+  | 'musculation_cardio'
+  | 'football'
+  | 'yoga'
+  | 'crossfit'
+  | 'martial'
+  | 'natation'
+  | 'tennis'
+  | 'danse'
+
+/** Formule d’abonnement — tarifs réglables par l’admin. */
+export interface GymMembershipPlan {
+  id: string
+  name: string
+  /** Disciplines couvertes (vide = toutes les disciplines actives). */
+  disciplineIds: GymDisciplineId[]
+  priceDa: number
+  /** Durée en jours (1 = séance / journée). */
+  durationDays: number
+  /** Séance passager / entrée sans abonnement longue durée. */
+  walkIn?: boolean
+  active?: boolean
+}
+
+/** Réglages salle de sport (disciplines + tarifs). */
+export interface GymSettings {
+  enabledDisciplines: GymDisciplineId[]
+  plans: GymMembershipPlan[]
+  /** À l’entrée : ouvrir un ticket caisse pour la conso de la séance. */
+  openTicketOnEntry: boolean
+}
+
+/**
+ * Session en salle : ticket caisse ouvert (HeldSale) jusqu’à encaissement.
+ * Membres NFC / QR ou passagers.
+ */
+export interface GymSession {
+  id: string
+  clientId: string
+  clientName: string
+  kind: 'member' | 'walk_in'
+  disciplineId?: GymDisciplineId
+  membershipPlanId?: string
+  heldSaleId: string
+  startedAt: string
+  status: 'open' | 'billing'
+  nfcUid?: string
 }
 
 /** Rôle employé (commerçant, cabinet, atelier…) */
@@ -722,6 +781,8 @@ export interface ShopSettings {
   gamePricePerMinuteDa?: number
   /** Tarifs PS4 / PS5 — heure et match */
   gameTariffs?: GameTariffs
+  /** Salle de sport unifiée — disciplines + abonnements */
+  gymSettings?: GymSettings
   /**
    * Plafond minutes gratuites (mode heure) par ajout — défaut 30.
    * Match / prolongation = 1 unité gratuite (durée tarif).
@@ -973,6 +1034,8 @@ export interface AppState {
   clinicCharges: ClinicCharge[]
   /** Présences salle de sport (check-in NFC) */
   gymCheckIns: GymCheckIn[]
+  /** Sessions ouvertes (ticket conso jusqu’à encaissement) */
+  gymSessions: GymSession[]
   /** Équipe / RH lean */
   employees: Employee[]
   employeeLeaves: EmployeeLeave[]

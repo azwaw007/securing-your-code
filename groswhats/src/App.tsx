@@ -84,6 +84,8 @@ import {
   removeHeldSale,
   setClinicStation,
   setTableStatus,
+  closeGymSession,
+  markGymSessionBilling,
   uid,
 } from './store'
 import {
@@ -826,6 +828,15 @@ export default function App() {
             if (newHeldId) setSeedHeldId(newHeldId)
             goTo('order', vocab.sell)
           }}
+          onOpenGymSession={(heldSaleId) => {
+            const existing = state.heldSales?.find((h) => h.id === heldSaleId)
+            if (existing) {
+              setSeedHeldId(existing.id)
+              goTo('order', vocab.sell)
+              return
+            }
+            flash('heldSalesEmpty')
+          }}
           onOpenHistoryDates={(from, to) => {
             setHistorySeed({ from, to })
             goTo('history', t(lang, 'appHistory'))
@@ -1002,7 +1013,19 @@ export default function App() {
           onHoldSale={(input) => setState((s) => holdSale(s, input))}
           onRemoveHeld={(id) => setState((s) => removeHeldSale(s, id))}
           onCreate={(order) => {
-            const next = createOrder(state, order)
+            let next = createOrder(state, order)
+            const sessions = next.gymSessions ?? []
+            for (const s of [...sessions]) {
+              const matchClient =
+                !!order.clientId && s.clientId === order.clientId
+              const matchWalkIn =
+                !order.clientId &&
+                s.kind === 'walk_in' &&
+                (s.status === 'billing' || s.clientName === order.clientName)
+              if (matchClient || matchWalkIn) {
+                next = closeGymSession(next, s.id)
+              }
+            }
             setState(next)
             return next.orders[0]
           }}
@@ -2449,6 +2472,7 @@ function HomePage({
   onSeedNewClient,
   onSeedSell,
   onOpenTableOrder,
+  onOpenGymSession,
   onOpenHistoryDates,
   onEnableAlerts,
   onWhatsapp,
@@ -2488,6 +2512,8 @@ function HomePage({
   onSeedSell: (productId: string) => void
   /** Ouvre une table (resto) : crée/reprend le ticket en attente puis va à la caisse */
   onOpenTableOrder: (tableId: string, heldSaleId?: string) => void
+  /** Ouvre le ticket session salle de sport en caisse */
+  onOpenGymSession: (heldSaleId: string) => void
   onOpenHistoryDates: (from: string, to: string) => void
   onEnableAlerts: () => void
   onWhatsapp: (order: Order) => void
@@ -2832,6 +2858,10 @@ function HomePage({
           onBindUnknown={(uid) => {
             onSeedNewClient(`NFC:${uid}`)
             onGo('clients', vocab.client)
+          }}
+          onOpenSession={(session) => {
+            onState(markGymSessionBilling(state, session.id))
+            onOpenGymSession(session.heldSaleId)
           }}
         />
       ) : null}

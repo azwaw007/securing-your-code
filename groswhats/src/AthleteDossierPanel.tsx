@@ -40,11 +40,18 @@ export function AthleteDossierPanel({
   )
   const [membershipEnd, setMembershipEnd] = useState(client.membershipEnd ?? '')
   const [membershipPlan, setMembershipPlan] = useState(client.membershipPlan ?? '')
+  const [membershipPlanId, setMembershipPlanId] = useState(
+    client.membershipPlanId ?? '',
+  )
   const [sportGoal, setSportGoal] = useState(client.sportGoal ?? '')
   const [trainingProgram, setTrainingProgram] = useState(client.trainingProgram ?? '')
   const [dietPlan, setDietPlan] = useState(client.dietPlan ?? '')
   const [coachNotes, setCoachNotes] = useState(client.coachNotes ?? '')
   const [nfcUid, setNfcUid] = useState(client.nfcUid ?? '')
+
+  const gymPlans = (state.settings.gymSettings?.plans ?? []).filter(
+    (p) => p.active !== false && !p.walkIn,
+  )
 
   const left = daysUntil(client.membershipEnd)
   const expired = left != null && left < 0
@@ -56,12 +63,28 @@ export function AthleteDossierPanel({
     client.trainingProgram ||
     client.dietPlan
 
+  function applyPlan(planId: string) {
+    setMembershipPlanId(planId)
+    const plan = gymPlans.find((p) => p.id === planId)
+    if (!plan) return
+    setMembershipPlan(plan.name)
+    const start = membershipStart || todayIso()
+    setMembershipStart(start)
+    const end = new Date(start + 'T12:00:00')
+    end.setDate(end.getDate() + Math.max(1, plan.durationDays))
+    setMembershipEnd(end.toISOString().slice(0, 10))
+  }
+
   function save() {
     onState(
       updateClient(state, client.id, {
         membershipStart: membershipStart || undefined,
         membershipEnd: membershipEnd || undefined,
         membershipPlan: membershipPlan.trim() || undefined,
+        membershipPlanId: membershipPlanId || undefined,
+        membershipDisciplineIds: membershipPlanId
+          ? gymPlans.find((p) => p.id === membershipPlanId)?.disciplineIds
+          : undefined,
         sportGoal: sportGoal.trim() || undefined,
         trainingProgram: trainingProgram.trim() || undefined,
         dietPlan: dietPlan.trim() || undefined,
@@ -146,12 +169,35 @@ export function AthleteDossierPanel({
           </div>
           <div className="field">
             <label>{t(lang, 'athletePlan')}</label>
-            <input
-              value={membershipPlan}
-              onChange={(e) => setMembershipPlan(e.target.value)}
-              placeholder={t(lang, 'athletePlanHint')}
-            />
+            {gymPlans.length > 0 ? (
+              <select
+                value={membershipPlanId}
+                onChange={(e) => applyPlan(e.target.value)}
+              >
+                <option value="">—</option>
+                {gymPlans.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} ({p.priceDa} DA / {p.durationDays} j)
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                value={membershipPlan}
+                onChange={(e) => setMembershipPlan(e.target.value)}
+                placeholder={t(lang, 'athletePlanHint')}
+              />
+            )}
           </div>
+          {gymPlans.length > 0 && !membershipPlanId ? (
+            <div className="field">
+              <label>{t(lang, 'athletePlanHint')}</label>
+              <input
+                value={membershipPlan}
+                onChange={(e) => setMembershipPlan(e.target.value)}
+              />
+            </div>
+          ) : null}
           <div className="field">
             <label>{t(lang, 'athleteGoal')}</label>
             <input
