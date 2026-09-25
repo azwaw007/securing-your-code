@@ -84,6 +84,9 @@ import {
   removeHeldSale,
   setClinicStation,
   setTableStatus,
+  closeGymSession,
+  ensureGymSessionHeld,
+  relinkGymSessionHeld,
   uid,
 } from './store'
 import {
@@ -828,6 +831,19 @@ export default function App() {
             if (newHeldId) setSeedHeldId(newHeldId)
             goTo('order', vocab.sell)
           }}
+          onOpenGymSession={(sessionId) => {
+            const ensured = ensureGymSessionHeld(state, sessionId)
+            const session = (ensured.gymSessions ?? []).find(
+              (s) => s.id === sessionId,
+            )
+            if (!session) {
+              flash('gymSessionFailed')
+              return
+            }
+            setState(ensured)
+            setSeedHeldId(session.heldSaleId)
+            goTo('order', vocab.sell)
+          }}
           onOpenHistoryDates={(from, to) => {
             setHistorySeed({ from, to })
             goTo('history', t(lang, 'appHistory'))
@@ -1001,10 +1017,32 @@ export default function App() {
           onGo={goTo}
           onFlash={flash}
           onUpdateProduct={(id, patch) => setState((s) => updateProduct(s, id, patch))}
-          onHoldSale={(input) => setState((s) => holdSale(s, input))}
+          onHoldSale={(input) =>
+            setState((s) => {
+              const next = holdSale(s, input)
+              const newId = next.heldSales[0]?.id
+              if (!newId) return next
+              return relinkGymSessionHeld(next, newId, {
+                clientId: input.clientId,
+                label: input.label,
+              })
+            })
+          }
           onRemoveHeld={(id) => setState((s) => removeHeldSale(s, id))}
           onCreate={(order) => {
-            const next = createOrder(state, order)
+            let next = createOrder(state, order)
+            const sessions = next.gymSessions ?? []
+            for (const s of [...sessions]) {
+              const matchClient =
+                !!order.clientId && s.clientId === order.clientId
+              const matchWalkIn =
+                !order.clientId &&
+                s.kind === 'walk_in' &&
+                (s.status === 'billing' || s.clientName === order.clientName)
+              if (matchClient || matchWalkIn) {
+                next = closeGymSession(next, s.id)
+              }
+            }
             setState(next)
             return next.orders[0]
           }}
@@ -2465,6 +2503,7 @@ function HomePage({
   onSeedNewClient,
   onSeedSell,
   onOpenTableOrder,
+  onOpenGymSession,
   onOpenHistoryDates,
   onEnableAlerts,
   onWhatsapp,
@@ -2504,6 +2543,8 @@ function HomePage({
   onSeedSell: (productId: string) => void
   /** Ouvre une table (resto) : crée/reprend le ticket en attente puis va à la caisse */
   onOpenTableOrder: (tableId: string, heldSaleId?: string) => void
+  /** Ouvre le ticket session salle de sport en caisse */
+  onOpenGymSession: (sessionId: string) => void
   onOpenHistoryDates: (from: string, to: string) => void
   onEnableAlerts: () => void
   onWhatsapp: (order: Order) => void
@@ -2851,6 +2892,9 @@ function HomePage({
           onBindUnknown={(uid) => {
             onSeedNewClient(`NFC:${uid}`)
             onGo('clients', vocab.client)
+          }}
+          onOpenSession={(session) => {
+            onOpenGymSession(session.id)
           }}
         />
       ) : null}
