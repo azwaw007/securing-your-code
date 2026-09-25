@@ -53,25 +53,50 @@ function DesktopTipButton({
   shortcutHint?: string
 }) {
   const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
+  const wrapRef = useRef<HTMLSpanElement>(null)
   const timer = useRef<number | null>(null)
 
-  function clear() {
+  function clearTimer() {
     if (timer.current != null) {
       window.clearTimeout(timer.current)
       timer.current = null
     }
+  }
+
+  function clear() {
+    clearTimer()
     setOpen(false)
+    setPos(null)
+  }
+
+  function place() {
+    const el = wrapRef.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    const gap = 10
+    if (side === 'right') {
+      setPos({ top: r.top + r.height / 2, left: r.right + gap })
+    } else if (side === 'left') {
+      setPos({ top: r.top + r.height / 2, left: r.left - gap })
+    } else {
+      setPos({ top: r.bottom + 8, left: r.left + r.width / 2 })
+    }
   }
 
   function arm() {
-    clear()
-    timer.current = window.setTimeout(() => setOpen(true), TIP_DELAY_MS)
+    clearTimer()
+    timer.current = window.setTimeout(() => {
+      place()
+      setOpen(true)
+    }, TIP_DELAY_MS)
   }
 
   useEffect(() => () => clear(), [])
 
   return (
     <span
+      ref={wrapRef}
       className={`desktop-tip-wrap desktop-tip-${side}`}
       onMouseEnter={arm}
       onMouseLeave={clear}
@@ -89,8 +114,12 @@ function DesktopTipButton({
       >
         {children}
       </button>
-      {open && hint ? (
-        <span className="desktop-tip" role="tooltip">
+      {open && hint && pos ? (
+        <span
+          className={`desktop-tip desktop-tip-fixed desktop-tip-fixed-${side}`}
+          role="tooltip"
+          style={{ top: pos.top, left: pos.left }}
+        >
           <strong className="desktop-tip-title">
             {title}
             {shortcutHint ? (

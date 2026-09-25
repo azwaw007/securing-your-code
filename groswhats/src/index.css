@@ -3880,7 +3880,7 @@ html[data-theme='night'] option {
   background: #0d9488;
 }
 
-/* Info-bulle au survol (~0,7 s) */
+/* Info-bulle au survol (~0,7 s) — position fixed hors overflow rail */
 .desktop-tip-wrap {
   position: relative;
   display: inline-flex;
@@ -3888,18 +3888,33 @@ html[data-theme='night'] option {
 }
 
 .desktop-tip {
-  position: absolute;
-  z-index: 80;
-  min-width: 160px;
-  max-width: 240px;
+  z-index: 200;
+  min-width: 170px;
+  max-width: 260px;
   padding: 10px 12px;
   border-radius: 10px;
   background: #0f172a;
   color: #f8fafc;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
   pointer-events: none;
-  animation: desktop-tip-in 0.15s ease-out;
+}
+
+.desktop-tip-fixed {
+  position: fixed;
+  animation: desktop-tip-fade 0.15s ease-out;
+}
+
+.desktop-tip-fixed-right {
+  transform: translateY(-50%);
+}
+
+.desktop-tip-fixed-left {
+  transform: translate(-100%, -50%);
+}
+
+.desktop-tip-fixed-bottom {
+  transform: translateX(-50%);
 }
 
 .desktop-tip-title {
@@ -3929,47 +3944,12 @@ html[data-theme='night'] option {
   font-family: ui-monospace, monospace;
 }
 
-.desktop-tip-right .desktop-tip {
-  left: calc(100% + 10px);
-  top: 50%;
-  transform: translateY(-50%);
-}
-
-.desktop-tip-left .desktop-tip {
-  right: calc(100% + 10px);
-  top: 50%;
-  transform: translateY(-50%);
-}
-
-.desktop-tip-bottom .desktop-tip {
-  top: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-@keyframes desktop-tip-in {
+@keyframes desktop-tip-fade {
   from {
     opacity: 0;
-    transform: translateY(-50%) scale(0.96);
   }
   to {
     opacity: 1;
-    transform: translateY(-50%) scale(1);
-  }
-}
-
-.desktop-tip-bottom .desktop-tip {
-  animation: desktop-tip-in-bottom 0.15s ease-out;
-}
-
-@keyframes desktop-tip-in-bottom {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(-4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
   }
 }
 
