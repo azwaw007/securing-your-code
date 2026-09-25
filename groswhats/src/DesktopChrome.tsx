@@ -81,15 +81,19 @@ export function DesktopChrome({
 
   return (
     <div className="desktop-chrome" data-platform={window.azDesktop?.platform || ''}>
-      <aside className="desktop-rail desktop-rail-start" aria-label="AR">
-        <button
-          type="button"
-          className={`desktop-rail-btn ${lang === 'ar' ? 'is-active' : ''}`}
-          onClick={() => onLang('ar')}
-          title={t(lang, 'lang_ar')}
-        >
-          {arLang.label}
-        </button>
+      {/* LTR : rail gauche (début de lecture FR/EN) */}
+      <aside className="desktop-rail desktop-rail-start" aria-label="FR EN">
+        {ltrLangs.map((l) => (
+          <button
+            key={l.id}
+            type="button"
+            className={`desktop-rail-btn ${lang === l.id ? 'is-active' : ''}`}
+            onClick={() => onLang(l.id)}
+            title={t(lang, `lang_${l.id}`)}
+          >
+            {l.label}
+          </button>
+        ))}
       </aside>
 
       <div className="desktop-chrome-main">
@@ -111,18 +115,16 @@ export function DesktopChrome({
         <div className="desktop-chrome-body">{children}</div>
       </div>
 
-      <aside className="desktop-rail desktop-rail-end" aria-label="FR EN">
-        {ltrLangs.map((l) => (
-          <button
-            key={l.id}
-            type="button"
-            className={`desktop-rail-btn ${lang === l.id ? 'is-active' : ''}`}
-            onClick={() => onLang(l.id)}
-            title={t(lang, `lang_${l.id}`)}
-          >
-            {l.label}
-          </button>
-        ))}
+      {/* RTL : rail droite (début de lecture arabe) */}
+      <aside className="desktop-rail desktop-rail-end" aria-label="AR">
+        <button
+          type="button"
+          className={`desktop-rail-btn ${lang === 'ar' ? 'is-active' : ''}`}
+          onClick={() => onLang('ar')}
+          title={t(lang, 'lang_ar')}
+        >
+          {arLang.label}
+        </button>
       </aside>
     </div>
   )
