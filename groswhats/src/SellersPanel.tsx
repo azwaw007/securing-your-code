@@ -2,6 +2,11 @@ import { useState } from 'react'
 import type { AppState, GameConsoleKind, Language, PosSeller, PosSellerRole } from './types'
 import { t } from './i18n'
 import {
+  resolveSellerPermissions,
+  SELLER_PERM_OPTIONS,
+  type SellerPermId,
+} from './sellerPermissions'
+import {
   addSeller,
   currentSeller,
   deleteSeller,
@@ -83,6 +88,45 @@ export function SellerSwitcherBar({
   )
 }
 
+function SellerPermChecklist({
+  seller,
+  lang,
+  unlocked,
+  onToggle,
+}: {
+  seller: PosSeller
+  lang: Language
+  unlocked: boolean
+  onToggle: (id: SellerPermId, checked: boolean) => void
+}) {
+  const perms = resolveSellerPermissions(seller)
+  return (
+    <div className="seller-perms">
+      <div className="muted" style={{ marginTop: 8, marginBottom: 4 }}>
+        {t(lang, 'sellerPermsTitle')}
+      </div>
+      <div className="seller-perms-grid">
+        {SELLER_PERM_OPTIONS.map((opt) => (
+          <label key={opt.id} className="field check-row seller-perm-row">
+            <input
+              type="checkbox"
+              disabled={!unlocked}
+              checked={perms[opt.id] === true}
+              onChange={(e) => onToggle(opt.id, e.target.checked)}
+            />
+            <span>
+              {t(lang, opt.labelKey)}
+              {opt.salesCore ? (
+                <span className="muted"> · {t(lang, 'sellerPermSalesCore')}</span>
+              ) : null}
+            </span>
+          </label>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export function SellersPanel({
   state,
   lang,
@@ -141,11 +185,25 @@ export function SellersPanel({
     onFlash(t(lang, 'sellerAdded'))
   }
 
+  function togglePerm(sellerId: string, id: SellerPermId, checked: boolean) {
+    const s = sellers.find((x) => x.id === sellerId)
+    if (!s || s.role !== 'vendeur') return
+    const base = resolveSellerPermissions(s)
+    onState(
+      updateSeller(state, sellerId, {
+        permissions: { ...base, [id]: checked },
+        canGrantFreeMinutes:
+          id === 'gameFreeMinutes' ? checked : base.gameFreeMinutes,
+      }),
+    )
+  }
+
   return (
     <div className="sellers-panel">
       <div className="card">
         <h2>{t(lang, 'sellersTitle')}</h2>
         <p className="muted">{t(lang, 'sellersHint')}</p>
+        <p className="muted">{t(lang, 'sellerPermsHint')}</p>
 
         {!unlocked ? (
           <div className="field">
@@ -235,44 +293,27 @@ export function SellersPanel({
           <div className="empty">{t(lang, 'sellersEmpty')}</div>
         ) : (
           sellers.map((s) => (
-            <div key={s.id} className="list-item">
-              <div>
+            <div key={s.id} className="list-item seller-list-item">
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <strong>{s.name}</strong>
                 <div className="muted">
                   {s.role === 'admin'
                     ? t(lang, 'sellerRoleAdmin')
                     : t(lang, 'sellerRoleVendeur')}
                   {s.pin ? ' · PIN' : ''}
-                  {s.role === 'vendeur' ? (
-                    <>
-                      {' · '}
-                      {s.canGrantFreeMinutes
-                        ? t(lang, 'gameFreeAllowOn')
-                        : t(lang, 'gameFreeAllowOff')}
-                    </>
-                  ) : null}
                 </div>
-                {unlocked && s.role === 'vendeur' ? (
-                  <label className="field check-row" style={{ marginTop: 6 }}>
-                    <input
-                      type="checkbox"
-                      checked={s.canGrantFreeMinutes === true}
-                      onChange={(e) => {
-                        onState(
-                          updateSeller(state, s.id, {
-                            canGrantFreeMinutes: e.target.checked,
-                          }),
-                        )
-                        onFlash(
-                          e.target.checked
-                            ? `${s.name} · ${t(lang, 'gameFreeAllowOn')}`
-                            : `${s.name} · ${t(lang, 'gameFreeAllowOff')}`,
-                        )
-                      }}
-                    />
-                    <span>{t(lang, 'gameFreeAllow')}</span>
-                  </label>
-                ) : null}
+                {s.role === 'vendeur' ? (
+                  <SellerPermChecklist
+                    seller={s}
+                    lang={lang}
+                    unlocked={unlocked}
+                    onToggle={(id, checked) => togglePerm(s.id, id, checked)}
+                  />
+                ) : (
+                  <p className="muted" style={{ marginTop: 6 }}>
+                    {t(lang, 'sellerAdminAllPerms')}
+                  </p>
+                )}
               </div>
               <div className="btn-row">
                 <button

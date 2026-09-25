@@ -86,6 +86,10 @@ import {
   setTableStatus,
   uid,
 } from './store'
+import {
+  sellerCan,
+  sellerCanAccessScreen,
+} from './sellerPermissions'
 import { isDecimalUnit, qtyStep, t, unitLabel } from './i18n'
 import { mt } from './locale/modeCopy'
 import { formatDa, formatQty, setActiveCurrency, setActiveLocale } from './utils/format'
@@ -376,6 +380,10 @@ export default function App() {
   }
 
   function goTo(next: Screen, _spokenLabel?: string) {
+    if (!sellerCanAccessScreen(state, next)) {
+      setToast(t(lang, 'sellerAccessDenied'))
+      return
+    }
     keepAlive(next)
     setScreen((curr) => {
       if (curr !== next) {
@@ -520,6 +528,14 @@ export default function App() {
       goTo('home')
     }
   }, [isCashierMode, needCashierLogin, screen])
+
+  useEffect(() => {
+    if (needSetup || needRolePick || needCashierLogin) return
+    if (!sellerCanAccessScreen(state, screen)) {
+      setScreen('home')
+      setNavStack([])
+    }
+  }, [state.sellers, state.settings.currentSellerId, screen, needSetup, needRolePick, needCashierLogin])
 
   /** Voix agent / TTS désactivée */
   useEffect(() => {
@@ -692,7 +708,7 @@ export default function App() {
             onClick={() => goTo('settings')}
             aria-label={t(lang, 'settings')}
             title={t(lang, 'settings')}
-            hidden={isCashierMode}
+            hidden={isCashierMode || !sellerCan(state, 'settings')}
           >
             ⚙️
           </button>
@@ -863,6 +879,8 @@ export default function App() {
           state={state}
           lang={lang}
           onFlash={flash}
+          canEdit={sellerCan(state, 'editStock')}
+          showCosts={sellerCan(state, 'viewProfits')}
           initialProductId={focusProductId}
           seedBarcode={seedProductBarcode}
           seedQuery={seedProductQuery}
@@ -872,14 +890,26 @@ export default function App() {
             setSeedProductQuery(null)
           }}
           onAdd={(p) => {
+            if (!sellerCan(state, 'editStock')) {
+              flash('sellerAccessDenied')
+              return
+            }
             setState((s) => addProduct(s, p))
             flash('productAdded')
           }}
           onUpdate={(id, patch) => {
+            if (!sellerCan(state, 'editStock')) {
+              flash('sellerAccessDenied')
+              return
+            }
             setState((s) => updateProduct(s, id, patch))
             flash('productUpdated')
           }}
           onDelete={(id) => {
+            if (!sellerCan(state, 'editStock')) {
+              flash('sellerAccessDenied')
+              return
+            }
             setState((s) => deleteProduct(s, id))
             flash('productDeleted')
           }}
@@ -897,6 +927,7 @@ export default function App() {
           state={state}
           lang={lang}
           clinicStation={clinicStation}
+          canEdit={sellerCan(state, 'editClients')}
           initialClientId={focusClientId}
           seedNotes={seedClientNotes}
           onSeedConsumed={() => {
@@ -905,10 +936,18 @@ export default function App() {
           }}
           onState={setState}
           onAdd={(c) => {
+            if (!sellerCan(state, 'editClients')) {
+              flash('sellerAccessDenied')
+              return
+            }
             setState((s) => addClient(s, c))
             flash('clientAdded')
           }}
           onUpdate={(id, patch) => {
+            if (!sellerCan(state, 'editClients')) {
+              flash('sellerAccessDenied')
+              return
+            }
             setState((s) => updateClient(s, id, patch))
             flash('clientUpdated')
           }}
@@ -917,15 +956,27 @@ export default function App() {
             flash('debtPaymentSaved')
           }}
           onSetBalance={(id, balance) => {
+            if (!sellerCan(state, 'editClients')) {
+              flash('sellerAccessDenied')
+              return
+            }
             setState((s) => setClientDisplayedBalance(s, id, balance))
             flash('balanceUpdated')
           }}
           onImport={(list) => {
+            if (!sellerCan(state, 'editClients')) {
+              flash('sellerAccessDenied')
+              return
+            }
             const { state: next, added } = addClientsBulk(state, list)
             setState(next)
             if (added > 0) flash('contactsImported')
           }}
           onDelete={(id) => {
+            if (!sellerCan(state, 'editClients')) {
+              flash('sellerAccessDenied')
+              return
+            }
             setState((s) => deleteClient(s, id))
             flash('clientDeleted')
           }}
@@ -1201,7 +1252,12 @@ export default function App() {
           aria-hidden={screen !== 'stock'}
           inert={screen !== 'stock' ? true : undefined}
         >
-          <StockPage state={state} stats={stats} lang={lang} />
+          <StockPage
+            state={state}
+            stats={stats}
+            lang={lang}
+            showCosts={sellerCan(state, 'viewProfits')}
+          />
         </div>
       ) : null}
       {isAlive('zakat') ? (
@@ -1362,6 +1418,7 @@ export default function App() {
       <nav className="bottom-nav" aria-label="Navigation">
         {navItems(state.settings.commerceMode, clinicStation)
           .filter((item) => {
+            if (!sellerCanAccessScreen(state, item.id)) return false
             if (!isCashierMode) return true
             return (
               item.id === 'home' ||
@@ -2618,6 +2675,11 @@ function HomePage({
                 { id: 'clients', label: vocab.client, icon: '👥', tone: 'navy' },
               ]
 
+  const canViewProfits = sellerCan(state, 'viewProfits')
+  const canViewCaisse = sellerCan(state, 'viewCaisse')
+  const canSell = sellerCan(state, 'sell')
+  const canEditStock = sellerCan(state, 'editStock')
+
   const depot = showDepotTools(state.settings.commerceMode, domainId)
   const moreApps: Array<{
     id: Screen
@@ -2675,21 +2737,25 @@ function HomePage({
       : []),
     { id: 'sellers' as Screen, label: t(lang, 'sellersTitle'), icon: '🧍', tone: 'navy' },
     { id: 'settings', label: t(lang, 'appSettings'), icon: '⚙️', tone: 'charcoal' },
-  ]
+  ].filter((app) => sellerCanAccessScreen(state, app.id))
+
+  const dailyAppsFiltered = dailyApps.filter((app) =>
+    sellerCanAccessScreen(state, app.id),
+  )
   const optionalApps: Array<{
     id: Screen
     label: string
     icon: string
     tone: string
     badge?: number
-  }> = OPTIONAL_TOOLS.filter((tool) => isToolEnabled(state.settings, tool.id)).map(
-    (tool) => ({
+  }> = OPTIONAL_TOOLS.filter((tool) => isToolEnabled(state.settings, tool.id))
+    .map((tool) => ({
       id: tool.screen,
       label: toolLabel(tool, lang),
       icon: tool.icon,
       tone: tool.tone,
-    }),
-  )
+    }))
+    .filter((app) => sellerCanAccessScreen(state, app.id))
   const moreBadge = moreApps.reduce((n, app) => n + (app.badge ?? 0), 0)
 
   return (
@@ -2699,7 +2765,11 @@ function HomePage({
         lang={lang}
         onState={onState}
         onFlash={onFlash}
-        onManage={() => onGo('sellers', t(lang, 'sellersTitle'))}
+        onManage={
+          sellerCan(state, 'manageSellers')
+            ? () => onGo('sellers', t(lang, 'sellersTitle'))
+            : undefined
+        }
       />
       <StockAlertCard
         products={low}
@@ -2840,7 +2910,7 @@ function HomePage({
           </span>
         </button>
         ) : null}
-        {!isDoctor ? (
+        {!isDoctor && canSell ? (
         <button type="button" className="sell-cta" onClick={() => onGo('order', vocab.sell)}>
           <span className="sell-cta-emoji">
             {mode === 'sante'
@@ -2859,6 +2929,7 @@ function HomePage({
           </span>
         </button>
         ) : null}
+        {sellerCan(state, 'viewHistory') ? (
         <button
           type="button"
           className="history-cta"
@@ -2867,15 +2938,20 @@ function HomePage({
           <span className="cal">📅</span>
           <span>📜 {mt(state.settings.commerceMode, lang, 'salesHistoryBtn')}</span>
         </button>
+        ) : null}
         <div className="home-chips">
           <div className="home-chip">
             <span>🧾 {mt(state.settings.commerceMode, lang, 'todayOrders')}</span>
             <strong>{stats.todayCount}</strong>
           </div>
+          {canViewCaisse ? (
           <div className="home-chip accent">
             <span>💵 {t(lang, 'cashToday')}</span>
             <strong>{formatDa(stats.todayCash)}</strong>
           </div>
+          ) : null}
+          {canViewProfits ? (
+          <>
           <div className="home-chip">
             <span>📊 {t(lang, 'todaySales')}</span>
             <strong>{formatDa(stats.todayTotal)}</strong>
@@ -2884,6 +2960,8 @@ function HomePage({
             <span>✅ {t(lang, 'netToday')}</span>
             <strong>{formatDa(stats.netToday)}</strong>
           </div>
+          </>
+          ) : null}
           {stats.credits > 0 ? (
             <div className="home-chip warn">
               <span>📝 {t(lang, 'openCredits')}</span>

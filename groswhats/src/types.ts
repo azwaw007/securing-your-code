@@ -817,8 +817,40 @@ export interface PosSeller {
   /**
    * Autorisé par l’admin à ajouter des minutes gratuites
    * (heure / match / prolongation) sur les postes.
+   * @deprecated Préférer `permissions.gameFreeMinutes`
    */
   canGrantFreeMinutes?: boolean
+  /**
+   * Droits cochés par l’admin (vendeur uniquement).
+   * Absent / admin = tous les droits.
+   */
+  permissions?: Partial<
+    Record<
+      | 'sell'
+      | 'viewStock'
+      | 'editStock'
+      | 'viewClients'
+      | 'editClients'
+      | 'viewHistory'
+      | 'viewCaisse'
+      | 'viewProfits'
+      | 'viewExpenses'
+      | 'manageExpenses'
+      | 'viewPurchases'
+      | 'managePurchases'
+      | 'viewReturns'
+      | 'doReturns'
+      | 'settings'
+      | 'manageSellers'
+      | 'viewStaff'
+      | 'viewZakat'
+      | 'viewMissions'
+      | 'exportData'
+      | 'gameFreeMinutes'
+      | 'gameAdmin',
+      boolean
+    >
+  >
 }
 
 /** Journal des minutes gratuites salle de jeux */
