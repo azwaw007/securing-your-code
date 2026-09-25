@@ -27,6 +27,8 @@ import type {
   ClinicCharge,
   ClinicStation,
   GymCheckIn,
+  GymSession,
+  GymDisciplineId,
   Employee,
   EmployeeLeave,
   StaffLedgerEntry,
@@ -70,6 +72,13 @@ import { catalogImagePath } from './utils/productArt'
 import { resolvePackSize, normalizePackOptions } from './utils/packSize'
 import { parseLanguage } from './locale/langs'
 import { defaultZakatOn } from './locale/adapt'
+import {
+  defaultGymSettings,
+  migrateGymSettings,
+  membershipStillValid,
+  resolveSportDomainId,
+  SPORT_DOMAIN_ALIASES,
+} from './gym/disciplines'
 
 const STORAGE_KEY = 'az-pos-v1'
 const LEGACY_STORAGE_KEYS = [
@@ -122,6 +131,7 @@ function defaultSettings(): ShopSettings {
     adminPin: undefined,
     gamePricePerMinuteDa: 7,
     gameTariffs: { ...DEFAULT_GAME_TARIFFS },
+    gymSettings: defaultGymSettings(),
     gameFreeMaxMinutes: 30,
     currentSellerId: undefined,
   }
@@ -441,6 +451,7 @@ function seedState(): AppState {
     medicalDocuments: [],
     clinicCharges: [],
     gymCheckIns: [],
+    gymSessions: [],
     employees: [],
     employeeLeaves: [],
     staffLedger: [],
@@ -506,10 +517,13 @@ export function migrate(raw: unknown): AppState {
     )
       ? (incoming.commerceMode as CommerceMode)
       : defaults.commerceMode,
-    domainId:
-      incoming.domainId === 'detail-alimentation'
-        ? 'detail-superette'
-        : incoming.domainId || defaults.domainId,
+    domainId: (() => {
+      const raw =
+        incoming.domainId === 'detail-alimentation'
+          ? 'detail-superette'
+          : incoming.domainId || defaults.domainId
+      return resolveSportDomainId(raw)
+    })(),
     currency: incoming.currency || defaults.currency,
     nextInvoiceNumber: incoming.nextInvoiceNumber ?? defaults.nextInvoiceNumber,
     stockAlertsEnabled: incoming.stockAlertsEnabled ?? true,
@@ -545,6 +559,10 @@ export function migrate(raw: unknown): AppState {
         ? +incoming.gamePricePerMinuteDa.toFixed(2)
         : DEFAULT_GAME_PRICE_PER_MINUTE_DA,
     gameTariffs: migrateGameTariffs(incoming.gameTariffs, incoming.gamePricePerMinuteDa),
+    gymSettings: migrateGymSettings(
+      incoming.gymSettings,
+      typeof incoming.domainId === 'string' ? incoming.domainId : undefined,
+    ),
     gameFreeMaxMinutes:
       typeof incoming.gameFreeMaxMinutes === 'number' &&
       incoming.gameFreeMaxMinutes >= 1
@@ -739,6 +757,13 @@ export function migrate(raw: unknown): AppState {
       membershipStart: typeof c.membershipStart === 'string' ? c.membershipStart : undefined,
       membershipEnd: typeof c.membershipEnd === 'string' ? c.membershipEnd : undefined,
       membershipPlan: typeof c.membershipPlan === 'string' ? c.membershipPlan : undefined,
+      membershipPlanId:
+        typeof (c as Client).membershipPlanId === 'string'
+          ? (c as Client).membershipPlanId
+          : undefined,
+      membershipDisciplineIds: Array.isArray((c as Client).membershipDisciplineIds)
+        ? ((c as Client).membershipDisciplineIds as GymDisciplineId[])
+        : undefined,
       sportGoal: typeof c.sportGoal === 'string' ? c.sportGoal : undefined,
       trainingProgram: typeof c.trainingProgram === 'string' ? c.trainingProgram : undefined,
       dietPlan: typeof c.dietPlan === 'string' ? c.dietPlan : undefined,
@@ -933,6 +958,9 @@ export function migrate(raw: unknown): AppState {
             ? g.source
             : 'manual',
       })),
+    gymSessions: migrateGymSessions(
+      (data as { gymSessions?: GymSession[] }).gymSessions,
+    ),
     employees: (data.employees ?? [])
       .filter((e) => e && typeof e.name === 'string')
       .map((e) => ({
@@ -1211,12 +1239,19 @@ export function applyShopSetup(state: AppState, input: ShopSetupInput): AppState
     state.products.length > 0
   return ensureDefaultLocation({
     ...state,
+    products: keep ? state.products : products,
+    /** RDV / file clinique d’un autre métier ne doivent pas traîner */
+    appointments: metierChanged ? [] : state.appointments ?? [],
+    clinicCharges: metierChanged ? [] : state.clinicCharges ?? [],
+    medicalDocuments: metierChanged ? [] : state.medicalDocuments ?? [],
+    gymCheckIns: metierChanged ? [] : state.gymCheckIns ?? [],
+    gymSessions: metierChanged ? [] : state.gymSessions ?? [],
     settings: {
       ...state.settings,
       setupDone: true,
       countryCode: country.code,
       commerceMode: input.commerceMode,
-      domainId: domain.id,
+      domainId: resolveSportDomainId(domain.id),
       currency: country.currency,
       shopName: input.shopName.trim() || domain.nameFr,
       phone: input.phone.trim(),
@@ -1227,13 +1262,15 @@ export function applyShopSetup(state: AppState, input: ShopSetupInput): AppState
       clinicStationChosen: false,
       clinicStation: undefined,
       retailRayons: undefined,
+      gymSettings: (() => {
+        const alias = SPORT_DOMAIN_ALIASES[domain.id]
+        if (alias) return defaultGymSettings(alias.disciplines)
+        if (state.settings.domainId === domain.id && state.settings.gymSettings) {
+          return state.settings.gymSettings
+        }
+        return state.settings.gymSettings ?? defaultGymSettings()
+      })(),
     },
-    products: keep ? state.products : products,
-    /** RDV / file clinique d’un autre métier ne doivent pas traîner */
-    appointments: metierChanged ? [] : state.appointments ?? [],
-    clinicCharges: metierChanged ? [] : state.clinicCharges ?? [],
-    medicalDocuments: metierChanged ? [] : state.medicalDocuments ?? [],
-    gymCheckIns: metierChanged ? [] : state.gymCheckIns ?? [],
   })
 }
 
@@ -1325,6 +1362,92 @@ export function removeHeldSale(state: AppState, id: string): AppState {
   return {
     ...state,
     heldSales: (state.heldSales || []).filter((h) => h.id !== id),
+  }
+}
+
+/** Ajoute / retire un produit catalogue sur le ticket d’une session salle. */
+export function bumpGymSessionProduct(
+  state: AppState,
+  sessionId: string,
+  productId: string,
+  delta: number,
+): AppState {
+  let next = ensureGymSessionHeld(state, sessionId)
+  const session = (next.gymSessions ?? []).find((s) => s.id === sessionId)
+  if (!session) return state
+  const product = next.products.find((p) => p.id === productId)
+  if (!product) return next
+
+  const held = (next.heldSales || []).find((h) => h.id === session.heldSaleId)
+  if (!held) return next
+
+  const key = productId
+  const cur = held.qtyMap?.[key] || 0
+  const stock = displayStock(next, product)
+  const qty = Math.max(0, Math.min(stock, +(cur + delta).toFixed(3)))
+  const qtyMap = { ...(held.qtyMap || {}) }
+  const tierMap = { ...(held.tierMap || {}) }
+  if (qty <= 0) {
+    delete qtyMap[key]
+    delete tierMap[key]
+  } else {
+    qtyMap[key] = qty
+    if (!tierMap[key]) tierMap[key] = 'piece'
+  }
+
+  return {
+    ...next,
+    heldSales: (next.heldSales || []).map((h) =>
+      h.id === held.id ? { ...h, qtyMap, tierMap } : h,
+    ),
+  }
+}
+
+/** Total ticket session (flash séance + produits catalogue). */
+export function gymSessionTicketTotal(
+  state: AppState,
+  sessionId: string,
+): { totalDa: number; productLines: number; sessionFeeDa: number } {
+  const session = (state.gymSessions ?? []).find((s) => s.id === sessionId)
+  if (!session) return { totalDa: 0, productLines: 0, sessionFeeDa: 0 }
+  const held = (state.heldSales || []).find((h) => h.id === session.heldSaleId)
+  if (!held) return { totalDa: 0, productLines: 0, sessionFeeDa: 0 }
+
+  let sessionFeeDa = 0
+  for (const f of held.flashLines || []) {
+    sessionFeeDa += (f.unitPriceDa || 0) * (f.qty || 0)
+  }
+  let productsDa = 0
+  let productLines = 0
+  for (const [pid, qty] of Object.entries(held.qtyMap || {})) {
+    if (qty <= 0) continue
+    const p = state.products.find((x) => x.id === pid)
+    if (!p) continue
+    productLines += 1
+    const tier = held.tierMap?.[pid] || 'piece'
+    const price =
+      held.priceOverrides?.[`${pid}::${tier}`] ??
+      (tier === 'gros' || tier === 'super_gros'
+        ? p.grosPriceDa || p.priceDa
+        : tier === 'demi_gros'
+          ? p.demiGrosPriceDa || p.priceDa
+          : p.priceDa)
+    productsDa += price * qty
+  }
+  let sum = sessionFeeDa + productsDa
+  const disc = held.discountPercent || 0
+  if (disc > 0) sum = sum * (1 - disc / 100)
+  if (typeof held.totalOverrideDa === 'number') {
+    return {
+      totalDa: held.totalOverrideDa,
+      productLines,
+      sessionFeeDa,
+    }
+  }
+  return {
+    totalDa: Math.round(sum),
+    productLines,
+    sessionFeeDa: Math.round(sessionFeeDa),
   }
 }
 
@@ -2270,15 +2393,321 @@ export function isClientPresentInGym(state: AppState, clientId: string): boolean
   return gymPresentClientIds(state).includes(clientId)
 }
 
-/** Entrée si absent, sortie si déjà présent. */
+function migrateGymSessions(raw: GymSession[] | undefined): GymSession[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .filter(
+      (s) =>
+        s &&
+        typeof s.heldSaleId === 'string' &&
+        s.heldSaleId &&
+        typeof s.clientName === 'string',
+    )
+    .map((s): GymSession => ({
+      id: s.id || uid('gs'),
+      clientId: typeof s.clientId === 'string' ? s.clientId : '',
+      clientName: s.clientName,
+      kind: s.kind === 'walk_in' ? 'walk_in' : 'member',
+      disciplineId: s.disciplineId,
+      membershipPlanId:
+        typeof s.membershipPlanId === 'string' ? s.membershipPlanId : undefined,
+      heldSaleId: s.heldSaleId,
+      startedAt: s.startedAt || new Date().toISOString(),
+      status: s.status === 'billing' ? 'billing' : 'open',
+      nfcUid: typeof s.nfcUid === 'string' ? s.nfcUid : undefined,
+    }))
+    .slice(0, 80)
+}
+
+export function openGymSessions(state: AppState): GymSession[] {
+  return (state.gymSessions ?? []).filter(
+    (s) => s.status === 'open' || s.status === 'billing',
+  )
+}
+
+export function gymSessionForClient(
+  state: AppState,
+  clientId: string,
+): GymSession | undefined {
+  if (!clientId) return undefined
+  return openGymSessions(state).find((s) => s.clientId === clientId)
+}
+
+export function updateGymSettings(
+  state: AppState,
+  patch: Partial<NonNullable<ShopSettings['gymSettings']>>,
+): AppState {
+  const cur = state.settings.gymSettings ?? defaultGymSettings()
+  return {
+    ...state,
+    settings: {
+      ...state.settings,
+      gymSettings: {
+        ...cur,
+        ...patch,
+        enabledDisciplines:
+          patch.enabledDisciplines ?? cur.enabledDisciplines,
+        plans: patch.plans ?? cur.plans,
+      },
+    },
+  }
+}
+
+function openGymSessionTicket(
+  state: AppState,
+  input: {
+    clientId: string
+    clientName: string
+    kind: 'member' | 'walk_in'
+    disciplineId?: GymDisciplineId
+    membershipPlanId?: string
+    nfcUid?: string
+    flashLines?: HeldSale['flashLines']
+  },
+): AppState {
+  const existing = input.clientId
+    ? gymSessionForClient(state, input.clientId)
+    : undefined
+  if (existing) return state
+
+  const held = holdSale(state, {
+    label: `Séance · ${input.clientName}`,
+    clientId: input.clientId,
+    qtyMap: {},
+    tierMap: {},
+    flashLines: input.flashLines,
+  })
+  const heldSaleId = held.heldSales[0]?.id
+  if (!heldSaleId) return state
+
+  const session: GymSession = {
+    id: uid('gs'),
+    clientId: input.clientId,
+    clientName: input.clientName,
+    kind: input.kind,
+    disciplineId: input.disciplineId,
+    membershipPlanId: input.membershipPlanId,
+    heldSaleId,
+    startedAt: new Date().toISOString(),
+    status: 'open',
+    nfcUid: input.nfcUid,
+  }
+  return {
+    ...held,
+    gymSessions: [session, ...(held.gymSessions ?? [])].slice(0, 80),
+  }
+}
+
+/** Si le ticket a été absorbé par la caisse, en recrée un lié à la session. */
+export function ensureGymSessionHeld(
+  state: AppState,
+  sessionId: string,
+): AppState {
+  const session = (state.gymSessions ?? []).find((s) => s.id === sessionId)
+  if (!session) return state
+  if ((state.heldSales || []).some((h) => h.id === session.heldSaleId)) {
+    return markGymSessionBilling(state, sessionId)
+  }
+  const plan = (state.settings.gymSettings?.plans ?? []).find(
+    (p) => p.id === session.membershipPlanId,
+  )
+  const flashLines =
+    session.kind === 'walk_in' && plan && plan.priceDa > 0
+      ? [
+          {
+            id: uid('flash'),
+            name: plan.name,
+            qty: 1,
+            unitPriceDa: plan.priceDa,
+            unit: 'piece' as const,
+          },
+        ]
+      : undefined
+  const held = holdSale(state, {
+    label: `Séance · ${session.clientName}`,
+    clientId: session.clientId,
+    qtyMap: {},
+    tierMap: {},
+    flashLines,
+  })
+  const newId = held.heldSales[0]?.id
+  if (!newId) return state
+  return {
+    ...held,
+    gymSessions: (held.gymSessions ?? []).map((s) =>
+      s.id === sessionId
+        ? { ...s, heldSaleId: newId, status: 'billing' as const }
+        : s,
+    ),
+  }
+}
+
+/** Après « mettre en attente » depuis la caisse : rattache le nouveau ticket. */
+export function relinkGymSessionHeld(
+  state: AppState,
+  heldSaleId: string,
+  hint?: { clientId?: string; label?: string },
+): AppState {
+  const sessions = openGymSessions(state)
+  if (!sessions.length) return state
+  let target =
+    (hint?.clientId &&
+      sessions.find((s) => s.clientId && s.clientId === hint.clientId)) ||
+    sessions.find((s) => s.status === 'billing') ||
+    sessions[0]
+  if (!target) return state
+  return {
+    ...state,
+    gymSessions: (state.gymSessions ?? []).map((s) =>
+      s.id === target!.id
+        ? { ...s, heldSaleId, status: 'open' as const }
+        : s,
+    ),
+  }
+}
+
+/** Passager : entrée sans abonnement longue durée. */
+export function startWalkInGymSession(
+  state: AppState,
+  input: {
+    name?: string
+    clientId?: string
+    disciplineId?: GymDisciplineId
+    planId?: string
+  } = {},
+): { state: AppState; session: GymSession } | { error: 'no_ticket' } {
+  const plans = state.settings.gymSettings?.plans ?? []
+  const walkPlan =
+    (input.planId && plans.find((p) => p.id === input.planId)) ||
+    plans.find((p) => p.walkIn && p.active !== false)
+  const name =
+    input.name?.trim() ||
+    (input.clientId
+      ? state.clients.find((c) => c.id === input.clientId)?.name
+      : undefined) ||
+    'Passager'
+  const clientId = input.clientId || ''
+  const flashLines =
+    walkPlan && walkPlan.priceDa > 0
+      ? [
+          {
+            id: uid('flash'),
+            name: walkPlan.name,
+            qty: 1,
+            unitPriceDa: walkPlan.priceDa,
+            unit: 'piece' as const,
+          },
+        ]
+      : undefined
+  let next = openGymSessionTicket(state, {
+    clientId,
+    clientName: name,
+    kind: 'walk_in',
+    disciplineId:
+      input.disciplineId ||
+      walkPlan?.disciplineIds[0] ||
+      state.settings.gymSettings?.enabledDisciplines[0],
+    membershipPlanId: walkPlan?.id,
+    flashLines,
+  })
+  const session = openGymSessions(next).find(
+    (s) =>
+      s.heldSaleId &&
+      s.clientName === name &&
+      (!clientId || s.clientId === clientId),
+  )
+  if (!session) return { error: 'no_ticket' }
+
+  if (clientId && !isClientPresentInGym(next, clientId)) {
+    const toggled = toggleGymCheckIn(next, clientId, 'manual', {
+      skipSession: true,
+    })
+    if (toggled && !('error' in toggled)) next = toggled.state
+  }
+  return { state: next, session }
+}
+
+export function markGymSessionBilling(
+  state: AppState,
+  sessionId: string,
+): AppState {
+  return {
+    ...state,
+    gymSessions: (state.gymSessions ?? []).map((s) =>
+      s.id === sessionId ? { ...s, status: 'billing' as const } : s,
+    ),
+  }
+}
+
+/** Après encaissement : ferme session + check-out + retire held. */
+export function closeGymSession(
+  state: AppState,
+  sessionId: string,
+  opts?: { checkout?: boolean },
+): AppState {
+  const session = (state.gymSessions ?? []).find((s) => s.id === sessionId)
+  if (!session) return state
+  let next = removeHeldSale(state, session.heldSaleId)
+  next = {
+    ...next,
+    gymSessions: (next.gymSessions ?? []).filter((s) => s.id !== sessionId),
+  }
+  if (opts?.checkout !== false && session.clientId) {
+    if (isClientPresentInGym(next, session.clientId)) {
+      const out = toggleGymCheckIn(next, session.clientId, 'manual', {
+        skipSession: true,
+        forceKind: 'out',
+      })
+      if (out && !('error' in out)) next = out.state
+    }
+  }
+  return next
+}
+
+/**
+ * Entrée si absent, sortie si déjà présent.
+ * Entrée → ticket session (conso). Sortie bloquée si conso non encaissée.
+ */
 export function toggleGymCheckIn(
   state: AppState,
   clientId: string,
   source: GymCheckIn['source'] = 'manual',
-): { state: AppState; kind: 'in' | 'out'; client: Client } | null {
+  opts?: {
+    skipSession?: boolean
+    forceKind?: 'in' | 'out'
+    disciplineId?: GymDisciplineId
+  },
+):
+  | {
+      state: AppState
+      kind: 'in' | 'out'
+      client: Client
+      sessionId?: string
+      membershipExpired?: boolean
+    }
+  | { error: 'session_open'; session: GymSession; client: Client }
+  | null {
   const client = state.clients.find((c) => c.id === clientId)
   if (!client) return null
-  const kind: 'in' | 'out' = isClientPresentInGym(state, clientId) ? 'out' : 'in'
+  const kind: 'in' | 'out' =
+    opts?.forceKind ||
+    (isClientPresentInGym(state, clientId) ? 'out' : 'in')
+
+  if (kind === 'out' && !opts?.skipSession) {
+    const open = gymSessionForClient(state, clientId)
+    if (open) {
+      const held = (state.heldSales || []).find((h) => h.id === open.heldSaleId)
+      const hasLines =
+        !!held &&
+        (Object.keys(held.qtyMap || {}).some((k) => (held.qtyMap[k] || 0) > 0) ||
+          (held.flashLines?.length ?? 0) > 0)
+      if (hasLines || open.status === 'billing') {
+        return { error: 'session_open', session: open, client }
+      }
+      state = closeGymSession(state, open.id, { checkout: false })
+    }
+  }
+
   const entry: GymCheckIn = {
     id: uid('gin'),
     clientId: client.id,
@@ -2287,13 +2716,40 @@ export function toggleGymCheckIn(
     at: new Date().toISOString(),
     source,
   }
+  let next: AppState = {
+    ...state,
+    gymCheckIns: [entry, ...(state.gymCheckIns ?? [])].slice(0, 2000),
+  }
+
+  const membershipExpired =
+    !!client.membershipEnd && !membershipStillValid(client.membershipEnd)
+
+  let sessionId: string | undefined
+  if (
+    kind === 'in' &&
+    !opts?.skipSession &&
+    next.settings.gymSettings?.openTicketOnEntry !== false
+  ) {
+    next = openGymSessionTicket(next, {
+      clientId: client.id,
+      clientName: client.name,
+      kind: membershipExpired ? 'walk_in' : 'member',
+      disciplineId:
+        opts?.disciplineId ||
+        client.membershipDisciplineIds?.[0] ||
+        next.settings.gymSettings?.enabledDisciplines[0],
+      membershipPlanId: client.membershipPlanId,
+      nfcUid: client.nfcUid,
+    })
+    sessionId = gymSessionForClient(next, client.id)?.id
+  }
+
   return {
-    state: {
-      ...state,
-      gymCheckIns: [entry, ...(state.gymCheckIns ?? [])].slice(0, 2000),
-    },
+    state: next,
     kind,
     client,
+    sessionId,
+    membershipExpired: kind === 'in' ? membershipExpired : undefined,
   }
 }
 
@@ -2302,14 +2758,27 @@ export function gymCheckInByUid(
   rawUid: string,
   source: GymCheckIn['source'] = 'nfc',
 ):
-  | { state: AppState; kind: 'in' | 'out'; client: Client }
-  | { error: 'unknown_chip' | 'empty' } {
+  | {
+      state: AppState
+      kind: 'in' | 'out'
+      client: Client
+      sessionId?: string
+      membershipExpired?: boolean
+    }
+  | {
+      error: 'unknown_chip' | 'empty' | 'session_open'
+      session?: GymSession
+      client?: Client
+    } {
   const raw = rawUid.trim()
   if (!raw) return { error: 'empty' }
   const client = findClientByNfcUid(state, raw)
   if (!client) return { error: 'unknown_chip' }
   const res = toggleGymCheckIn(state, client.id, source)
   if (!res) return { error: 'unknown_chip' }
+  if ('error' in res) {
+    return { error: 'session_open', session: res.session, client: res.client }
+  }
   return res
 }
 
