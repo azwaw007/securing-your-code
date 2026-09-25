@@ -2146,6 +2146,7 @@ function openGymSessionTicket(
     disciplineId?: GymDisciplineId
     membershipPlanId?: string
     nfcUid?: string
+    flashLines?: HeldSale['flashLines']
   },
 ): AppState {
   const existing = input.clientId
@@ -2158,6 +2159,7 @@ function openGymSessionTicket(
     clientId: input.clientId,
     qtyMap: {},
     tierMap: {},
+    flashLines: input.flashLines,
   })
   const heldSaleId = held.heldSales[0]?.id
   if (!heldSaleId) return state
@@ -2177,6 +2179,74 @@ function openGymSessionTicket(
   return {
     ...held,
     gymSessions: [session, ...(held.gymSessions ?? [])].slice(0, 80),
+  }
+}
+
+/** Si le ticket a été absorbé par la caisse, en recrée un lié à la session. */
+export function ensureGymSessionHeld(
+  state: AppState,
+  sessionId: string,
+): AppState {
+  const session = (state.gymSessions ?? []).find((s) => s.id === sessionId)
+  if (!session) return state
+  if ((state.heldSales || []).some((h) => h.id === session.heldSaleId)) {
+    return markGymSessionBilling(state, sessionId)
+  }
+  const plan = (state.settings.gymSettings?.plans ?? []).find(
+    (p) => p.id === session.membershipPlanId,
+  )
+  const flashLines =
+    session.kind === 'walk_in' && plan && plan.priceDa > 0
+      ? [
+          {
+            id: uid('flash'),
+            name: plan.name,
+            qty: 1,
+            unitPriceDa: plan.priceDa,
+            unit: 'piece' as const,
+          },
+        ]
+      : undefined
+  const held = holdSale(state, {
+    label: `Séance · ${session.clientName}`,
+    clientId: session.clientId,
+    qtyMap: {},
+    tierMap: {},
+    flashLines,
+  })
+  const newId = held.heldSales[0]?.id
+  if (!newId) return state
+  return {
+    ...held,
+    gymSessions: (held.gymSessions ?? []).map((s) =>
+      s.id === sessionId
+        ? { ...s, heldSaleId: newId, status: 'billing' as const }
+        : s,
+    ),
+  }
+}
+
+/** Après « mettre en attente » depuis la caisse : rattache le nouveau ticket. */
+export function relinkGymSessionHeld(
+  state: AppState,
+  heldSaleId: string,
+  hint?: { clientId?: string; label?: string },
+): AppState {
+  const sessions = openGymSessions(state)
+  if (!sessions.length) return state
+  let target =
+    (hint?.clientId &&
+      sessions.find((s) => s.clientId && s.clientId === hint.clientId)) ||
+    sessions.find((s) => s.status === 'billing') ||
+    sessions[0]
+  if (!target) return state
+  return {
+    ...state,
+    gymSessions: (state.gymSessions ?? []).map((s) =>
+      s.id === target!.id
+        ? { ...s, heldSaleId, status: 'open' as const }
+        : s,
+    ),
   }
 }
 
@@ -2201,6 +2271,18 @@ export function startWalkInGymSession(
       : undefined) ||
     'Passager'
   const clientId = input.clientId || ''
+  const flashLines =
+    walkPlan && walkPlan.priceDa > 0
+      ? [
+          {
+            id: uid('flash'),
+            name: walkPlan.name,
+            qty: 1,
+            unitPriceDa: walkPlan.priceDa,
+            unit: 'piece' as const,
+          },
+        ]
+      : undefined
   let next = openGymSessionTicket(state, {
     clientId,
     clientName: name,
@@ -2210,6 +2292,7 @@ export function startWalkInGymSession(
       walkPlan?.disciplineIds[0] ||
       state.settings.gymSettings?.enabledDisciplines[0],
     membershipPlanId: walkPlan?.id,
+    flashLines,
   })
   const session = openGymSessions(next).find(
     (s) =>
