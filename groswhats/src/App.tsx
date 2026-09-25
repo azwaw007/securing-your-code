@@ -4050,9 +4050,6 @@ function ProductsPage({
     <>
       <div className="card">
         <h2>{t(lang, 'newProduct')}</h2>
-        <div className="muted" style={{ marginBottom: 10 }}>
-          {mt(state.settings.commerceMode, lang, 'profitHint')}
-        </div>
         <div className="product-photo-field">
           {name.trim() || imageDataUrl ? (
             <img
