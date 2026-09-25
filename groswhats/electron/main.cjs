@@ -3,6 +3,8 @@ const path = require('path')
 const dgram = require('dgram')
 const http = require('http')
 const https = require('https')
+const { execFile } = require('child_process')
+const fs = require('fs')
 
 const isDev = !app.isPackaged
 
@@ -117,8 +119,99 @@ function fetchLocal(url) {
   })
 }
 
+function resolveAdbPath() {
+  const env = process.env.AZ_POS_ADB || process.env.ADB
+  if (env && fs.existsSync(env)) return env
+  const candidates = [
+    path.join(process.resourcesPath || '', 'adb', process.platform === 'win32' ? 'adb.exe' : 'adb'),
+    path.join(__dirname, 'adb', process.platform === 'win32' ? 'adb.exe' : 'adb'),
+    process.platform === 'win32' ? 'adb.exe' : 'adb',
+  ]
+  for (const c of candidates) {
+    if (c === 'adb' || c === 'adb.exe') return c
+    if (fs.existsSync(c)) return c
+  }
+  return process.platform === 'win32' ? 'adb.exe' : 'adb'
+}
+
+function runAdb(args, timeoutMs = 8000) {
+  return new Promise((resolve) => {
+    const bin = resolveAdbPath()
+    const child = execFile(
+      bin,
+      args,
+      { timeout: timeoutMs, windowsHide: true, encoding: 'utf8' },
+      (err, stdout, stderr) => {
+        const out = `${stdout || ''}\n${stderr || ''}`.trim()
+        if (err) {
+          const msg = err.code === 'ENOENT'
+            ? 'ADB introuvable — installe Platform-Tools et ajoute adb au PATH'
+            : out || err.message
+          resolve({ ok: false, detail: msg })
+          return
+        }
+        resolve({ ok: true, detail: out })
+      },
+    )
+    child.on('error', (err) => {
+      resolve({
+        ok: false,
+        detail:
+          err.code === 'ENOENT'
+            ? 'ADB introuvable — installe Platform-Tools (Google) et adb dans le PATH'
+            : err.message,
+      })
+    })
+  })
+}
+
+/**
+ * Google TV / Android TV via ADB réseau.
+ * Prérequis TV : options développeur → débogage réseau / USB débogage.
+ */
+async function adbPower(payload) {
+  const host = String(payload?.host || '')
+    .trim()
+    .replace(/^https?:\/\//i, '')
+    .replace(/\/.*$/, '')
+    .replace(/:.*$/, '')
+  const port = Math.max(1, Math.min(65535, Number(payload?.port) || 5555))
+  const action = payload?.action === 'on' ? 'on' : 'off'
+  if (!host) return { ok: false, detail: 'IP Google TV manquante' }
+
+  const target = `${host}:${port}`
+  const connect = await runAdb(['connect', target])
+  if (!connect.ok) return connect
+  if (/unable to connect|failed|refused|unauthorized/i.test(connect.detail || '')) {
+    return {
+      ok: false,
+      detail:
+        connect.detail ||
+        'Connexion ADB refusée — active le débogage réseau et accepte « Autoriser » sur la TV',
+    }
+  }
+
+  // WAKEUP=224, SLEEP=223, POWER=26
+  const key = action === 'on' ? 'KEYCODE_WAKEUP' : 'KEYCODE_SLEEP'
+  const shell = await runAdb([
+    '-s',
+    target,
+    'shell',
+    'input',
+    'keyevent',
+    key,
+  ])
+  if (!shell.ok) {
+    // repli POWER (bascule)
+    const alt = await runAdb(['-s', target, 'shell', 'input', 'keyevent', 'KEYCODE_POWER'])
+    if (!alt.ok) return alt
+  }
+  return { ok: true, detail: `adb ${action} ${target}` }
+}
+
 ipcMain.handle('tv-wol', async (_evt, mac) => sendWol(mac))
 ipcMain.handle('tv-fetch', async (_evt, url) => fetchLocal(url))
+ipcMain.handle('tv-adb', async (_evt, payload) => adbPower(payload))
 
 app.whenReady().then(() => {
   createWindow()

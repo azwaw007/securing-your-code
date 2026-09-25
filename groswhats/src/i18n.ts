@@ -1188,6 +1188,11 @@ const fr: Dict = {
   gameTvKind: 'Type de branchement',
   gameTvHost: 'Adresse IP (réseau local)',
   gameTvHostSmart: 'IP de la Smart TV',
+  gameTvHostGoogle: 'IP de la Google TV',
+  gameTvGoogle: 'Google TV / Android TV',
+  gameTvGoogleHint:
+    'Google TV : active Options développeur → Débogage réseau. Même Wi‑Fi. IP + MAC. AZ POS .exe + ADB (Platform-Tools Google).',
+  gameTvAdbPort: 'Port ADB (défaut 5555)',
   gameTvSmart: 'Smart TV (Wi‑Fi / LAN)',
   gameTvSmartHint:
     'Si la TV a le Wi‑Fi : même réseau que le PC, entre son IP. Allumage = Wake-on-LAN (MAC). Extinction = URL OFF du fabricant, ou une prise Wi‑Fi.',
@@ -2475,6 +2480,11 @@ const ar: Dict = {
   gameTvKind: 'نوع الربط',
   gameTvHost: 'عنوان IP (شبكة محلية)',
   gameTvHostSmart: 'IP التلفزيون الذكي',
+  gameTvHostGoogle: 'IP تلفزيون Google TV',
+  gameTvGoogle: 'Google TV / Android TV',
+  gameTvGoogleHint:
+    'Google TV: فعّل خيارات المطوّر → تصحيح الشبكة. نفس الواي فاي. IP + MAC. AZ POS exe + ADB.',
+  gameTvAdbPort: 'منفذ ADB (افتراضي 5555)',
   gameTvSmart: 'تلفزيون ذكي (واي فاي / LAN)',
   gameTvSmartHint:
     'إذا كان للتلفزيون واي فاي: نفس شبكة الجهاز، أدخل الـ IP. التشغيل = Wake-on-LAN (MAC). الإيقاف = رابط OFF من الشركة أو مقبس واي فاي.',

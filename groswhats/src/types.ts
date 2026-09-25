@@ -458,7 +458,12 @@ export interface FloorTable {
 export type GameStationStatus = 'free' | 'active' | 'standby'
 
 /** Prise / TV Wi‑Fi sur le réseau local */
-export type TvControlKind = 'smart_tv' | 'shelly' | 'tasmota' | 'custom'
+export type TvControlKind =
+  | 'google_tv'
+  | 'smart_tv'
+  | 'shelly'
+  | 'tasmota'
+  | 'custom'
 
 export type GameConsoleKind =
   | 'xbox_one'
@@ -520,8 +525,9 @@ export interface GameStation {
   note?: string
   /**
    * Contrôle TV sur le réseau local (même Wi‑Fi).
-   * - smart_tv : IP de la Smart TV (+ MAC Wake-on-LAN / URLs ON-OFF)
-   * - shelly / tasmota : prise Wi‑Fi sur l’alimentation TV
+   * - google_tv : Google TV / Android TV (ADB réseau + Wake-on-LAN)
+   * - smart_tv : IP + MAC / URLs
+   * - shelly / tasmota : prise Wi‑Fi
    * - custom : URLs HTTP libres
    */
   tvKind?: TvControlKind
@@ -529,6 +535,8 @@ export interface GameStation {
   tvHost?: string
   /** MAC de la Smart TV (Wake-on-LAN pour allumer) — ex. AA:BB:CC:DD:EE:FF */
   tvMac?: string
+  /** Port ADB Google TV (défaut 5555) */
+  tvAdbPort?: number
   /** URL HTTP complète ON (smart_tv / custom) */
   tvOnUrl?: string
   /** URL HTTP complète OFF (smart_tv / custom) */
