@@ -500,6 +500,7 @@ function StationTile({
   onSaveTv: (patch: {
     tvKind?: TvControlKind
     tvHost?: string
+    tvMac?: string
     tvOnUrl?: string
     tvOffUrl?: string
     name?: string
@@ -697,33 +698,48 @@ function TvConfigForm({
   onSave: (patch: {
     tvKind: TvControlKind
     tvHost: string
+    tvMac: string
     tvOnUrl: string
     tvOffUrl: string
   }) => void
   onTestOn: () => void
   onTestOff: () => void
 }) {
-  const [tvKind, setTvKind] = useState<TvControlKind>(station.tvKind || 'shelly')
+  const [tvKind, setTvKind] = useState<TvControlKind>(
+    station.tvKind || 'smart_tv',
+  )
   const [tvHost, setTvHost] = useState(station.tvHost || '')
+  const [tvMac, setTvMac] = useState(station.tvMac || '')
   const [tvOnUrl, setTvOnUrl] = useState(station.tvOnUrl || '')
   const [tvOffUrl, setTvOffUrl] = useState(station.tvOffUrl || '')
 
+  const needsHost = tvKind === 'shelly' || tvKind === 'tasmota' || tvKind === 'smart_tv'
+  const needsUrls = tvKind === 'custom' || tvKind === 'smart_tv'
+
   return (
     <div className="game-tv-form">
+      <p className="muted" style={{ marginTop: 0, fontSize: '0.8rem' }}>
+        {t(lang, 'gameTvSmartHint')}
+      </p>
       <div className="field">
         <label>{t(lang, 'gameTvKind')}</label>
         <select
           value={tvKind}
           onChange={(e) => setTvKind(e.target.value as TvControlKind)}
         >
-          <option value="shelly">Shelly (Wi‑Fi)</option>
+          <option value="smart_tv">{t(lang, 'gameTvSmart')}</option>
+          <option value="shelly">Shelly (prise Wi‑Fi)</option>
           <option value="tasmota">Tasmota / Sonoff</option>
           <option value="custom">{t(lang, 'gameTvCustom')}</option>
         </select>
       </div>
-      {tvKind !== 'custom' ? (
+      {needsHost ? (
         <div className="field">
-          <label>{t(lang, 'gameTvHost')}</label>
+          <label>
+            {tvKind === 'smart_tv'
+              ? t(lang, 'gameTvHostSmart')
+              : t(lang, 'gameTvHost')}
+          </label>
           <input
             value={tvHost}
             onChange={(e) => setTvHost(e.target.value)}
@@ -732,7 +748,22 @@ function TvConfigForm({
             autoComplete="off"
           />
         </div>
-      ) : (
+      ) : null}
+      {tvKind === 'smart_tv' ? (
+        <div className="field">
+          <label>{t(lang, 'gameTvMac')}</label>
+          <input
+            value={tvMac}
+            onChange={(e) => setTvMac(e.target.value)}
+            placeholder="AA:BB:CC:DD:EE:FF"
+            autoComplete="off"
+          />
+          <p className="muted" style={{ margin: '4px 0 0', fontSize: '0.75rem' }}>
+            {t(lang, 'gameTvMacHint')}
+          </p>
+        </div>
+      ) : null}
+      {needsUrls ? (
         <>
           <div className="field">
             <label>{t(lang, 'gameTvOnUrl')}</label>
@@ -750,8 +781,13 @@ function TvConfigForm({
               placeholder="http://192.168.1.50/…"
             />
           </div>
+          {tvKind === 'smart_tv' ? (
+            <p className="muted" style={{ margin: 0, fontSize: '0.75rem' }}>
+              {t(lang, 'gameTvSmartUrlsHint')}
+            </p>
+          ) : null}
         </>
-      )}
+      ) : null}
       <div className="btn-row" style={{ marginTop: 6 }}>
         <button
           type="button"
@@ -760,6 +796,7 @@ function TvConfigForm({
             onSave({
               tvKind,
               tvHost: tvHost.trim(),
+              tvMac: tvMac.trim(),
               tvOnUrl: tvOnUrl.trim(),
               tvOffUrl: tvOffUrl.trim(),
             })

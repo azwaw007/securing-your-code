@@ -1689,7 +1689,7 @@ function SettingsPage({
           <div className="btn-row" style={{ marginTop: 10 }}>
             <a
               className="btn secondary"
-              href="https://github.com/azwaw007/securing-your-code/releases/download/v1.2.0-win/AZ-POS-Setup-1.2.0.exe"
+              href="https://github.com/azwaw007/securing-your-code/releases/download/v1.2.1-win/AZ-POS-Setup-1.2.1.exe"
               rel="noreferrer"
             >
               {t(lang, 'installWindows')}
