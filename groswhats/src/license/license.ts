@@ -2,7 +2,7 @@
 export const LICENSE_SECRET = 'GROSSISTE-DZ-SECRET-CHANGE-MOI-2026'
 
 export const TRIAL_DAYS = 14
-export const APP_VERSION = '1.2.1'
+export const APP_VERSION = '1.2.2'
 
 export type LicensePlan = 'trial' | 'annual'
 

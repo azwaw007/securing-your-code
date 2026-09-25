@@ -3,6 +3,11 @@ import type { GameStation, TvControlKind } from '../types'
 type TvBridge = {
   wake: (mac: string) => Promise<{ ok: boolean; detail?: string }>
   fetchUrl: (url: string) => Promise<{ ok: boolean; detail?: string }>
+  adbPower: (payload: {
+    host: string
+    port?: number
+    action: 'on' | 'off'
+  }) => Promise<{ ok: boolean; detail?: string }>
 }
 
 function azTv(): TvBridge | undefined {
@@ -23,6 +28,8 @@ export function resolveTvUrls(station: Pick<
       offUrl: station.tvOffUrl?.trim() || undefined,
     }
   }
+
+  if (kind === 'google_tv') return {}
 
   if (!host) return {}
 
@@ -110,8 +117,43 @@ export async function wakeTvOnLan(mac: string | undefined): Promise<TvCommandRes
   }
 }
 
+async function googleTvPower(
+  station: GameStation,
+  action: 'on' | 'off',
+): Promise<TvCommandResult> {
+  const host = (station.tvHost || '').trim()
+  if (!host) {
+    return { ok: false, reason: 'no_url', detail: 'IP Google TV manquante' }
+  }
+  const bridge = azTv()
+  if (!bridge?.adbPower) {
+    return {
+      ok: false,
+      reason: 'network',
+      url: `adb://${host}`,
+      detail: 'Google TV : utilise AZ POS Windows (.exe) + ADB (Platform-Tools)',
+    }
+  }
+  if (action === 'on' && station.tvMac?.trim()) {
+    await wakeTvOnLan(station.tvMac)
+  }
+  try {
+    const res = await bridge.adbPower({
+      host,
+      port: station.tvAdbPort || 5555,
+      action,
+    })
+    if (res.ok) return { ok: true, url: `adb://${host}` }
+    return { ok: false, reason: 'network', url: `adb://${host}`, detail: res.detail }
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err)
+    return { ok: false, reason: 'network', url: `adb://${host}`, detail }
+  }
+}
+
 export async function turnTvOn(station: GameStation): Promise<TvCommandResult> {
   const kind = station.tvKind || 'shelly'
+  if (kind === 'google_tv') return googleTvPower(station, 'on')
   if (kind === 'smart_tv' && station.tvMac?.trim()) {
     const wol = await wakeTvOnLan(station.tvMac)
     if (wol.ok) {
@@ -119,19 +161,21 @@ export async function turnTvOn(station: GameStation): Promise<TvCommandResult> {
       if (onUrl) void sendTvCommand(onUrl)
       return wol
     }
-    // WOL échoué → tenter URL ON si présente
   }
   const { onUrl } = resolveTvUrls(station)
   return sendTvCommand(onUrl)
 }
 
 export async function turnTvOff(station: GameStation): Promise<TvCommandResult> {
+  const kind = station.tvKind || 'shelly'
+  if (kind === 'google_tv') return googleTvPower(station, 'off')
   const { offUrl } = resolveTvUrls(station)
   return sendTvCommand(offUrl)
 }
 
 export function stationHasTvControl(station: GameStation): boolean {
   const kind = station.tvKind || 'shelly'
+  if (kind === 'google_tv') return Boolean(station.tvHost?.trim())
   if (kind === 'smart_tv' && station.tvMac?.trim()) return true
   const { onUrl, offUrl } = resolveTvUrls(station)
   return Boolean(onUrl || offUrl)

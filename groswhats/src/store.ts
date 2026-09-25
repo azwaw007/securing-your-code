@@ -1527,7 +1527,8 @@ function migrateGameStations(raw: GameStation[] | undefined): GameStation[] {
         g.tvKind === 'tasmota' ||
         g.tvKind === 'custom' ||
         g.tvKind === 'shelly' ||
-        g.tvKind === 'smart_tv'
+        g.tvKind === 'smart_tv' ||
+        g.tvKind === 'google_tv'
       return {
         id: g.id || uid('gs'),
         name: typeof g.name === 'string' && g.name.trim() ? g.name : `Poste ${num}`,
@@ -1554,6 +1555,10 @@ function migrateGameStations(raw: GameStation[] | undefined): GameStation[] {
         tvKind: kindOk ? g.tvKind : undefined,
         tvHost: typeof g.tvHost === 'string' ? g.tvHost : undefined,
         tvMac: typeof g.tvMac === 'string' ? g.tvMac : undefined,
+        tvAdbPort:
+          typeof g.tvAdbPort === 'number' && g.tvAdbPort > 0
+            ? Math.round(g.tvAdbPort)
+            : undefined,
         tvOnUrl: typeof g.tvOnUrl === 'string' ? g.tvOnUrl : undefined,
         tvOffUrl: typeof g.tvOffUrl === 'string' ? g.tvOffUrl : undefined,
       }
@@ -1569,7 +1574,7 @@ function buildDefaultGameStations(count = DEFAULT_GAME_STATION_COUNT): GameStati
       number,
       status: 'free' as const,
       consoleKind: 'ps4' as const,
-      tvKind: 'smart_tv' as const,
+      tvKind: 'google_tv' as const,
     }
   })
 }
@@ -1596,6 +1601,7 @@ export function updateGameStation(
       | 'tvKind'
       | 'tvHost'
       | 'tvMac'
+      | 'tvAdbPort'
       | 'tvOnUrl'
       | 'tvOffUrl'
       | 'clientLabel'
@@ -2890,7 +2896,7 @@ export function addGameStation(state: AppState, name?: string): AppState {
     number,
     status: 'free',
     consoleKind: 'ps4',
-    tvKind: 'smart_tv',
+    tvKind: 'google_tv',
   }
   return { ...state, gameStations: [...stations, station] }
 }

@@ -1,12 +1,20 @@
 # Relier les TV au logiciel (Wi‑Fi)
 
+## Google TV ?
+
+→ Guide dédié : **[GOOGLE-TV.md](./GOOGLE-TV.md)**  
+(Type **Google TV / Android TV** dans AZ POS = IP + débogage réseau.)
+
+---
+
 Oui : si la **Smart TV a le Wi‑Fi** (ou le câble LAN) et est sur le **même réseau** que le PC AZ POS, tu la relies **directement** — sans prise obligatoire.
 
 Deux façons (au choix par poste) :
 
 | Mode | Quand l’utiliser |
 |------|------------------|
-| **Smart TV (Wi‑Fi / LAN)** | La TV a une IP sur le réseau |
+| **Google TV / Android TV** | TCL, Hisense, Chromecast Google TV… |
+| **Smart TV (Wi‑Fi / LAN)** | Autre marque avec IP + MAC / URLs |
 | **Prise Shelly / Tasmota** | Plus simple / fiable pour couper l’alimentation |
 
 ## A) Smart TV avec Wi‑Fi (recommandé si elle est connectée)

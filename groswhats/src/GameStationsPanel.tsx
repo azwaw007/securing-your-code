@@ -501,6 +501,7 @@ function StationTile({
     tvKind?: TvControlKind
     tvHost?: string
     tvMac?: string
+    tvAdbPort?: number
     tvOnUrl?: string
     tvOffUrl?: string
     name?: string
@@ -699,6 +700,7 @@ function TvConfigForm({
     tvKind: TvControlKind
     tvHost: string
     tvMac: string
+    tvAdbPort?: number
     tvOnUrl: string
     tvOffUrl: string
   }) => void
@@ -706,20 +708,30 @@ function TvConfigForm({
   onTestOff: () => void
 }) {
   const [tvKind, setTvKind] = useState<TvControlKind>(
-    station.tvKind || 'smart_tv',
+    station.tvKind || 'google_tv',
   )
   const [tvHost, setTvHost] = useState(station.tvHost || '')
   const [tvMac, setTvMac] = useState(station.tvMac || '')
+  const [tvAdbPort, setTvAdbPort] = useState(
+    String(station.tvAdbPort || 5555),
+  )
   const [tvOnUrl, setTvOnUrl] = useState(station.tvOnUrl || '')
   const [tvOffUrl, setTvOffUrl] = useState(station.tvOffUrl || '')
 
-  const needsHost = tvKind === 'shelly' || tvKind === 'tasmota' || tvKind === 'smart_tv'
+  const needsHost =
+    tvKind === 'shelly' ||
+    tvKind === 'tasmota' ||
+    tvKind === 'smart_tv' ||
+    tvKind === 'google_tv'
   const needsUrls = tvKind === 'custom' || tvKind === 'smart_tv'
+  const needsMac = tvKind === 'smart_tv' || tvKind === 'google_tv'
 
   return (
     <div className="game-tv-form">
       <p className="muted" style={{ marginTop: 0, fontSize: '0.8rem' }}>
-        {t(lang, 'gameTvSmartHint')}
+        {tvKind === 'google_tv'
+          ? t(lang, 'gameTvGoogleHint')
+          : t(lang, 'gameTvSmartHint')}
       </p>
       <div className="field">
         <label>{t(lang, 'gameTvKind')}</label>
@@ -727,6 +739,7 @@ function TvConfigForm({
           value={tvKind}
           onChange={(e) => setTvKind(e.target.value as TvControlKind)}
         >
+          <option value="google_tv">{t(lang, 'gameTvGoogle')}</option>
           <option value="smart_tv">{t(lang, 'gameTvSmart')}</option>
           <option value="shelly">Shelly (prise Wi‑Fi)</option>
           <option value="tasmota">Tasmota / Sonoff</option>
@@ -736,9 +749,11 @@ function TvConfigForm({
       {needsHost ? (
         <div className="field">
           <label>
-            {tvKind === 'smart_tv'
-              ? t(lang, 'gameTvHostSmart')
-              : t(lang, 'gameTvHost')}
+            {tvKind === 'google_tv'
+              ? t(lang, 'gameTvHostGoogle')
+              : tvKind === 'smart_tv'
+                ? t(lang, 'gameTvHostSmart')
+                : t(lang, 'gameTvHost')}
           </label>
           <input
             value={tvHost}
@@ -749,7 +764,7 @@ function TvConfigForm({
           />
         </div>
       ) : null}
-      {tvKind === 'smart_tv' ? (
+      {needsMac ? (
         <div className="field">
           <label>{t(lang, 'gameTvMac')}</label>
           <input
@@ -761,6 +776,19 @@ function TvConfigForm({
           <p className="muted" style={{ margin: '4px 0 0', fontSize: '0.75rem' }}>
             {t(lang, 'gameTvMacHint')}
           </p>
+        </div>
+      ) : null}
+      {tvKind === 'google_tv' ? (
+        <div className="field">
+          <label>{t(lang, 'gameTvAdbPort')}</label>
+          <input
+            type="number"
+            min={1}
+            max={65535}
+            value={tvAdbPort}
+            onChange={(e) => setTvAdbPort(e.target.value)}
+            placeholder="5555"
+          />
         </div>
       ) : null}
       {needsUrls ? (
@@ -792,15 +820,20 @@ function TvConfigForm({
         <button
           type="button"
           className="btn"
-          onClick={() =>
+          onClick={() => {
+            const port = Math.round(Number(tvAdbPort))
             onSave({
               tvKind,
               tvHost: tvHost.trim(),
               tvMac: tvMac.trim(),
+              tvAdbPort:
+                tvKind === 'google_tv' && Number.isFinite(port) && port > 0
+                  ? port
+                  : undefined,
               tvOnUrl: tvOnUrl.trim(),
               tvOffUrl: tvOffUrl.trim(),
             })
-          }
+          }}
         >
           {t(lang, 'save')}
         </button>
