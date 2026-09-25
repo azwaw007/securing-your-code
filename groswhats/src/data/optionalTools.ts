@@ -5,8 +5,62 @@ import type {
   Screen,
   ShopSettings,
 } from '../types'
+import type { MetierFamily } from '../locale/metierPacks'
 
 export type { OptionalToolId, PaymentMethod }
+
+/** Outils recommandés par famille métier (réglages + accueil) */
+export const METIER_RECOMMENDED_TOOLS: Record<MetierFamily, OptionalToolId[]> = {
+  wholesale: ['payments', 'debtRemind', 'supplierDebts', 'inventory', 'creditLimit', 'exportCompta', 'fiscal', 'cashierPin'],
+  retail: ['payments', 'tpe', 'inventory', 'expiry', 'fiscal', 'cashierPin', 'debtRemind'],
+  grocery: ['payments', 'tpe', 'inventory', 'expiry', 'fiscal', 'cashierPin'],
+  bakery: ['payments', 'tpe', 'inventory', 'expiry', 'fiscal', 'cashierPin'],
+  butcher: ['payments', 'tpe', 'inventory', 'expiry', 'fiscal', 'cashierPin'],
+  restaurant: ['payments', 'tpe', 'fiscal', 'cashierPin', 'inventory'],
+  cafe: ['payments', 'tpe', 'fiscal', 'cashierPin'],
+  salon: ['payments', 'tpe', 'membership', 'fiscal', 'cashierPin'],
+  pressing: ['payments', 'tpe', 'fiscal', 'cashierPin'],
+  medical: ['payments', 'fiscal', 'exportCompta', 'cashierPin', 'creditLimit'],
+  dental: ['payments', 'fiscal', 'exportCompta', 'cashierPin', 'creditLimit'],
+  lab: ['payments', 'fiscal', 'exportCompta', 'expiry', 'cashierPin'],
+  radio: ['payments', 'fiscal', 'exportCompta', 'cashierPin'],
+  vet: ['payments', 'fiscal', 'exportCompta', 'expiry', 'cashierPin'],
+  kine: ['payments', 'membership', 'fiscal', 'cashierPin'],
+  optic: ['payments', 'tpe', 'fiscal', 'cashierPin', 'creditLimit'],
+  garage: ['payments', 'supplierDebts', 'inventory', 'fiscal', 'creditLimit', 'exportCompta'],
+  car_rental: ['payments', 'tpe', 'fiscal', 'creditLimit', 'exportCompta'],
+  car_sales: ['payments', 'fiscal', 'creditLimit', 'exportCompta', 'debtRemind'],
+  car_wash: ['payments', 'tpe', 'fiscal', 'cashierPin'],
+  parts: ['payments', 'inventory', 'supplierDebts', 'fiscal', 'creditLimit'],
+  legal: ['payments', 'fiscal', 'exportCompta', 'creditLimit'],
+  accounting: ['payments', 'fiscal', 'exportCompta'],
+  notary: ['payments', 'fiscal', 'exportCompta'],
+  realty: ['payments', 'fiscal', 'exportCompta', 'creditLimit'],
+  travel: ['payments', 'tpe', 'fiscal', 'exportCompta'],
+  hotel: ['payments', 'tpe', 'fiscal', 'membership', 'exportCompta'],
+  school: ['payments', 'membership', 'fiscal', 'exportCompta', 'debtRemind'],
+  gym: ['payments', 'membership', 'tpe', 'fiscal', 'cashierPin'],
+  boxing: ['payments', 'membership', 'fiscal', 'cashierPin'],
+  football: ['payments', 'membership', 'fiscal', 'cashierPin'],
+  yoga: ['payments', 'membership', 'fiscal', 'cashierPin'],
+  crossfit: ['payments', 'membership', 'fiscal', 'cashierPin'],
+  martial: ['payments', 'membership', 'fiscal', 'cashierPin'],
+  swim: ['payments', 'membership', 'fiscal', 'cashierPin'],
+  tennis: ['payments', 'membership', 'fiscal', 'cashierPin'],
+  danse: ['payments', 'membership', 'fiscal', 'cashierPin'],
+  musculation: ['payments', 'membership', 'fiscal', 'cashierPin'],
+  creche: ['payments', 'membership', 'fiscal', 'exportCompta', 'debtRemind'],
+  events: ['payments', 'tpe', 'fiscal', 'exportCompta'],
+  game_room: ['payments', 'tpe', 'fiscal', 'cashierPin', 'membership'],
+  photo: ['payments', 'tpe', 'fiscal', 'exportCompta'],
+  print: ['payments', 'tpe', 'inventory', 'fiscal', 'cashierPin'],
+  artisan: ['payments', 'supplierDebts', 'inventory', 'fiscal', 'creditLimit', 'exportCompta'],
+  transport: ['payments', 'fiscal', 'exportCompta', 'creditLimit', 'debtRemind'],
+  it_support: ['payments', 'fiscal', 'exportCompta', 'creditLimit'],
+  security: ['payments', 'fiscal', 'exportCompta', 'membership'],
+  spa: ['payments', 'membership', 'tpe', 'fiscal', 'cashierPin'],
+  generic_service: ['payments', 'fiscal', 'exportCompta', 'cashierPin'],
+}
 
 export const PAYMENT_METHODS: PaymentMethod[] = [
   'cash',
@@ -192,6 +246,19 @@ export function paymentMethodEmoji(method: PaymentMethod): string {
     cheque: '✍️',
   }
   return map[method]
+}
+
+/** Outils triés : recommandés métier d’abord, puis le reste */
+export function toolsForMetier(family: MetierFamily | undefined): OptionalToolDef[] {
+  const all = OPTIONAL_TOOLS
+  if (!family) return all
+  const pref = METIER_RECOMMENDED_TOOLS[family] || []
+  const prefSet = new Set(pref)
+  const first = pref
+    .map((id) => all.find((t) => t.id === id))
+    .filter((t): t is OptionalToolDef => !!t)
+  const rest = all.filter((t) => !prefSet.has(t.id))
+  return [...first, ...rest]
 }
 
 const PIN_SESSION_KEY = 'azpos_cashier_unlocked'

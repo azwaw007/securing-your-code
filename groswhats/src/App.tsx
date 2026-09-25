@@ -18,7 +18,9 @@ import type {
   FlashSaleLine,
   TeamRole,
 } from './types'
-import { ALL_UNITS, EXPENSE_CATEGORIES } from './types'
+import { EXPENSE_CATEGORIES } from './types'
+import { unitsForMetier } from './locale/unitsCatalog'
+import { DesktopChrome } from './DesktopChrome'
 import {
   addClient,
   addClientsBulk,
@@ -193,6 +195,7 @@ import {
 import { CashierPinGate, OptionalToolPage } from './OptionalTools'
 import {
   OPTIONAL_TOOLS,
+  toolsForMetier,
   OPTIONAL_TOOL_SCREENS,
   PAYMENT_METHODS,
   isCashierUnlocked,
@@ -541,6 +544,22 @@ export default function App() {
   const needSetup = !state.settings.setupDone || redoSetup
 
   return (
+    <DesktopChrome
+      lang={lang}
+      onLang={(l) => setState((s) => updateSettings(s, { language: l }))}
+      onGo={(s) =>
+        goTo(
+          s,
+          s === 'order'
+            ? vocab.sell
+            : s === 'clients'
+              ? vocab.client
+              : s === 'products'
+                ? vocab.product
+                : t(lang, s === 'profits' ? 'profitsTitle' : s),
+        )
+      }
+    >
     <div
       className={`app-shell mode-${state.settings.commerceMode || 'gros'} metier-${metier.family} ${screen === 'delivery' ? 'map-mode' : ''} ${
         state.settings.easyMode !== false ? 'easy-ui' : ''
@@ -1402,6 +1421,7 @@ export default function App() {
       </nav>
       ) : null}
     </div>
+    </DesktopChrome>
   )
 }
 
@@ -1902,7 +1922,10 @@ function SettingsPage({
             />
             <span>{t(lang, 'gallery')}</span>
           </label>
-          {OPTIONAL_TOOLS.map((tool) => (
+          {toolsForMetier(
+            metierPackFor(state.settings.domainId, state.settings.commerceMode)
+              .family,
+          ).map((tool) => (
             <label className="check-row" key={tool.id}>
               <input
                 type="checkbox"
@@ -1952,7 +1975,12 @@ function SettingsPage({
 
         <div className="notice">
           <strong>{t(lang, 'unitsAvailable')} :</strong>{' '}
-          {ALL_UNITS.map((u) => unitLabel(language, u)).join(' · ')}
+          {unitsForMetier(
+            metierPackFor(state.settings.domainId, state.settings.commerceMode)
+              .family,
+          )
+            .map((u) => unitLabel(language, u))
+            .join(' · ')}
         </div>
 
         <label className="field check-row">
@@ -2794,7 +2822,6 @@ function HomePage({
 
       <section className="home-hero">
         <div className="home-hero-text">
-          <div className="muted">{t(lang, 'todayStrip')}</div>
           <h2 className="home-shop">{state.settings.shopName || APP_BRAND.defaultShopName}</h2>
         </div>
         <GlobalSmartSearch
@@ -2814,34 +2841,25 @@ function HomePage({
             }
             setScanOpen(true)
           }}
+          aria-label={t(
+            lang,
+            isWholesale(mode)
+              ? 'homeScanTitleGros'
+              : mode === 'auto'
+                ? 'homeScanTitleAuto'
+                : 'homeScanTitleRetail',
+          )}
         >
           <span className="sell-cta-emoji">📷</span>
-          <span>
-            <strong>
-              {t(
-                lang,
-                isWholesale(mode)
-                  ? 'homeScanTitleGros'
-                  : mode === 'auto'
-                    ? 'homeScanTitleAuto'
-                    : 'homeScanTitleRetail',
-              )}
-            </strong>
-            <small>
-              {t(
-                lang,
-                isWholesale(mode)
-                  ? 'homeScanHintGros'
-                  : mode === 'auto'
-                    ? 'homeScanHintAuto'
-                    : 'homeScanHintRetail',
-              )}
-            </small>
-          </span>
         </button>
         ) : null}
         {!isDoctor ? (
-        <button type="button" className="sell-cta" onClick={() => onGo('order', vocab.sell)}>
+        <button
+          type="button"
+          className="sell-cta"
+          onClick={() => onGo('order', vocab.sell)}
+          aria-label={mcopy.primaryCta || vocab.sell}
+        >
           <span className="sell-cta-emoji">
             {mode === 'sante'
               ? '🩺'
@@ -2853,76 +2871,32 @@ function HomePage({
                     ? '📦'
                     : '🛒'}
           </span>
-          <span>
-            <strong>{mcopy.primaryCta || vocab.sell}</strong>
-            <small>{vocab.sellHint}</small>
-          </span>
         </button>
         ) : null}
         <button
           type="button"
           className="history-cta"
           onClick={() => onGo('history', t(lang, 'appHistory'))}
+          aria-label={mt(state.settings.commerceMode, lang, 'salesHistoryBtn')}
         >
           <span className="cal">📅</span>
-          <span>📜 {mt(state.settings.commerceMode, lang, 'salesHistoryBtn')}</span>
         </button>
-        <div className="home-chips">
-          <div className="home-chip">
-            <span>🧾 {mt(state.settings.commerceMode, lang, 'todayOrders')}</span>
-            <strong>{stats.todayCount}</strong>
-          </div>
-          <div className="home-chip accent">
-            <span>💵 {t(lang, 'cashToday')}</span>
-            <strong>{formatDa(stats.todayCash)}</strong>
-          </div>
-          <div className="home-chip">
-            <span>📊 {t(lang, 'todaySales')}</span>
-            <strong>{formatDa(stats.todayTotal)}</strong>
-          </div>
-          <div className="home-chip">
-            <span>✅ {t(lang, 'netToday')}</span>
-            <strong>{formatDa(stats.netToday)}</strong>
-          </div>
-          {stats.credits > 0 ? (
-            <div className="home-chip warn">
-              <span>📝 {t(lang, 'openCredits')}</span>
-              <strong>{formatDa(stats.credits)}</strong>
-            </div>
-          ) : null}
-          {stats.overdueCount > 0 ? (
-            <div className="home-chip warn">
-              <span>⏰ {t(lang, 'dueOverdue')}</span>
-              <strong>{stats.overdueCount}</strong>
-            </div>
-          ) : null}
-          {stats.pendingInbox > 0 && showDepotTools(state.settings.commerceMode) ? (
-            <div className="home-chip warn">
-              <span>📥 {t(lang, 'pendingIncoming')}</span>
-              <strong>{stats.pendingInbox}</strong>
-            </div>
-          ) : null}
-        </div>
       </section>
 
       {needsSetup ? (
         <section className="start-guide" aria-label={t(lang, 'startHere')}>
-          <h2>{t(lang, 'startHere')}</h2>
           <button type="button" className="start-step" onClick={() => onGo('products', vocab.product)}>
             <strong>1. {vocab.product}</strong>
-            <span className="muted">{vocab.sellHint}</span>
           </button>
           {!isShopRetail(state.settings.commerceMode) ? (
           <button type="button" className="start-step" onClick={() => onGo('clients', vocab.client)}>
             <strong>2. {vocab.client}</strong>
-            <span className="muted">{t(lang, 'startAddClientHint')}</span>
           </button>
           ) : null}
           <button type="button" className="start-step" onClick={() => onGo('order', vocab.sell)}>
             <strong>
               {isShopRetail(state.settings.commerceMode) ? '2' : '3'}. {vocab.sell}
             </strong>
-            <span className="muted">{vocab.sellHint}</span>
           </button>
         </section>
       ) : null}
@@ -3997,6 +3971,9 @@ function ProductsPage({
   const trackVariants = showRetailVariants(domainId)
   const trackOem = showOemRef(domainId)
   const showExpiry = isToolEnabled(state.settings, 'expiry')
+  const unitOptions = unitsForMetier(
+    metierPackFor(domainId, state.settings.commerceMode).family,
+  )
 
   const productSuggestions = useMemo(() => {
     const names = [
@@ -4121,7 +4098,7 @@ function ProductsPage({
           <div className="field">
             <label>{t(lang, 'unit')}</label>
             <select value={unit} onChange={(e) => setUnit(e.target.value as Unit)}>
-              {ALL_UNITS.map((u) => (
+              {unitOptions.map((u) => (
                 <option key={u} value={u}>
                   {t(lang, `unit_${u}`)}
                 </option>
@@ -4609,6 +4586,9 @@ function ProductEditCard({
   const trackVariants = showRetailVariants(domainId)
   const trackOem = showOemRef(domainId)
   const showExpiry = settings ? isToolEnabled(settings, 'expiry') : false
+  const unitOptions = unitsForMetier(
+    metierPackFor(domainId, commerceMode).family,
+  )
 
   return (
     <div className="card">
@@ -4662,7 +4642,7 @@ function ProductEditCard({
         <div className="field">
           <label>{t(lang, 'unit')}</label>
           <select value={unit} onChange={(e) => setUnit(e.target.value as Unit)}>
-            {ALL_UNITS.map((u) => (
+            {unitOptions.map((u) => (
               <option key={u} value={u}>
                 {t(lang, `unit_${u}`)}
               </option>
@@ -5683,7 +5663,6 @@ function OrderPage({
   const domainId = state.settings.domainId
   const wholesale = isWholesale(mode)
   const retail = isShopRetail(mode)
-  const vocab = shopVocab(mode, lang, domainId)
   const clientFirst = preferClientOnSale(mode, domainId)
   const [clientId, setClientId] = useState(
     clientFirst && state.clients[0] ? state.clients[0].id : QUICK,
@@ -6216,17 +6195,6 @@ function OrderPage({
       <div className="pos-shell">
         <div className="pos-main">
       <div className="card">
-        <h2>
-          {wholesale
-            ? `📦 ${t(lang, 'newOrderGros')}`
-            : mode === 'sante'
-              ? `🩺 ${vocab.sell}`
-              : mode === 'services'
-                ? `🧾 ${vocab.sell}`
-                : mode === 'auto'
-                  ? `🚗 ${vocab.sell}`
-                  : `🛒 ${vocab.sell}`}
-        </h2>
         {wholesale || showClientBook ? (
         <>
         <div className="choice-grid">
@@ -6237,10 +6205,9 @@ function OrderPage({
               setClientId(QUICK)
               setPayStep(false)
             }}
+            aria-label={mt(state.settings.commerceMode, lang, 'quickSale')}
           >
             <span className="choice-emoji">⚡</span>
-            <strong>{mt(state.settings.commerceMode, lang, 'quickSale')}</strong>
-            <span className="muted">{mt(state.settings.commerceMode, lang, 'quickSaleHintShort')}</span>
           </button>
           <button
             type="button"
@@ -6248,10 +6215,9 @@ function OrderPage({
             onClick={() => {
               if (isQuick && state.clients[0]) setClientId(state.clients[0].id)
             }}
+            aria-label={t(lang, 'client')}
           >
             <span className="choice-emoji">👤</span>
-            <strong>{t(lang, 'client')}</strong>
-            <span className="muted">{t(lang, 'pickClientHint')}</span>
           </button>
         </div>
 
@@ -6284,7 +6250,6 @@ function OrderPage({
                     <span className="client-avatar">{c.name.slice(0, 1).toUpperCase()}</span>
                     <span className="client-pick-text">
                       <strong>{c.name}</strong>
-                      <span className="muted">{c.phone || c.city || '—'}</span>
                       {debt > 0 ? (
                         <span className="warn-text">{formatDa(debt)}</span>
                       ) : null}
@@ -6294,13 +6259,11 @@ function OrderPage({
               })
             )}
           </div>
-        ) : (
-          <div className="notice">{mt(state.settings.commerceMode, lang, 'quickSaleHint')}</div>
-        )}
+        ) : null}
 
         {!isQuick && client && clientDebt > 0 ? (
           <div className="notice warn">
-            ⚠️ {t(lang, 'clientBalance')} : <strong>{formatDa(clientDebt)}</strong>
+            <strong>{formatDa(clientDebt)}</strong>
           </div>
         ) : null}
         </>
@@ -6309,23 +6272,17 @@ function OrderPage({
             type="button"
             className="btn ghost block"
             onClick={() => setShowClientBook(true)}
+            aria-label={t(lang, 'retailClientBook')}
           >
-            👤 {t(lang, 'retailClientBook')}
+            👤
           </button>
         )}
       </div>
 
       <div className="card">
-        <h2>
-          {wholesale
-            ? `📦 ${t(lang, 'productCatalog')}`
-            : isShopRetail(mode)
-              ? `🛍️ ${t(lang, 'productCatalogRetail')}`
-              : `${mode === 'sante' || mode === 'auto' || mode === 'services' ? '📦' : '📝'} ${vocab.product}`}
-        </h2>
         {!isQuick && client ? (
           <div className="muted" style={{ marginBottom: 10 }}>
-            {mt(state.settings.commerceMode, lang, 'catalogForClient')} : <strong>{client.name}</strong>
+            <strong>{client.name}</strong>
           </div>
         ) : null}
         {showHomeScan(mode, domainId) ? (
