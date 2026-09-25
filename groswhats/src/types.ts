@@ -513,6 +513,8 @@ export interface GameStation {
   startedAt?: string
   /** Minutes payées / ajoutées sur la session courante */
   paidMinutes?: number
+  /** Minutes gratuites ajoutées sur la session courante */
+  freeMinutes?: number
   /** Nom joueur / ticket (optionnel) */
   clientLabel?: string
   note?: string
@@ -682,6 +684,11 @@ export interface ShopSettings {
   gamePricePerMinuteDa?: number
   /** Tarifs PS4 / PS5 — heure et match */
   gameTariffs?: GameTariffs
+  /**
+   * Plafond minutes gratuites (mode heure) par ajout — défaut 30.
+   * Match / prolongation = 1 unité gratuite (durée tarif).
+   */
+  gameFreeMaxMinutes?: number
   /** Vendeur / admin actuellement connecté sur cet appareil */
   currentSellerId?: string
   /** Identité fiscale magasin (outil fiscal) */
@@ -795,6 +802,27 @@ export interface PosSeller {
   pin: string
   active: boolean
   createdAt: string
+  /**
+   * Autorisé par l’admin à ajouter des minutes gratuites
+   * (heure / match / prolongation) sur les postes.
+   */
+  canGrantFreeMinutes?: boolean
+}
+
+/** Journal des minutes gratuites salle de jeux */
+export interface GameFreeMinuteEntry {
+  id: string
+  stationId: string
+  stationName: string
+  consoleKind: GameConsoleKind
+  /** heure | match | prolongation */
+  mode: 'hour' | 'match' | 'extra'
+  minutes: number
+  sellerId?: string
+  sellerName?: string
+  clientLabel?: string
+  createdAt: string
+  note?: string
 }
 
 export type MissionStatus = 'draft' | 'assigned' | 'in_progress' | 'done'
@@ -887,6 +915,8 @@ export interface AppState {
   tables: FloorTable[]
   /** Postes PlayStation (salle de jeux) */
   gameStations: GameStation[]
+  /** Journal minutes gratuites (salle de jeux) */
+  gameFreeMinutes: GameFreeMinuteEntry[]
   /** Ordres de réparation (garage, atelier…) */
   repairOrders: RepairOrder[]
   /** Mémoire scan facture : nom OCR → produit (corrections utilisateur) */

@@ -6,11 +6,13 @@ import {
   currentSeller,
   deleteSeller,
   ensureGameStations,
+  gameFreeMaxMinutes,
   resolveGameTariffs,
   setCurrentSeller,
   stationConsole,
   tariffForConsole,
   updateGameStation,
+  updateSeller,
   updateSettings,
   verifyAdminPin,
 } from './store'
@@ -241,7 +243,36 @@ export function SellersPanel({
                     ? t(lang, 'sellerRoleAdmin')
                     : t(lang, 'sellerRoleVendeur')}
                   {s.pin ? ' · PIN' : ''}
+                  {s.role === 'vendeur' ? (
+                    <>
+                      {' · '}
+                      {s.canGrantFreeMinutes
+                        ? t(lang, 'gameFreeAllowOn')
+                        : t(lang, 'gameFreeAllowOff')}
+                    </>
+                  ) : null}
                 </div>
+                {unlocked && s.role === 'vendeur' ? (
+                  <label className="field check-row" style={{ marginTop: 6 }}>
+                    <input
+                      type="checkbox"
+                      checked={s.canGrantFreeMinutes === true}
+                      onChange={(e) => {
+                        onState(
+                          updateSeller(state, s.id, {
+                            canGrantFreeMinutes: e.target.checked,
+                          }),
+                        )
+                        onFlash(
+                          e.target.checked
+                            ? `${s.name} · ${t(lang, 'gameFreeAllowOn')}`
+                            : `${s.name} · ${t(lang, 'gameFreeAllowOff')}`,
+                        )
+                      }}
+                    />
+                    <span>{t(lang, 'gameFreeAllow')}</span>
+                  </label>
+                ) : null}
               </div>
               <div className="btn-row">
                 <button
@@ -305,6 +336,7 @@ export function GamePriceAdminCard({
   )
   const [matchMin, setMatchMin] = useState(String(tariffs.matchMinutes))
   const [extraMin, setExtraMin] = useState(String(tariffs.extraRoundMinutes))
+  const [freeCap, setFreeCap] = useState(String(gameFreeMaxMinutes(state)))
 
   function unlock() {
     if (!verifyAdminPin(state, pin)) {
@@ -501,8 +533,89 @@ export function GamePriceAdminCard({
             onState={onState}
             onFlash={onFlash}
           />
+
+          <hr style={{ margin: '16px 0', border: 0, borderTop: '1px solid var(--line)' }} />
+          <h3 style={{ margin: '0 0 6px' }}>{t(lang, 'gameFreeTitle')}</h3>
+          <p className="muted" style={{ marginTop: 0 }}>
+            {t(lang, 'gameFreeHint')}
+          </p>
+          <div className="field">
+            <label>{t(lang, 'gameFreeCap')}</label>
+            <input
+              type="number"
+              min={1}
+              max={180}
+              value={freeCap}
+              onChange={(e) => setFreeCap(e.target.value)}
+            />
+          </div>
+          <button
+            type="button"
+            className="btn secondary block"
+            onClick={() => {
+              const n = Math.round(Number(freeCap))
+              if (!Number.isFinite(n) || n < 1 || n > 180) {
+                onFlash(t(lang, 'gameFreeCapBad'))
+                return
+              }
+              onState(updateSettings(state, { gameFreeMaxMinutes: n }))
+              onFlash(t(lang, 'gameFreeCapSaved'))
+            }}
+          >
+            {t(lang, 'save')}
+          </button>
+          <p className="muted" style={{ marginTop: 10 }}>
+            {t(lang, 'gameFreeLog')}
+          </p>
+          <GameFreeMinutesLog state={state} lang={lang} />
         </>
       )}
+    </div>
+  )
+}
+
+function GameFreeMinutesLog({
+  state,
+  lang,
+}: {
+  state: AppState
+  lang: Language
+}) {
+  const logs = (state.gameFreeMinutes ?? []).slice(0, 20)
+  if (logs.length === 0) {
+    return <div className="empty">{t(lang, 'gameFreeLogEmpty')}</div>
+  }
+  return (
+    <div className="game-free-log">
+      {logs.map((e) => {
+        const when = e.createdAt
+          ? new Date(e.createdAt).toLocaleString(
+              lang === 'ar' ? 'ar-DZ' : 'fr-DZ',
+              { dateStyle: 'short', timeStyle: 'short' },
+            )
+          : ''
+        const modeLabel =
+          e.mode === 'match'
+            ? t(lang, 'gameMatchShort')
+            : e.mode === 'extra'
+              ? t(lang, 'gameExtraShort')
+              : t(lang, 'gameMinShort')
+        return (
+          <div key={e.id} className="list-item game-free-log-row">
+            <div>
+              <strong>
+                {e.stationName} · {e.minutes} min · {modeLabel}
+              </strong>
+              <div className="muted">
+                {e.sellerName || '—'}
+                {e.clientLabel ? ` · ${e.clientLabel}` : ''}
+                {when ? ` · ${when}` : ''}
+              </div>
+            </div>
+            <span className="game-free-badge">{t(lang, 'gameFreeShort')}</span>
+          </div>
+        )
+      })}
     </div>
   )
 }

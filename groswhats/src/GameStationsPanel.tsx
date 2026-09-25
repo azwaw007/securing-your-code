@@ -13,10 +13,13 @@ import {
   ensureGameStations,
   expireGameStations,
   freeGameStation,
+  gameFreeMaxMinutes,
+  grantGameFreeMinutes,
   removeGameStation,
   resolveGameTariffs,
   setGameStationStandby,
   setGameStationCount,
+  sellerCanGrantFreeMinutes,
   stationConsole,
   stationMatchMinutes,
   tariffForConsole,
@@ -30,6 +33,7 @@ import {
 import { playBarcodeError, playCash } from './utils/sfx'
 
 const HOUR_PRESETS = [15, 30, 60, 120] as const
+const FREE_MIN_PRESETS = [5, 10, 15] as const
 
 function formatRemaining(endsAt: string | undefined, now: number): string {
   if (!endsAt) return '—'
@@ -186,6 +190,58 @@ export function GameStationsPanel({
     }
   }
 
+  async function applyFree(
+    st: GameStation,
+    mode: 'hour' | 'match' | 'extra',
+    opts: { minutes?: number; matches?: number; matchMinutes?: number },
+  ) {
+    if (!sellerCanGrantFreeMinutes(state)) {
+      onFlash(t(lang, 'gameFreeDenied'))
+      return
+    }
+    const wasFree = st.status !== 'active'
+    const label = labelDraft.trim() || st.clientLabel
+    const res = grantGameFreeMinutes(state, {
+      stationId: st.id,
+      mode,
+      minutes: opts.minutes,
+      matches: opts.matches,
+      matchMinutes: opts.matchMinutes,
+      clientLabel: label,
+    })
+    if (!res.ok) {
+      if (res.reason === 'denied') onFlash(t(lang, 'gameFreeDenied'))
+      else if (res.reason === 'cap') {
+        onFlash(
+          t(lang, 'gameFreeCapHit').replace(
+            '{max}',
+            String(gameFreeMaxMinutes(state)),
+          ),
+        )
+      } else onFlash(t(lang, 'gamePriceBad'))
+      return
+    }
+    onState(res.state)
+    playCash()
+    onFlash(
+      t(lang, 'gameFreeGranted')
+        .replace('{name}', st.name)
+        .replace('{min}', String(res.minutes)),
+    )
+    setLabelDraft('')
+    if (wasFree && stationHasTvControl(st)) {
+      const updated = res.state.gameStations.find((g) => g.id === st.id) || st
+      const tv = await turnTvOn(updated)
+      if (tv.ok) onFlash(t(lang, 'gameTvOnOk').replace('{name}', st.name))
+      else if (tv.reason === 'network') {
+        onFlash(t(lang, 'gameTvOnFail').replace('{name}', st.name))
+      }
+    }
+  }
+
+  const canFree = sellerCanGrantFreeMinutes(state)
+  const freeCap = gameFreeMaxMinutes(state)
+
   return (
     <section className="card game-stations">
       <div className="game-stations-head">
@@ -330,6 +386,21 @@ export function GameStationsPanel({
                   matchMinutes: tariffs.extraRoundMinutes,
                 })
               }
+              canFree={canFree}
+              freeCap={freeCap}
+              onFreeHour={(minutes) => void applyFree(st, 'hour', { minutes })}
+              onFreeMatch={() =>
+                void applyFree(st, 'match', {
+                  matches: 1,
+                  matchMinutes: stationMatchMinutes(state, st),
+                })
+              }
+              onFreeExtra={() =>
+                void applyFree(st, 'extra', {
+                  matches: 1,
+                  matchMinutes: tariffs.extraRoundMinutes,
+                })
+              }
               onStandby={async () => {
                 onState(setGameStationStandby(state, st.id))
                 onFlash(t(lang, 'gameStandbyOk').replace('{name}', st.name))
@@ -396,6 +467,11 @@ function StationTile({
   onHour,
   onMatch,
   onExtra,
+  canFree,
+  freeCap,
+  onFreeHour,
+  onFreeMatch,
+  onFreeExtra,
   onStandby,
   onFree,
   onRemove,
@@ -413,6 +489,11 @@ function StationTile({
   onHour: (minutes: number) => void
   onMatch: () => void
   onExtra: () => void
+  canFree: boolean
+  freeCap: number
+  onFreeHour: (minutes: number) => void
+  onFreeMatch: () => void
+  onFreeExtra: () => void
   onStandby: () => void | Promise<void>
   onFree: () => void
   onRemove: () => void
@@ -434,6 +515,7 @@ function StationTile({
   const hourDa = tariff.hourDa
   const matchDa = tariff.matchDa
   const extraDa = tariff.extraRoundDa
+  const freePresets = FREE_MIN_PRESETS.filter((m) => m <= freeCap)
 
   const tileClass = [
     'game-tile',
@@ -475,6 +557,9 @@ function StationTile({
                 ? ` · ${extraDa} DA/${t(lang, 'gameExtraShort')}`
                 : ''
             }`}
+        {st.freeMinutes && st.freeMinutes > 0
+          ? ` · ${t(lang, 'gameFreeSession').replace('{n}', String(st.freeMinutes))}`
+          : ''}
       </div>
 
       <div className="game-presets">
@@ -515,6 +600,56 @@ function StationTile({
           </button>
         ) : null}
       </div>
+
+      {canFree ? (
+        <div className="game-free-actions">
+          <div className="muted game-free-label">{t(lang, 'gameFreeShort')}</div>
+          <div className="game-presets">
+            {freePresets.map((m) => (
+              <button
+                key={`f${m}`}
+                type="button"
+                className="btn ghost game-free-btn"
+                onClick={() => onFreeHour(m)}
+              >
+                +{m}′
+              </button>
+            ))}
+            {customMin ? (
+              <button
+                type="button"
+                className="btn ghost game-free-btn"
+                onClick={() => {
+                  const m = Math.round(Number(customMin))
+                  if (m >= 1) onFreeHour(m)
+                }}
+              >
+                +{customMin}′
+              </button>
+            ) : null}
+          </div>
+          <div className="btn-row game-tile-actions">
+            {matchDa > 0 || matchMin > 0 ? (
+              <button
+                type="button"
+                className="btn ghost game-free-btn"
+                onClick={onFreeMatch}
+              >
+                {t(lang, 'gameFreeMatch')}
+              </button>
+            ) : null}
+            {extraDa > 0 ? (
+              <button
+                type="button"
+                className="btn ghost game-free-btn"
+                onClick={onFreeExtra}
+              >
+                {t(lang, 'gameFreeExtra')}
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       <div className="btn-row game-tile-actions">
         {st.status === 'active' ? (

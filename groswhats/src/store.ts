@@ -45,6 +45,7 @@ import type {
   GameConsoleKind,
   GameConsoleTariff,
   GameTariffs,
+  GameFreeMinuteEntry,
   RepairOrder,
   InvoiceProductAlias,
 } from './types'
@@ -112,6 +113,7 @@ function defaultSettings(): ShopSettings {
     adminPin: undefined,
     gamePricePerMinuteDa: 7,
     gameTariffs: { ...DEFAULT_GAME_TARIFFS },
+    gameFreeMaxMinutes: 30,
     currentSellerId: undefined,
   }
 }
@@ -412,6 +414,7 @@ function seedState(): AppState {
     appointments: [],
     tables: [],
     gameStations: [],
+    gameFreeMinutes: [],
     repairOrders: [],
     invoiceAliases: [],
   }
@@ -504,6 +507,11 @@ export function migrate(raw: unknown): AppState {
         ? +incoming.gamePricePerMinuteDa.toFixed(2)
         : DEFAULT_GAME_PRICE_PER_MINUTE_DA,
     gameTariffs: migrateGameTariffs(incoming.gameTariffs, incoming.gamePricePerMinuteDa),
+    gameFreeMaxMinutes:
+      typeof incoming.gameFreeMaxMinutes === 'number' &&
+      incoming.gameFreeMaxMinutes >= 1
+        ? Math.min(180, Math.round(incoming.gameFreeMaxMinutes))
+        : 30,
     currentSellerId:
       typeof incoming.currentSellerId === 'string' && incoming.currentSellerId
         ? incoming.currentSellerId
@@ -1015,6 +1023,9 @@ export function migrate(raw: unknown): AppState {
         note: typeof tb.note === 'string' ? tb.note : undefined,
       })),
     gameStations: migrateGameStations(data.gameStations),
+    gameFreeMinutes: migrateGameFreeMinutes(
+      (data as { gameFreeMinutes?: GameFreeMinuteEntry[] }).gameFreeMinutes,
+    ),
     repairOrders: (data.repairOrders ?? [])
       .filter((r) => r && typeof r.title === 'string')
       .map((r) => ({
@@ -1525,6 +1536,10 @@ function migrateGameStations(raw: GameStation[] | undefined): GameStation[] {
           typeof g.paidMinutes === 'number' && g.paidMinutes > 0
             ? g.paidMinutes
             : undefined,
+        freeMinutes:
+          typeof g.freeMinutes === 'number' && g.freeMinutes > 0
+            ? Math.round(g.freeMinutes)
+            : undefined,
         clientLabel: typeof g.clientLabel === 'string' ? g.clientLabel : undefined,
         note: typeof g.note === 'string' ? g.note : undefined,
         consoleKind: normalizeConsoleKind(g.consoleKind),
@@ -1590,15 +1605,17 @@ export function updateGameStation(
   }
 }
 
-/** Démarre ou prolonge une session (minutes payées). */
+/** Démarre ou prolonge une session (minutes payées ou gratuites). */
 export function addGameStationTime(
   state: AppState,
   id: string,
   minutes: number,
   clientLabel?: string,
+  opts?: { free?: boolean },
 ): AppState {
   const mins = Math.max(1, Math.round(minutes))
   const now = Date.now()
+  const free = opts?.free === true
   return {
     ...state,
     gameStations: (state.gameStations ?? []).map((g) => {
@@ -1608,12 +1625,22 @@ export function addGameStationTime(
           ? Math.max(now, new Date(g.endsAt).getTime())
           : now
       const endsAt = new Date(base + mins * 60_000).toISOString()
+      const wasActive = g.status === 'active'
       return {
         ...g,
         status: 'active' as const,
-        startedAt: g.status === 'active' && g.startedAt ? g.startedAt : new Date(now).toISOString(),
+        startedAt: wasActive && g.startedAt ? g.startedAt : new Date(now).toISOString(),
         endsAt,
-        paidMinutes: (g.status === 'active' ? g.paidMinutes || 0 : 0) + mins,
+        paidMinutes: free
+          ? wasActive
+            ? g.paidMinutes
+            : undefined
+          : (wasActive ? g.paidMinutes || 0 : 0) + mins,
+        freeMinutes: free
+          ? (wasActive ? g.freeMinutes || 0 : 0) + mins
+          : wasActive
+            ? g.freeMinutes
+            : undefined,
         clientLabel:
           clientLabel !== undefined
             ? clientLabel
@@ -1653,6 +1680,7 @@ export function freeGameStation(state: AppState, id: string): AppState {
             endsAt: undefined,
             startedAt: undefined,
             paidMinutes: undefined,
+            freeMinutes: undefined,
             clientLabel: undefined,
           }
         : g,
@@ -2732,8 +2760,32 @@ function migrateSellers(raw: PosSeller[] | undefined): PosSeller[] {
       pin: String(s.pin || '').replace(/\D/g, '').slice(0, 6),
       active: s.active !== false,
       createdAt: s.createdAt || new Date().toISOString(),
+      canGrantFreeMinutes: s.canGrantFreeMinutes === true,
     }))
   return mapped.length > 0 ? mapped : defaultSellers()
+}
+
+function migrateGameFreeMinutes(
+  raw: GameFreeMinuteEntry[] | undefined,
+): GameFreeMinuteEntry[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .filter((e) => e && typeof e.stationId === 'string' && e.minutes > 0)
+    .slice(0, 500)
+    .map((e) => ({
+      id: e.id || uid('gfm'),
+      stationId: e.stationId,
+      stationName: typeof e.stationName === 'string' ? e.stationName : '',
+      consoleKind: normalizeConsoleKind(e.consoleKind),
+      mode:
+        e.mode === 'match' || e.mode === 'extra' ? e.mode : ('hour' as const),
+      minutes: Math.round(e.minutes),
+      sellerId: typeof e.sellerId === 'string' ? e.sellerId : undefined,
+      sellerName: typeof e.sellerName === 'string' ? e.sellerName : undefined,
+      clientLabel: typeof e.clientLabel === 'string' ? e.clientLabel : undefined,
+      createdAt: e.createdAt || new Date().toISOString(),
+      note: typeof e.note === 'string' ? e.note : undefined,
+    }))
 }
 
 export function currentSeller(state: AppState): PosSeller | undefined {
@@ -2788,6 +2840,10 @@ export function updateSeller(
                 ? String(patch.pin).replace(/\D/g, '').slice(0, 6)
                 : s.pin,
             role: patch.role === 'admin' || patch.role === 'vendeur' ? patch.role : s.role,
+            canGrantFreeMinutes:
+              patch.canGrantFreeMinutes !== undefined
+                ? patch.canGrantFreeMinutes === true
+                : s.canGrantFreeMinutes,
           }
         : s,
     ),
@@ -3149,6 +3205,119 @@ export function billGameSession(
     sellerName: seller?.name,
   })
   return { state: next, totalDa, minutes, label }
+}
+
+/** Admin toujours ; vendeur seulement si autorisé. */
+export function sellerCanGrantFreeMinutes(state: AppState): boolean {
+  const s = currentSeller(state)
+  if (!s) return false
+  if (s.role === 'admin') return true
+  return s.canGrantFreeMinutes === true
+}
+
+export function gameFreeMaxMinutes(state: AppState): number {
+  const n = state.settings.gameFreeMaxMinutes
+  if (typeof n === 'number' && n >= 1) return Math.min(180, Math.round(n))
+  return 30
+}
+
+/**
+ * Ajoute du temps gratuit (heure / match / prolongation).
+ * Enregistre une ligne « minute gratuite » — 0 DA en caisse.
+ */
+export function grantGameFreeMinutes(
+  state: AppState,
+  input: {
+    stationId: string
+    mode: GameBillMode
+    minutes?: number
+    matches?: number
+    matchMinutes?: number
+    clientLabel?: string
+  },
+): {
+  state: AppState
+  minutes: number
+  label: string
+  ok: boolean
+  reason?: 'denied' | 'bad' | 'cap'
+} {
+  if (!sellerCanGrantFreeMinutes(state)) {
+    return { state, minutes: 0, label: '', ok: false, reason: 'denied' }
+  }
+
+  const station = state.gameStations.find((g) => g.id === input.stationId)
+  if (!station) {
+    return { state, minutes: 0, label: '', ok: false, reason: 'bad' }
+  }
+
+  const consoleKind = stationConsole(station)
+  const consoleLabel = tariffForConsole(state, consoleKind).label
+  const matchPrice = matchRateDa(state, consoleKind)
+  const extraPrice = extraRoundRateDa(state, consoleKind)
+  const cap = gameFreeMaxMinutes(state)
+
+  let minutes = 0
+  let label = ''
+
+  if (input.mode === 'extra') {
+    if (extraPrice <= 0 && !input.matchMinutes) {
+      return { state, minutes: 0, label: '', ok: false, reason: 'bad' }
+    }
+    const count = Math.max(1, Math.round(input.matches || 1))
+    const extraMin =
+      input.matchMinutes && input.matchMinutes > 0
+        ? Math.round(input.matchMinutes)
+        : stationExtraRoundMinutes(state)
+    minutes = extraMin * count
+    label = `${station.name} ${consoleLabel} · Prolongation gratuite (${extraMin} min)`
+  } else if (input.mode === 'match') {
+    const matchCount = Math.max(1, Math.round(input.matches || 1))
+    const matchMin =
+      input.matchMinutes && input.matchMinutes > 0
+        ? Math.round(input.matchMinutes)
+        : stationMatchMinutes(state, station)
+    if (matchPrice <= 0 && matchMin < 1) {
+      return { state, minutes: 0, label: '', ok: false, reason: 'bad' }
+    }
+    minutes = matchMin * matchCount
+    label = `${station.name} ${consoleLabel} · Match gratuit (${matchMin} min)`
+  } else {
+    minutes = Math.max(1, Math.round(input.minutes || 5))
+    if (minutes > cap) {
+      return { state, minutes: 0, label: '', ok: false, reason: 'cap' }
+    }
+    label = `${station.name} ${consoleLabel} · ${minutes} min gratuites`
+  }
+
+  if (minutes < 1) {
+    return { state, minutes: 0, label: '', ok: false, reason: 'bad' }
+  }
+
+  let next = addGameStationTime(state, input.stationId, minutes, input.clientLabel, {
+    free: true,
+  })
+
+  const seller = currentSeller(next)
+  const entry: GameFreeMinuteEntry = {
+    id: uid('gfm'),
+    stationId: station.id,
+    stationName: station.name,
+    consoleKind,
+    mode: input.mode,
+    minutes,
+    sellerId: seller?.id,
+    sellerName: seller?.name,
+    clientLabel: input.clientLabel?.trim() || station.clientLabel,
+    createdAt: new Date().toISOString(),
+    note: label,
+  }
+  next = {
+    ...next,
+    gameFreeMinutes: [entry, ...(next.gameFreeMinutes ?? [])].slice(0, 500),
+  }
+
+  return { state: next, minutes, label, ok: true }
 }
 
 /** @deprecated utiliser billGameSession */
