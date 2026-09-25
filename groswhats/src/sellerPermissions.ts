@@ -117,6 +117,7 @@ const SCREEN_PERM: Partial<Record<Screen, SellerPermId>> = {
   tpe: 'sell',
   agent: 'exportData',
   calculator: 'sell',
+  production: 'editStock',
 }
 
 function sellerFromState(state: AppState): PosSeller | undefined {

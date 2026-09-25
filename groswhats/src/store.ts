@@ -49,6 +49,9 @@ import type {
   GameFreeMinuteEntry,
   RepairOrder,
   InvoiceProductAlias,
+  Recipe,
+  RecipeIngredient,
+  ProductionRun,
 } from './types'
 import {
   DEFAULT_AGENT_PERMISSIONS,
@@ -448,6 +451,8 @@ function seedState(): AppState {
     gameFreeMinutes: [],
     repairOrders: [],
     invoiceAliases: [],
+    recipes: [],
+    productionRuns: [],
   }
 }
 
@@ -480,6 +485,8 @@ export function migrate(raw: unknown): AppState {
     gameStations?: GameStation[]
     repairOrders?: RepairOrder[]
     invoiceAliases?: InvoiceProductAlias[]
+    recipes?: Recipe[]
+    productionRuns?: ProductionRun[]
   }
   const incoming = data.settings ?? {}
   const defaults = defaultSettings()
@@ -1094,6 +1101,8 @@ export function migrate(raw: unknown): AppState {
           }))
           .slice(0, 500)
       : [],
+    recipes: migrateRecipes(data.recipes),
+    productionRuns: migrateProductionRuns(data.productionRuns),
   }
   return ensureDefaultLocation(base)
 }
@@ -1980,6 +1989,227 @@ export function deleteRepairOrder(state: AppState, id: string): AppState {
   return {
     ...state,
     repairOrders: (state.repairOrders ?? []).filter((r) => r.id !== id),
+  }
+}
+
+function migrateRecipes(raw: Recipe[] | undefined): Recipe[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .filter(
+      (r) =>
+        r &&
+        typeof r.name === 'string' &&
+        r.name.trim() &&
+        typeof r.outputProductId === 'string' &&
+        r.outputProductId,
+    )
+    .map((r) => ({
+      id: r.id || uid('rcp'),
+      name: r.name.trim(),
+      outputProductId: r.outputProductId,
+      ingredients: Array.isArray(r.ingredients)
+        ? r.ingredients
+            .filter(
+              (ing): ing is RecipeIngredient =>
+                !!ing &&
+                typeof ing.productId === 'string' &&
+                ing.productId.length > 0 &&
+                typeof ing.qtyPerUnit === 'number' &&
+                ing.qtyPerUnit > 0,
+            )
+            .map((ing) => ({
+              productId: ing.productId,
+              qtyPerUnit: ing.qtyPerUnit,
+            }))
+        : [],
+      note: typeof r.note === 'string' ? r.note : undefined,
+      createdAt: r.createdAt || new Date().toISOString(),
+      updatedAt: typeof r.updatedAt === 'string' ? r.updatedAt : undefined,
+    }))
+    .slice(0, 200)
+}
+
+function migrateProductionRuns(raw: ProductionRun[] | undefined): ProductionRun[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .filter(
+      (r) =>
+        r &&
+        typeof r.recipeId === 'string' &&
+        typeof r.qtyProduced === 'number' &&
+        r.qtyProduced > 0,
+    )
+    .map((r) => ({
+      id: r.id || uid('prod'),
+      recipeId: r.recipeId,
+      recipeName: typeof r.recipeName === 'string' ? r.recipeName : '',
+      outputProductId:
+        typeof r.outputProductId === 'string' ? r.outputProductId : '',
+      outputName: typeof r.outputName === 'string' ? r.outputName : '',
+      qtyProduced: r.qtyProduced,
+      consumed: Array.isArray(r.consumed)
+        ? r.consumed
+            .filter(
+              (c) =>
+                c &&
+                typeof c.productId === 'string' &&
+                typeof c.qty === 'number' &&
+                c.qty > 0,
+            )
+            .map((c) => ({
+              productId: c.productId,
+              name: typeof c.name === 'string' ? c.name : '',
+              qty: c.qty,
+            }))
+        : [],
+      unitCostDa:
+        typeof r.unitCostDa === 'number' && r.unitCostDa >= 0
+          ? r.unitCostDa
+          : undefined,
+      locationId:
+        typeof r.locationId === 'string' && r.locationId
+          ? r.locationId
+          : DEFAULT_LOCATION_ID,
+      createdAt: r.createdAt || new Date().toISOString(),
+    }))
+    .slice(0, 500)
+}
+
+export function addRecipe(
+  state: AppState,
+  input: Omit<Recipe, 'id' | 'createdAt' | 'updatedAt'>,
+): AppState {
+  const now = new Date().toISOString()
+  const recipe: Recipe = {
+    ...input,
+    name: input.name.trim(),
+    ingredients: input.ingredients.filter((i) => i.qtyPerUnit > 0),
+    id: uid('rcp'),
+    createdAt: now,
+  }
+  return { ...state, recipes: [recipe, ...(state.recipes ?? [])] }
+}
+
+export function updateRecipe(
+  state: AppState,
+  id: string,
+  patch: Partial<Omit<Recipe, 'id' | 'createdAt'>>,
+): AppState {
+  return {
+    ...state,
+    recipes: (state.recipes ?? []).map((r) =>
+      r.id === id
+        ? {
+            ...r,
+            ...patch,
+            name: patch.name !== undefined ? patch.name.trim() : r.name,
+            ingredients: patch.ingredients
+              ? patch.ingredients.filter((i) => i.qtyPerUnit > 0)
+              : r.ingredients,
+            updatedAt: new Date().toISOString(),
+          }
+        : r,
+    ),
+  }
+}
+
+export function deleteRecipe(state: AppState, id: string): AppState {
+  return {
+    ...state,
+    recipes: (state.recipes ?? []).filter((r) => r.id !== id),
+  }
+}
+
+export type ProduceResult =
+  | { ok: true; state: AppState; run: ProductionRun }
+  | { ok: false; error: 'missing_recipe' | 'bad_qty' | 'missing_output' | 'missing_ingredient' | 'insufficient_stock'; missingName?: string; need?: number; have?: number }
+
+/** Fabrication : déduit les MP et entre le produit fini en stock. */
+export function produceFromRecipe(
+  state: AppState,
+  recipeId: string,
+  qtyProduced: number,
+): ProduceResult {
+  const qty = Number(qtyProduced)
+  if (!Number.isFinite(qty) || qty <= 0) {
+    return { ok: false, error: 'bad_qty' }
+  }
+  const recipe = (state.recipes ?? []).find((r) => r.id === recipeId)
+  if (!recipe) return { ok: false, error: 'missing_recipe' }
+  if (!recipe.ingredients.length) {
+    return { ok: false, error: 'missing_ingredient' }
+  }
+
+  const locId = activeLocationId(state)
+  const output = state.products.find((p) => p.id === recipe.outputProductId)
+  if (!output) return { ok: false, error: 'missing_output' }
+
+  const consumed: ProductionRun['consumed'] = []
+  let unitCostDa = 0
+
+  for (const ing of recipe.ingredients) {
+    const mp = state.products.find((p) => p.id === ing.productId)
+    if (!mp) {
+      return { ok: false, error: 'missing_ingredient', missingName: ing.productId }
+    }
+    const need = ing.qtyPerUnit * qty
+    const have = stockAt(mp, locId)
+    if (have + 1e-9 < need) {
+      return {
+        ok: false,
+        error: 'insufficient_stock',
+        missingName: mp.name,
+        need,
+        have,
+      }
+    }
+    consumed.push({ productId: mp.id, name: mp.name, qty: need })
+    unitCostDa += (mp.costDa || 0) * ing.qtyPerUnit
+  }
+
+  let products = state.products.map((p) => {
+    const line = consumed.find((c) => c.productId === p.id)
+    if (!line) return p
+    return adjustStockAt(p, locId, -line.qty)
+  })
+
+  products = products.map((p) => {
+    if (p.id !== output.id) return p
+    const before = stockAt(p, locId)
+    const next = adjustStockAt(p, locId, qty)
+    const oldCost = p.costDa || 0
+    const blended =
+      before > 0
+        ? (before * oldCost + qty * unitCostDa) / (before + qty)
+        : unitCostDa
+    return {
+      ...next,
+      costDa: Math.round(blended * 100) / 100,
+      updatedAt: new Date().toISOString(),
+    }
+  })
+
+  const run: ProductionRun = {
+    id: uid('prod'),
+    recipeId: recipe.id,
+    recipeName: recipe.name,
+    outputProductId: output.id,
+    outputName: output.name,
+    qtyProduced: qty,
+    consumed,
+    unitCostDa: Math.round(unitCostDa * 100) / 100,
+    locationId: locId,
+    createdAt: new Date().toISOString(),
+  }
+
+  return {
+    ok: true,
+    state: {
+      ...state,
+      products,
+      productionRuns: [run, ...(state.productionRuns ?? [])].slice(0, 500),
+    },
+    run,
   }
 }
 

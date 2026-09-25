@@ -125,6 +125,7 @@ import {
   showTableService,
   showGameStations,
   showRepairOrder,
+  showProduction,
   showMedicalDossier,
   showReturns,
   showStaffHr,
@@ -244,6 +245,7 @@ import {
   SellersPanel,
 } from './SellersPanel'
 import { RepairOrderPanel } from './RepairOrderPanel'
+import { ProductionPage } from './ProductionPage'
 import { StaffPanel } from './StaffPanel'
 import { ExpertComptableCard } from './ExpertComptableCard'
 import { OrderRevisePanel } from './OrderRevisePanel'
@@ -1255,6 +1257,20 @@ export default function App() {
             stats={stats}
             lang={lang}
             showCosts={sellerCan(state, 'viewProfits')}
+          />
+        </div>
+      ) : null}
+      {isAlive('production') && !isDriverMode ? (
+        <div
+          className={`screen-pane ${screen === 'production' ? 'is-active' : 'is-cached'}`}
+          aria-hidden={screen !== 'production'}
+          inert={screen !== 'production' ? true : undefined}
+        >
+          <ProductionPage
+            state={state}
+            lang={lang}
+            onState={setState}
+            onFlash={(msg) => setToast(msg)}
           />
         </div>
       ) : null}
@@ -2723,6 +2739,9 @@ function HomePage({
     { id: 'expenses' as Screen, label: t(lang, 'appExpenses'), icon: '💸', tone: 'rose' },
     { id: 'profits' as Screen, label: t(lang, 'appProfits'), icon: '💰', tone: 'amber' },
     { id: 'stock' as Screen, label: t(lang, 'appValue'), icon: '📈', tone: 'emerald' },
+    ...(showProduction(mode, domainId)
+      ? [{ id: 'production' as Screen, label: t(lang, 'prodTitle'), icon: '🥖', tone: 'amber' }]
+      : []),
     ...(state.settings.showZakat !== false
       ? [{ id: 'zakat' as Screen, label: t(lang, 'appZakat'), icon: '🌙', tone: 'forest' }]
       : []),
