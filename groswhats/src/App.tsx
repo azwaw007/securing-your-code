@@ -509,7 +509,7 @@ export default function App() {
     state.settings.commerceMode === 'sante' &&
     state.settings.clinicShareEnabled === true &&
     !state.settings.clinicStationChosen
-
+  const needSetup = !state.settings.setupDone || redoSetup
 
   useEffect(() => {
     if (isDriverMode && screen !== 'missions') goTo('missions')
@@ -553,8 +553,6 @@ export default function App() {
       setState((s) => updateSettings(s, { language: defaultLang(code) }))
     }
   }, [state.settings.countryCode, lang])
-
-  const needSetup = !state.settings.setupDone || redoSetup
 
   return (
     <div
@@ -2678,7 +2676,6 @@ function HomePage({
   const canViewProfits = sellerCan(state, 'viewProfits')
   const canViewCaisse = sellerCan(state, 'viewCaisse')
   const canSell = sellerCan(state, 'sell')
-  const canEditStock = sellerCan(state, 'editStock')
 
   const depot = showDepotTools(state.settings.commerceMode, domainId)
   const moreApps: Array<{
@@ -2722,10 +2719,10 @@ function HomePage({
     ...(showReturns(state.settings.commerceMode, domainId)
       ? [{ id: 'returns' as Screen, label: t(lang, 'appReturns'), icon: '↩️', tone: 'coral' }]
       : []),
-    { id: 'agent', label: t(lang, 'appAgent'), icon: '🤖', tone: 'slate' },
-    { id: 'expenses', label: t(lang, 'appExpenses'), icon: '💸', tone: 'rose' },
-    { id: 'profits', label: t(lang, 'appProfits'), icon: '💰', tone: 'amber' },
-    { id: 'stock', label: t(lang, 'appValue'), icon: '📈', tone: 'emerald' },
+    { id: 'agent' as Screen, label: t(lang, 'appAgent'), icon: '🤖', tone: 'slate' },
+    { id: 'expenses' as Screen, label: t(lang, 'appExpenses'), icon: '💸', tone: 'rose' },
+    { id: 'profits' as Screen, label: t(lang, 'appProfits'), icon: '💰', tone: 'amber' },
+    { id: 'stock' as Screen, label: t(lang, 'appValue'), icon: '📈', tone: 'emerald' },
     ...(state.settings.showZakat !== false
       ? [{ id: 'zakat' as Screen, label: t(lang, 'appZakat'), icon: '🌙', tone: 'forest' }]
       : []),
@@ -2736,7 +2733,7 @@ function HomePage({
       ? [{ id: 'staff' as Screen, label: t(lang, 'staffTitle'), icon: '👥', tone: 'navy' }]
       : []),
     { id: 'sellers' as Screen, label: t(lang, 'sellersTitle'), icon: '🧍', tone: 'navy' },
-    { id: 'settings', label: t(lang, 'appSettings'), icon: '⚙️', tone: 'charcoal' },
+    { id: 'settings' as Screen, label: t(lang, 'appSettings'), icon: '⚙️', tone: 'charcoal' },
   ].filter((app) => sellerCanAccessScreen(state, app.id))
 
   const dailyAppsFiltered = dailyApps.filter((app) =>
@@ -3007,7 +3004,7 @@ function HomePage({
 
       <section className="home-apps" aria-label={t(lang, 'appMenu')}>
         <div className="app-grid">
-          {dailyApps.map((app) => (
+          {dailyAppsFiltered.map((app) => (
             <button
               key={app.id}
               type="button"
@@ -3974,6 +3971,8 @@ function ProductsPage({
   state,
   lang,
   onFlash,
+  canEdit = true,
+  showCosts = true,
   onAdd,
   onUpdate,
   onDelete,
@@ -3986,6 +3985,8 @@ function ProductsPage({
   state: AppState
   lang: Language
   onFlash: (key: string) => void
+  canEdit?: boolean
+  showCosts?: boolean
   onAdd: (p: Omit<Product, 'id' | 'createdAt'>) => void
   onUpdate: (id: string, patch: Partial<Product>) => void
   onDelete: (id: string) => void
@@ -4119,6 +4120,31 @@ function ProductsPage({
   }
 
   if (editing) {
+    if (!canEdit) {
+      return (
+        <div className="card">
+          <h2>{editing.name}</h2>
+          <p className="muted">{t(lang, 'sellerStockReadOnly')}</p>
+          <div className="muted" style={{ marginTop: 4 }}>
+            {showCosts ? (
+              <>
+                {t(lang, 'buyPriceShort')} {formatDa(editing.costDa || 0)} →{' '}
+              </>
+            ) : null}
+            {formatDa(editing.priceDa)} · {formatQty(displayStock(state, editing))}{' '}
+            {unitLabel(lang, editing.unit)}
+          </div>
+          <button
+            type="button"
+            className="btn secondary block"
+            style={{ marginTop: 12 }}
+            onClick={() => setEditId(null)}
+          >
+            {t(lang, 'back')}
+          </button>
+        </div>
+      )
+    }
     return (
       <ProductEditCard
         lang={lang}
@@ -4149,6 +4175,7 @@ function ProductsPage({
 
   return (
     <>
+      {canEdit ? (
       <div className="card">
         <h2>{t(lang, 'newProduct')}</h2>
         <div className="muted" style={{ marginBottom: 10 }}>
@@ -4393,6 +4420,12 @@ function ProductsPage({
           {t(lang, 'addToStock')}
         </button>
       </div>
+      ) : (
+        <div className="card">
+          <h2>{t(lang, 'productCatalog')}</h2>
+          <p className="muted">{t(lang, 'sellerStockReadOnly')}</p>
+        </div>
+      )}
 
       <div className="card">
         <h2>
@@ -4445,7 +4478,11 @@ function ProductsPage({
                   {p.color ? ` · ${p.color}` : ''}
                 </div>
                 <div className="muted" style={{ marginTop: 4 }}>
-                  {t(lang, 'buyPriceShort')} {formatDa(p.costDa || 0)} →{' '}
+                  {showCosts ? (
+                    <>
+                      {t(lang, 'buyPriceShort')} {formatDa(p.costDa || 0)} →{' '}
+                    </>
+                  ) : null}
                   {formatDa(p.priceDa)}
                   {showWholesaleTiers(state.settings.commerceMode) && p.demiGrosPriceDa
                     ? ` · ${t(lang, 'tier_demi_gros')} ${formatDa(p.demiGrosPriceDa)}`
@@ -4478,6 +4515,8 @@ function ProductsPage({
                       ? ` · ${Math.floor(displayStock(state, p) / p.piecesPerPack)} ${t(lang, 'cartonsLeft')}`
                       : ''}
                   </span>
+                  {canEdit ? (
+                    <>
                   <button
                     className="btn ghost"
                     onClick={() =>
@@ -4514,6 +4553,12 @@ function ProductsPage({
                   <button className="btn danger" onClick={() => onDelete(p.id)}>
                     {t(lang, 'delete')}
                   </button>
+                    </>
+                  ) : (
+                  <button className="btn secondary" onClick={() => setEditId(p.id)}>
+                    {t(lang, 'view')}
+                  </button>
+                  )}
                 </div>
               </div>
               <strong>{formatDa(p.priceDa * p.stock)}</strong>
@@ -4910,6 +4955,7 @@ function ClientsPage({
   state,
   lang,
   clinicStation,
+  canEdit = true,
   initialClientId,
   seedNotes,
   onSeedConsumed,
@@ -4926,6 +4972,7 @@ function ClientsPage({
   state: AppState
   lang: Language
   clinicStation: ClinicStation | null
+  canEdit?: boolean
   initialClientId?: string | null
   seedNotes?: string | null
   onSeedConsumed?: () => void
@@ -5231,6 +5278,8 @@ function ClientsPage({
                 {t(lang, 'whatsappClient')}
               </button>
             ) : null}
+            {canEdit ? (
+              <>
             <button className="btn" onClick={() => setEditing(true)}>
               ✏️ {t(lang, 'editClient')}
             </button>
@@ -5243,6 +5292,8 @@ function ClientsPage({
             >
               {t(lang, 'delete')}
             </button>
+              </>
+            ) : null}
           </div>
 
           <ClientQrCard client={selected} lang={lang} />
@@ -7706,6 +7757,7 @@ function StockPage({
   state,
   stats,
   lang,
+  showCosts = true,
 }: {
   state: AppState
   stats: {
@@ -7715,6 +7767,7 @@ function StockPage({
     credits: number
   }
   lang: Language
+  showCosts?: boolean
 }) {
   return (
     <>
@@ -7723,6 +7776,8 @@ function StockPage({
           <div className="muted">{t(lang, 'stockValue')}</div>
           <strong>{formatDa(stats.stockValue)}</strong>
         </div>
+        {showCosts ? (
+          <>
         <div className="stat">
           <div className="muted">{t(lang, 'stockCost')}</div>
           <strong>{formatDa(stats.stockCost)}</strong>
@@ -7731,14 +7786,18 @@ function StockPage({
           <div className="muted">{t(lang, 'stockMargin')}</div>
           <strong>{formatDa(stats.stockMargin)}</strong>
         </div>
+          </>
+        ) : null}
         <div className="stat">
           <div className="muted">{t(lang, 'openCredits')}</div>
           <strong>{formatDa(stats.credits)}</strong>
         </div>
       </div>
+      {showCosts ? (
       <div className="muted" style={{ margin: '8px 4px 0' }}>
         {mt(state.settings.commerceMode, lang, 'profitHint')}
       </div>
+      ) : null}
 
       <div className="card" style={{ marginTop: 12 }}>
         <h2>{t(lang, 'stockDetail')}</h2>
@@ -7757,16 +7816,30 @@ function StockPage({
                 <div className="muted">
                   {state.settings.multiLocationEnabled
                     ? `${t(lang, 'stockHere')} ${formatQty(here)} · ${t(lang, 'stockTotal')} ${formatQty(p.stock)}`
-                    : `${formatQty(p.stock)} ${unitLabel(lang, p.unit)}`}{' '}
-                  · {t(lang, 'buyPriceShort')} {formatDa(p.costDa || 0)} →{' '}
-                  {mt(state.settings.commerceMode, lang, 'sellPriceShort')} {formatDa(p.priceDa)}
+                    : `${formatQty(p.stock)} ${unitLabel(lang, p.unit)}`}
+                  {showCosts ? (
+                    <>
+                      {' '}
+                      · {t(lang, 'buyPriceShort')} {formatDa(p.costDa || 0)} →{' '}
+                      {mt(state.settings.commerceMode, lang, 'sellPriceShort')}{' '}
+                      {formatDa(p.priceDa)}
+                    </>
+                  ) : (
+                    <>
+                      {' '}
+                      · {mt(state.settings.commerceMode, lang, 'sellPriceShort')}{' '}
+                      {formatDa(p.priceDa)}
+                    </>
+                  )}
                 </div>
               </div>
               <div style={{ textAlign: 'end' }}>
                 <strong>{formatDa(p.stock * p.priceDa)}</strong>
+                {showCosts ? (
                 <div className="muted">
                   {t(lang, 'margin')} {formatDa(margin)}
                 </div>
+                ) : null}
                 {here <= p.lowStockAt ? (
                   <div className="badge warn">{t(lang, 'lowStock')}</div>
                 ) : null}
