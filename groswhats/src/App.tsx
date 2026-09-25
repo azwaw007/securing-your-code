@@ -55,6 +55,7 @@ import {
   updateProduct,
   updateSettings,
   applyShopSetup,
+  ensureGameStations,
   applyClientPayment,
   setClientDisplayedBalance,
   buildPaymentFields,
@@ -2216,7 +2217,37 @@ function SettingsPage({
           {' · '}
           {domainName(domainById(state.settings.domainId || 'gros-alimentaire'), lang)}
         </div>
-        <button type="button" className="btn block" onClick={onRedoSetup}>
+        {state.settings.domainId !== 'svc-jeux' ? (
+          <>
+            <p className="muted" style={{ marginTop: 0 }}>
+              {t(lang, 'gameRoomHowTo')}
+            </p>
+            <button
+              type="button"
+              className="btn block"
+              style={{ marginBottom: 8 }}
+              onClick={() => {
+                onState((s) =>
+                  ensureGameStations(
+                    updateSettings(s, {
+                      commerceMode: 'services',
+                      domainId: 'svc-jeux',
+                      themeSource: 'metier',
+                    }),
+                  ),
+                )
+                onFlash('gameRoomActivated')
+              }}
+            >
+              🎮 {t(lang, 'gameRoomActivate')}
+            </button>
+          </>
+        ) : (
+          <p className="notice" style={{ marginBottom: 12 }}>
+            {t(lang, 'gameRoomActive')}
+          </p>
+        )}
+        <button type="button" className="btn secondary block" onClick={onRedoSetup}>
           {t(lang, 'setupChangeType')}
         </button>
       </div>

@@ -65,11 +65,26 @@ export function SetupWizard({
     const n = q.trim().toLowerCase()
     const list = domainsForMode(mode)
     if (!n) return list
-    return list.filter(
-      (d) =>
-        d.nameFr.toLowerCase().includes(n) ||
-        d.nameAr.includes(n),
-    )
+    const aliases: Record<string, string[]> = {
+      'svc-jeux': [
+        'jeux',
+        'playstation',
+        'play station',
+        'ps4',
+        'ps5',
+        'xbox',
+        'console',
+        'salle de jeux',
+        'game',
+        'العاب',
+        'بلاي',
+      ],
+    }
+    return list.filter((d) => {
+      if (d.nameFr.toLowerCase().includes(n) || d.nameAr.includes(n)) return true
+      const extra = aliases[d.id]
+      return extra?.some((a) => a.includes(n) || n.includes(a)) ?? false
+    })
   }, [mode, q])
 
   const domainChanged =

@@ -81,6 +81,11 @@ const fr: Dict = {
   setupCommerceTitle: 'Type de commerce',
   setupCurrent: 'Ton commerce actuel',
   setupChangeType: 'Changer le type de commerce',
+  gameRoomActivate: 'Activer Salle de jeux',
+  gameRoomActivated: 'Salle de jeux activée — postes PS disponibles',
+  gameRoomActive: 'Métier actuel : Salle de jeux (postes PS actifs)',
+  gameRoomHowTo:
+    'Pour les postes PlayStation : active Salle de jeux ici, ou change le type → Services → Salle de jeux / PlayStation.',
   emptyCatalogHint: 'Ajoute d’abord un produit pour vendre.',
   cashQuick: 'Billets rapides',
   moreDetails: 'Plus de détails',
@@ -1375,6 +1380,11 @@ const ar: Dict = {
   setupCommerceTitle: 'نوع التجارة',
   setupCurrent: 'تجارتك الحالية',
   setupChangeType: 'تغيير نوع التجارة',
+  gameRoomActivate: 'تفعيل قاعة الألعاب',
+  gameRoomActivated: 'تم تفعيل قاعة الألعاب — أجهزة PS جاهزة',
+  gameRoomActive: 'المهنة الحالية: قاعة الألعاب (أجهزة PS مفعّلة)',
+  gameRoomHowTo:
+    'لأجهزة بلاي ستيشن: فعّل قاعة الألعاب هنا، أو غيّر النوع ← خدمات ← قاعة ألعاب / بلاي ستيشن.',
   emptyCatalogHint: 'زيد منتج قبل ما تبيع.',
   cashQuick: 'أوراق سريعة',
   moreDetails: 'تفاصيل أكثر',
