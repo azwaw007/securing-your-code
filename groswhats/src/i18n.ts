@@ -1212,7 +1212,8 @@ const fr: Dict = {
   gameMinShort: 'min',
   gameTimeBilled: '{name} : +{min} min → {da} DA en caisse',
   gamePriceTitle: 'Tarifs PlayStation',
-  gamePriceHint: 'PS4 / PS5 — heure et match. PIN admin requis.',
+  gamePriceHint:
+    'Tarifs par console + affectation poste → console. PIN admin requis.',
   gamePriceCurrent: 'Tarif actuel',
   gamePricePerMin: 'Prix par minute (DA)',
   gamePriceBad: 'Tarif invalide',
@@ -2428,7 +2429,7 @@ const ar: Dict = {
   tableSaved: 'تم حفظ الطاولة',
   tableDeleted: 'تم حذف الطاولة',
   gameStationsTitle: 'أجهزة بلاي ستيشن',
-  gameStationsHint: 'أجهزة قابلة للتعديل — وقت/دقيقة، TV واي فاي، مخزون وصندوق.',
+  gameStationsHint: 'التعريفة تلقائية حسب جهاز المنصب (من الإدارة). المباراة = 15 د.',
   gameStationsEmpty: 'لا أجهزة.',
   gameActive: 'يلعب',
   gameStandby: 'انتظار',
@@ -2471,7 +2472,8 @@ const ar: Dict = {
   gameMinShort: 'د',
   gameTimeBilled: '{name} : +{min} د → {da} دج في الصندوق',
   gamePriceTitle: 'تعريفات بلاي ستيشن',
-  gamePriceHint: 'PS4 / PS5 — ساعة ومباراة. PIN المدير مطلوب.',
+  gamePriceHint:
+    'تعريفة لكل جهاز + تعيين المنصب → الجهاز. PIN المدير مطلوب.',
   gamePriceCurrent: 'التعريفة الحالية',
   gamePricePerMin: 'السعر للدقيقة (دج)',
   gamePriceBad: 'تعريفة غير صالحة',
