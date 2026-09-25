@@ -54,20 +54,6 @@ function buildFKeyBindings(rails: {
   return out
 }
 
-function fKeyFor(
-  bindings: HotBinding[],
-  id: RailActionId,
-  occurrence: number,
-): string | undefined {
-  let seen = 0
-  for (const b of bindings) {
-    if (b.id !== id) continue
-    if (seen === occurrence) return b.key
-    seen += 1
-  }
-  return undefined
-}
-
 function DesktopTipButton({
   title,
   hint,
