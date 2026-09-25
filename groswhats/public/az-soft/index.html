@@ -215,7 +215,7 @@
         margin-top: 18px;
       }
       @media (min-width: 700px) {
-        .points { grid-template-columns: 1fr 1fr 1fr; }
+        .points { grid-template-columns: repeat(auto-fit, minmax(11.5rem, 1fr)); }
       }
       .point {
         padding: 16px;
@@ -306,14 +306,14 @@
         <div class="cta">
           <a
             class="btn primary"
-            href="https://github.com/azwaw007/securing-your-code/releases/download/v1.2.3-win/AZ-POS-Setup-1.2.3.exe"
-            download="AZ-POS-Setup-1.2.3.exe"
+            href="https://github.com/azwaw007/securing-your-code/releases/download/v1.2.4/AZ-POS-Setup-1.2.4.exe"
+            download="AZ-POS-Setup-1.2.4.exe"
             rel="noreferrer"
           >Télécharger la démo Windows</a>
           <a class="btn ghost" href="https://az-pos-dz.vercel.app" target="_blank" rel="noreferrer">Essayer en ligne</a>
           <a class="btn ghost" href="#fonctions">Voir les écrans</a>
         </div>
-        <p class="muted cta-note">Fichier .exe · essai 15 jours · sans compte</p>
+        <p class="muted cta-note">Fichier .exe v1.2.4 · essai 15 jours · sans compte</p>
       </div>
       <div class="hero-visual" aria-hidden="true">
         <img
@@ -340,6 +340,14 @@
         <article class="point">
           <strong>Pro multi-magasin</strong>
           <p>Stock séparé par dépôt, magasin actif à la caisse, transferts A → B.</p>
+        </article>
+        <article class="point">
+          <strong>Production / recettes</strong>
+          <p>Fabrique : déduit les matières premières et entre le produit fini en stock.</p>
+        </article>
+        <article class="point">
+          <strong>Salle de sport</strong>
+          <p>Disciplines, abonnements NFC, passagers, conso pendant la séance → caisse.</p>
         </article>
       </div>
     </section>
@@ -458,6 +466,42 @@
           <img src="shots/feat_expert.webp" alt="Carte expert comptable AZ POS" width="1200" height="800" loading="lazy" />
         </div>
       </article>
+
+      <article class="feature reverse">
+        <div class="feature-copy">
+          <h3>Production / recettes</h3>
+          <p>
+            Boulangerie, charcuterie, restauration : une recette + une quantité
+            produite déduit les matières premières et entre le produit fini.
+          </p>
+          <ul>
+            <li>Recettes avec quantités par unité</li>
+            <li>Contrôle rupture avant production</li>
+            <li>Coût unitaire calculé automatiquement</li>
+          </ul>
+        </div>
+        <div class="feature-shot">
+          <img src="shots/feat_stock.webp" alt="Stock et production AZ POS" width="1200" height="800" loading="lazy" />
+        </div>
+      </article>
+
+      <article class="feature">
+        <div class="feature-copy">
+          <h3>Salle de sport unifiée</h3>
+          <p>
+            Une seule app sport : l’admin choisit les disciplines (boxe, gym,
+            cardio, musculation…) et fixe les tarifs d’abonnement.
+          </p>
+          <ul>
+            <li>Check-in NFC / QR et clients passagers</li>
+            <li>Ticket de séance ouvert + conso (eau, shake…)</li>
+            <li>Fin d’entraînement → total séance + produits à la caisse</li>
+          </ul>
+        </div>
+        <div class="feature-shot">
+          <img src="shots/feat_dossier.webp" alt="Dossier athlète et salle de sport AZ POS" width="1200" height="800" loading="lazy" />
+        </div>
+      </article>
     </section>
 
     <section id="tarifs">
@@ -493,8 +537,8 @@
       <div class="download">
         <a
           class="btn primary"
-          href="https://github.com/azwaw007/securing-your-code/releases/download/v1.2.3-win/AZ-POS-Setup-1.2.3.exe"
-          download="AZ-POS-Setup-1.2.3.exe"
+          href="https://github.com/azwaw007/securing-your-code/releases/download/v1.2.4/AZ-POS-Setup-1.2.4.exe"
+          download="AZ-POS-Setup-1.2.4.exe"
           rel="noreferrer"
         >Télécharger Windows (.exe)</a>
         <a class="btn ghost" href="https://az-pos-dz.vercel.app" target="_blank" rel="noreferrer">Ouvrir la démo en ligne</a>

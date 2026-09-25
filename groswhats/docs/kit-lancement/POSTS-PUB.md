@@ -5,7 +5,7 @@ Ne mets pas ces posts dans le code de la vitrine.
 
 Lien démo : https://az-pos-dz.vercel.app  
 Lien vitrine : https://az-pos-dz.vercel.app/az-soft/  
-Lien Windows : https://github.com/azwaw007/securing-your-code/releases/download/v1.2.3-win/AZ-POS-Setup-1.2.3.exe
+Lien Windows : https://github.com/azwaw007/securing-your-code/releases/download/v1.2.4/AZ-POS-Setup-1.2.4.exe
 
 ---
 
@@ -97,7 +97,7 @@ Salam, je te propose **AZ POS** : caisse + stock + crédit + WhatsApp.
 
 Essai **15 jours gratuit** :
 • Web : https://az-pos-dz.vercel.app  
-• Windows : https://github.com/azwaw007/securing-your-code/releases/download/v1.2.3-win/AZ-POS-Setup-1.2.3.exe  
+• Windows : https://github.com/azwaw007/securing-your-code/releases/download/v1.2.4/AZ-POS-Setup-1.2.4.exe  
 
 Ensuite **12 000 DA / an** (Pro multi-magasin **25 000 DA / an**).
 
