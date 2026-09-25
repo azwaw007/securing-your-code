@@ -15,6 +15,7 @@ import {
   freeGameStation,
   gameFreeMaxMinutes,
   grantGameFreeMinutes,
+  match4RateDa,
   removeGameStation,
   resolveGameTariffs,
   setGameStationStandby,
@@ -127,7 +128,7 @@ export function GameStationsPanel({
 
   async function applyStart(
     st: GameStation,
-    mode: 'hour' | 'match' | 'extra',
+    mode: 'hour' | 'match' | 'match4' | 'extra',
     opts: { minutes?: number; matches?: number; matchMinutes?: number },
   ) {
     const wasFree = st.status !== 'active'
@@ -151,7 +152,7 @@ export function GameStationsPanel({
       minutes = res.minutes
     } else {
       const mins =
-        mode === 'match' || mode === 'extra'
+        mode === 'match' || mode === 'match4' || mode === 'extra'
           ? (opts.matchMinutes ||
               (mode === 'extra'
                 ? tariffs.extraRoundMinutes
@@ -159,7 +160,7 @@ export function GameStationsPanel({
             Math.max(1, opts.matches || 1)
           : Math.max(1, opts.minutes || 60)
       nextState = addGameStationTime(state, st.id, mins, label)
-      if (mode === 'match' && opts.matchMinutes) {
+      if ((mode === 'match' || mode === 'match4') && opts.matchMinutes) {
         nextState = updateGameStation(nextState, st.id, {
           matchMinutes: opts.matchMinutes,
         })
@@ -192,7 +193,7 @@ export function GameStationsPanel({
 
   async function applyFree(
     st: GameStation,
-    mode: 'hour' | 'match' | 'extra',
+    mode: 'hour' | 'match' | 'match4' | 'extra',
     opts: { minutes?: number; matches?: number; matchMinutes?: number },
   ) {
     if (!sellerCanGrantFreeMinutes(state)) {
@@ -273,6 +274,9 @@ export function GameStationsPanel({
             {c.label} {c.hourDa} DA/h
             {c.matchDa > 0
               ? ` · ${c.matchDa} DA/${t(lang, 'gameMatchShort')}`
+              : ''}
+            {(c.match4Da ?? (c.matchDa > 0 ? c.matchDa * 2 : 0)) > 0
+              ? ` · ${c.match4Da ?? c.matchDa * 2} DA/${t(lang, 'gameMatch4Short')}`
               : ''}
             {c.extraRoundDa > 0
               ? ` · ${c.extraRoundDa} DA/${t(lang, 'gameExtraShort')}`
@@ -380,6 +384,12 @@ export function GameStationsPanel({
                   matchMinutes: stationMatchMinutes(state, st),
                 })
               }
+              onMatch4={() =>
+                void applyStart(st, 'match4', {
+                  matches: 1,
+                  matchMinutes: stationMatchMinutes(state, st),
+                })
+              }
               onExtra={() =>
                 void applyStart(st, 'extra', {
                   matches: 1,
@@ -391,6 +401,12 @@ export function GameStationsPanel({
               onFreeHour={(minutes) => void applyFree(st, 'hour', { minutes })}
               onFreeMatch={() =>
                 void applyFree(st, 'match', {
+                  matches: 1,
+                  matchMinutes: stationMatchMinutes(state, st),
+                })
+              }
+              onFreeMatch4={() =>
+                void applyFree(st, 'match4', {
                   matches: 1,
                   matchMinutes: stationMatchMinutes(state, st),
                 })
@@ -466,11 +482,13 @@ function StationTile({
   onToggleConfig,
   onHour,
   onMatch,
+  onMatch4,
   onExtra,
   canFree,
   freeCap,
   onFreeHour,
   onFreeMatch,
+  onFreeMatch4,
   onFreeExtra,
   onStandby,
   onFree,
@@ -488,11 +506,13 @@ function StationTile({
   onToggleConfig: () => void
   onHour: (minutes: number) => void
   onMatch: () => void
+  onMatch4: () => void
   onExtra: () => void
   canFree: boolean
   freeCap: number
   onFreeHour: (minutes: number) => void
   onFreeMatch: () => void
+  onFreeMatch4: () => void
   onFreeExtra: () => void
   onStandby: () => void | Promise<void>
   onFree: () => void
@@ -516,6 +536,7 @@ function StationTile({
   const tariff = tariffForConsole(state, kind)
   const hourDa = tariff.hourDa
   const matchDa = tariff.matchDa
+  const match4Da = match4RateDa(state, kind)
   const extraDa = tariff.extraRoundDa
   const freePresets = FREE_MIN_PRESETS.filter((m) => m <= freeCap)
 
@@ -553,6 +574,10 @@ function StationTile({
           : `${hourDa} DA/h${
               matchDa > 0
                 ? ` · ${matchDa} DA/${t(lang, 'gameMatchShort')} (${matchMin} min)`
+                : ''
+            }${
+              match4Da > 0
+                ? ` · ${match4Da} DA/${t(lang, 'gameMatch4Short')}`
                 : ''
             }${
               extraDa > 0
@@ -594,6 +619,11 @@ function StationTile({
         {matchDa > 0 ? (
           <button type="button" className="btn" onClick={onMatch}>
             +{t(lang, 'gameMatchShort')} {matchMin}′ ({matchDa} DA)
+          </button>
+        ) : null}
+        {match4Da > 0 ? (
+          <button type="button" className="btn secondary" onClick={onMatch4}>
+            +{t(lang, 'gameMatch4Short')} {matchMin}′ ({match4Da} DA)
           </button>
         ) : null}
         {extraDa > 0 ? (
@@ -638,6 +668,15 @@ function StationTile({
                 onClick={onFreeMatch}
               >
                 {t(lang, 'gameFreeMatch')}
+              </button>
+            ) : null}
+            {match4Da > 0 ? (
+              <button
+                type="button"
+                className="btn ghost game-free-btn"
+                onClick={onFreeMatch4}
+              >
+                {t(lang, 'gameFreeMatch4')}
               </button>
             ) : null}
             {extraDa > 0 ? (

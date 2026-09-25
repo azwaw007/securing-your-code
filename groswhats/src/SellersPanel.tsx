@@ -331,6 +331,13 @@ export function GamePriceAdminCard({
       label: c.label,
       hour: String(c.hourDa),
       match: String(c.matchDa),
+      match4: String(
+        typeof c.match4Da === 'number' && c.match4Da > 0
+          ? c.match4Da
+          : c.matchDa > 0
+            ? c.matchDa * 2
+            : 0,
+      ),
       extra: String(c.extraRoundDa),
     })),
   )
@@ -364,8 +371,9 @@ export function GamePriceAdminCard({
     for (const r of rows) {
       const hour = num(r.hour)
       const match = num(r.match)
+      const match4 = num(r.match4)
       const extra = num(r.extra)
-      if (hour === null || match === null || extra === null) {
+      if (hour === null || match === null || match4 === null || extra === null) {
         onFlash(t(lang, 'gamePriceBad'))
         return
       }
@@ -374,6 +382,7 @@ export function GamePriceAdminCard({
         label: r.label,
         hourDa: hour,
         matchDa: match,
+        match4Da: match4 > 0 ? match4 : match > 0 ? +(match * 2).toFixed(2) : 0,
         extraRoundDa: extra,
       })
     }
@@ -398,16 +407,32 @@ export function GamePriceAdminCard({
       <p className="muted" style={{ marginTop: 0 }}>
         {t(lang, 'gameExtraHint')}
       </p>
+      <p className="muted" style={{ marginTop: 0 }}>
+        {t(lang, 'gameMatch4Hint')}
+      </p>
       {!open ? (
         <>
           <div className="muted game-admin-preview" style={{ marginBottom: 8 }}>
-            {tariffs.consoles.map((c) => (
+            {tariffs.consoles.map((c) => {
+              const m4 =
+                typeof c.match4Da === 'number' && c.match4Da > 0
+                  ? c.match4Da
+                  : c.matchDa > 0
+                    ? c.matchDa * 2
+                    : 0
+              return (
               <div key={c.id}>
                 {c.label} : <strong>{c.hourDa} DA</strong>/h
                 {c.matchDa > 0 ? (
                   <>
                     {' '}
                     · <strong>{c.matchDa} DA</strong>/{t(lang, 'gameMatchShort')}
+                  </>
+                ) : null}
+                {m4 > 0 ? (
+                  <>
+                    {' '}
+                    · <strong>{m4} DA</strong>/{t(lang, 'gameMatch4Short')}
                   </>
                 ) : null}
                 {c.extraRoundDa > 0 ? (
@@ -417,7 +442,8 @@ export function GamePriceAdminCard({
                   </>
                 ) : null}
               </div>
-            ))}
+              )
+            })}
             <div>
               {t(lang, 'gameMatchDefault')}:{' '}
               <strong>{tariffs.matchMinutes} min</strong>
@@ -474,7 +500,30 @@ export function GamePriceAdminCard({
                       onChange={(e) => {
                         const v = e.target.value
                         setRows((prev) =>
-                          prev.map((x, j) => (j === i ? { ...x, match: v } : x)),
+                          prev.map((x, j) => {
+                            if (j !== i) return x
+                            const matchN = Number(String(v).replace(',', '.'))
+                            const auto4 =
+                              Number.isFinite(matchN) && matchN > 0
+                                ? String(+(matchN * 2).toFixed(2))
+                                : '0'
+                            return { ...x, match: v, match4: auto4 }
+                          }),
+                        )
+                      }}
+                    />
+                  </div>
+                  <div className="field">
+                    <label>{t(lang, 'gameTariffMatch4')}</label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={10}
+                      value={r.match4}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        setRows((prev) =>
+                          prev.map((x, j) => (j === i ? { ...x, match4: v } : x)),
                         )
                       }}
                     />
@@ -597,9 +646,11 @@ function GameFreeMinutesLog({
         const modeLabel =
           e.mode === 'match'
             ? t(lang, 'gameMatchShort')
-            : e.mode === 'extra'
-              ? t(lang, 'gameExtraShort')
-              : t(lang, 'gameMinShort')
+            : e.mode === 'match4'
+              ? t(lang, 'gameMatch4Short')
+              : e.mode === 'extra'
+                ? t(lang, 'gameExtraShort')
+                : t(lang, 'gameMinShort')
         return (
           <div key={e.id} className="list-item game-free-log-row">
             <div>

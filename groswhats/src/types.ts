@@ -473,13 +473,18 @@ export type GameConsoleKind =
   | 'xbox_360'
   | 'xbox_series_s'
 
-/** Une ligne de tarif console (heure + match + شوط إضافي) */
+/** Une ligne de tarif console (heure + match + match 4J + شوط إضافي) */
 export interface GameConsoleTariff {
   id: GameConsoleKind
   label: string
   hourDa: number
   /** 0 = pas de tarif match (ex. Xbox 360) */
   matchDa: number
+  /**
+   * Match 4 joueurs — par défaut le double du match normal.
+   * Si absent / 0 alors que matchDa > 0 → traité comme matchDa × 2.
+   */
+  match4Da?: number
   /** Prolongation = les 2 manches de temps additionnel — 0 = pas proposé */
   extraRoundDa: number
 }
@@ -827,8 +832,8 @@ export interface GameFreeMinuteEntry {
   stationId: string
   stationName: string
   consoleKind: GameConsoleKind
-  /** heure | match | prolongation */
-  mode: 'hour' | 'match' | 'extra'
+  /** heure | match | match 4 joueurs | prolongation */
+  mode: 'hour' | 'match' | 'match4' | 'extra'
   minutes: number
   sellerId?: string
   sellerName?: string
