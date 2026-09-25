@@ -5,14 +5,61 @@ export type CommerceMode = 'gros' | 'detail' | 'sante' | 'auto' | 'services'
 export type Unit =
   | 'piece'
   | 'carton'
-  | 'kg'
-  | 'g'
-  | 'm'
+  | 'dozen'
+  | 'pair'
+  | 'set'
+  | 'box'
+  | 'pack'
+  | 'roll'
+  | 'sheet'
+  | 'mm'
   | 'cm'
+  | 'm'
+  | 'km'
+  | 'inch'
+  | 'ft'
+  | 'yd'
+  | 'cm2'
   | 'm2'
-  | 'm3'
+  | 'hectare'
   | 'ml'
+  | 'cl'
   | 'L'
+  | 'm3'
+  | 'gallon'
+  | 'mg'
+  | 'g'
+  | 'kg'
+  | 'tonne'
+  | 'sec'
+  | 'min'
+  | 'hour'
+  | 'day'
+  | 'week'
+  | 'month'
+  | 'year'
+  | 'kWh'
+  | 'W'
+  | 'A'
+  | 'V'
+  | 'bar'
+  | 'celsius'
+  | 'session'
+  | 'person'
+  | 'seat'
+  | 'night'
+  | 'ticket'
+  | 'license'
+  | 'dose'
+  | 'tablet'
+  | 'ampule'
+  | 'bottle'
+  | 'page'
+  | 'word'
+  | 'minute_media'
+  | 'gb'
+  | 'consultation'
+  | 'act'
 
 export type Screen =
   | 'home'
@@ -772,6 +819,15 @@ export interface ShopSettings {
    * Absent / false = masqué (défaut).
    */
   enabledTools?: Partial<Record<OptionalToolId, boolean>>
+  /**
+   * Raccourcis desktop (rails) réglables par l’admin.
+   * Absent = pack métier par défaut.
+   */
+  desktopRails?: {
+    top?: string[]
+    left?: string[]
+    right?: string[]
+  }
   /** PIN caissier (4–6 chiffres) — outil cashierPin */
   cashierPin?: string
   /** PIN admin (4–6 chiffres) — protège prix/minute jeux, gestion vendeurs, etc.
@@ -1110,14 +1166,61 @@ export interface ProductionRun {
 export const ALL_UNITS: Unit[] = [
   'piece',
   'carton',
-  'kg',
-  'g',
-  'm',
+  'dozen',
+  'pair',
+  'set',
+  'box',
+  'pack',
+  'roll',
+  'sheet',
+  'mm',
   'cm',
+  'm',
+  'km',
+  'inch',
+  'ft',
+  'yd',
+  'cm2',
   'm2',
-  'm3',
+  'hectare',
   'ml',
+  'cl',
   'L',
+  'm3',
+  'gallon',
+  'mg',
+  'g',
+  'kg',
+  'tonne',
+  'sec',
+  'min',
+  'hour',
+  'day',
+  'week',
+  'month',
+  'year',
+  'kWh',
+  'W',
+  'A',
+  'V',
+  'bar',
+  'celsius',
+  'session',
+  'person',
+  'seat',
+  'night',
+  'ticket',
+  'license',
+  'dose',
+  'tablet',
+  'ampule',
+  'bottle',
+  'page',
+  'word',
+  'minute_media',
+  'gb',
+  'consultation',
+  'act',
 ]
 
 export const EXPENSE_CATEGORIES: ExpenseCategory[] = [

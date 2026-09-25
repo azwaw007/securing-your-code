@@ -1,4 +1,5 @@
 import type { ProductCategory, Unit } from '../types'
+import { ALL_UNITS } from '../types'
 
 export type SeedSpec = {
   name: string
@@ -14,18 +15,7 @@ export type SeedSpec = {
   aisleId?: string
 }
 
-const UNITS = new Set<string>([
-  'piece',
-  'carton',
-  'kg',
-  'g',
-  'm',
-  'cm',
-  'm2',
-  'm3',
-  'ml',
-  'L',
-])
+const UNITS = new Set<string>(ALL_UNITS as string[])
 
 function isUnit(v: string | undefined): v is Unit {
   return !!v && UNITS.has(v)

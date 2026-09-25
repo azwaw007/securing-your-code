@@ -5,3 +5,8 @@ contextBridge.exposeInMainWorld('azTv', {
   fetchUrl: (url) => ipcRenderer.invoke('tv-fetch', url),
   adbPower: (payload) => ipcRenderer.invoke('tv-adb', payload),
 })
+
+contextBridge.exposeInMainWorld('azDesktop', {
+  isElectron: true,
+  platform: process.platform,
+})

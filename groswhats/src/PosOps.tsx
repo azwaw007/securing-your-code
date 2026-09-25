@@ -130,7 +130,6 @@ export function CashSessionPage({
     <div className="page">
       <div className="card">
         <h2>💵 {t(lang, 'caisseTitle')}</h2>
-        <p className="muted">{t(lang, 'caisseHint')}</p>
         {open ? (
           <>
             <div className="home-chips">

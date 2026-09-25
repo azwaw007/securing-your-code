@@ -23,17 +23,15 @@ export function StockAlertCard({
   enabled: boolean
   onEnable: () => void
 }) {
+  if (enabled && products.length === 0) return null
   return (
     <div className={`card ${products.length ? 'alert-card' : ''}`}>
-      <h2>{t(lang, 'stockAlertTitle')}</h2>
       {!enabled ? (
-        <button className="btn block" onClick={onEnable}>
-          {t(lang, 'enableAlerts')}
+        <button className="btn block" onClick={onEnable} aria-label={t(lang, 'enableAlerts')}>
+          🔔
         </button>
       ) : null}
-      {products.length === 0 ? (
-        <div className="empty">{t(lang, 'stockAlertEmpty')}</div>
-      ) : (
+      {products.length > 0 ? (
         products.map((p) => (
           <div className="list-item" key={p.id}>
             <div>
@@ -45,7 +43,7 @@ export function StockAlertCard({
             <span className="badge warn">{t(lang, 'lowStock')}</span>
           </div>
         ))
-      )}
+      ) : null}
     </div>
   )
 }

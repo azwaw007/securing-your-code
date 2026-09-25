@@ -3796,3 +3796,316 @@ html[data-theme='night'] option {
   line-height: 1;
   color: #b91c1c;
 }
+
+/* —— Desktop Electron : rails langues + raccourcis —— */
+.desktop-chrome {
+  display: flex;
+  flex-direction: row;
+  height: 100dvh;
+  width: 100%;
+  overflow: hidden;
+  background: #0f172a;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.desktop-chrome .desktop-chrome-body,
+.desktop-chrome input,
+.desktop-chrome textarea,
+.desktop-chrome [contenteditable] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.desktop-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 6px;
+  width: 48px;
+  flex-shrink: 0;
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  border-inline: 1px solid rgba(255, 255, 255, 0.08);
+  z-index: 40;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.desktop-rail-sep {
+  width: 22px;
+  height: 1px;
+  margin: 4px 0;
+  background: rgba(255, 255, 255, 0.18);
+  flex-shrink: 0;
+}
+
+.desktop-rail-btn {
+  width: 36px;
+  min-height: 40px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #e2e8f0;
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  touch-action: manipulation;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.desktop-rail-btn.desktop-rail-action {
+  font-size: 1.15rem;
+  min-height: 42px;
+  position: relative;
+}
+
+.desktop-rail-btn.desktop-rail-lang {
+  font-size: 0.72rem;
+  min-height: 36px;
+}
+
+.desktop-rail-btn:hover,
+.desktop-rail-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.14);
+  outline: none;
+}
+
+.desktop-rail-btn.is-active {
+  background: #0d9488;
+  color: #fff;
+}
+
+.desktop-chrome-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.desktop-shortcuts {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 6px;
+  padding: 6px 10px;
+  overflow-x: auto;
+  background: linear-gradient(90deg, #0f172a, #1e293b 40%, #0f172a);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  z-index: 30;
+  -webkit-overflow-scrolling: touch;
+}
+
+.desktop-shortcut {
+  flex: 0 0 auto;
+  width: 52px;
+  height: 48px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f8fafc;
+  font-size: 1.25rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  display: grid;
+  place-items: center;
+  position: relative;
+}
+
+.desktop-shortcut:hover,
+.desktop-shortcut:focus-visible {
+  background: rgba(13, 148, 136, 0.55);
+  outline: none;
+}
+
+.desktop-shortcut.is-active {
+  background: #0d9488;
+}
+
+/* Pastille F1 / F2 visible sur l’icône */
+.desktop-key-badge {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  min-width: 1.05rem;
+  padding: 0 3px;
+  border-radius: 3px;
+  background: rgba(15, 23, 42, 0.92);
+  color: #fbbf24;
+  font-size: 0.58rem;
+  font-weight: 700;
+  font-family: ui-monospace, 'Cascadia Mono', monospace;
+  line-height: 1.25;
+  letter-spacing: 0;
+  pointer-events: none;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+}
+
+.desktop-rail-btn .desktop-key-badge {
+  right: 1px;
+  bottom: 1px;
+  font-size: 0.5rem;
+  padding: 0 2px;
+}
+
+/* Info-bulle au survol (~0,7 s) — position fixed hors overflow rail */
+.desktop-tip-wrap {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.desktop-tip {
+  z-index: 200;
+  min-width: 170px;
+  max-width: 260px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #0f172a;
+  color: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+.desktop-tip-fixed {
+  position: fixed;
+  animation: desktop-tip-fade 0.15s ease-out;
+}
+
+.desktop-tip-fixed-right {
+  transform: translateY(-50%);
+}
+
+.desktop-tip-fixed-left {
+  transform: translate(-100%, -50%);
+}
+
+.desktop-tip-fixed-bottom {
+  transform: translateX(-50%);
+}
+
+.desktop-tip-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  margin: 0 0 4px;
+}
+
+.desktop-tip-body {
+  display: block;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: #cbd5e1;
+  font-weight: 400;
+}
+
+.desktop-tip-kbd {
+  margin-inline-start: auto;
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  font-family: ui-monospace, monospace;
+}
+
+@keyframes desktop-tip-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Réglages admin — raccourcis rails */
+.desktop-rails-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 4px 8px;
+  max-height: 220px;
+  overflow: auto;
+  padding: 6px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.desktop-rails-pick {
+  margin: 0 !important;
+  padding: 4px 6px !important;
+  border-radius: 8px;
+}
+
+.desktop-rails-pick.is-on {
+  background: rgba(13, 148, 136, 0.12);
+}
+
+.desktop-rails-pick.is-full {
+  opacity: 0.45;
+}
+
+.desktop-rails-order-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  font-size: 0.92rem;
+}
+
+.desktop-chrome-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  position: relative;
+}
+
+.desktop-chrome .app-shell {
+  min-height: 100%;
+}
+
+/* Accueil / caisse : CTA iconiques sans texte */
+.home-hero .scan-cta,
+.home-hero .sell-cta,
+.home-hero .history-cta {
+  justify-content: center;
+  min-height: 64px;
+  padding: 12px 18px;
+}
+
+.home-hero .scan-cta > span:not(.sell-cta-emoji):not(.cal),
+.home-hero .sell-cta > span:not(.sell-cta-emoji),
+.home-hero .history-cta > span:not(.cal) {
+  display: none;
+}
+
+.pos-shell .choice-card {
+  min-height: 72px;
+  justify-content: center;
+  align-items: center;
+}
+
+.pos-shell .choice-card .choice-emoji {
+  font-size: 1.75rem;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

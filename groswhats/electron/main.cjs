@@ -8,6 +8,9 @@ const fs = require('fs')
 
 const isDev = !app.isPackaged
 
+/** Souris + tactile (tablettes Windows / écran tactile) */
+app.commandLine.appendSwitch('enable-features', 'TouchEventFeatureDetection')
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1360,
@@ -15,7 +18,8 @@ function createWindow() {
     minWidth: 960,
     minHeight: 640,
     title: 'AZ POS',
-    backgroundColor: '#f3efe6',
+    backgroundColor: '#0f172a',
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -23,6 +27,21 @@ function createWindow() {
       sandbox: true,
     },
     autoHideMenuBar: true,
+  })
+
+  win.once('ready-to-show', () => {
+    win.show()
+    win.maximize()
+  })
+
+  // Clics / touch : focus immédiat pour caisse rapide
+  win.webContents.on('did-finish-load', () => {
+    win.webContents.insertCSS(`
+      html, body { touch-action: manipulation; }
+      button, .btn, .app-tile, .nav-btn, .desktop-shortcut, .desktop-rail-btn {
+        cursor: pointer; touch-action: manipulation;
+      }
+    `)
   })
 
   win.webContents.setWindowOpenHandler(({ url }) => {
