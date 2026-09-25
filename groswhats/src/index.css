@@ -3777,27 +3777,50 @@ html[data-theme='night'] option {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   padding: 10px 6px;
-  width: 44px;
+  width: 48px;
   flex-shrink: 0;
   background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
   border-inline: 1px solid rgba(255, 255, 255, 0.08);
   z-index: 40;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.desktop-rail-sep {
+  width: 22px;
+  height: 1px;
+  margin: 4px 0;
+  background: rgba(255, 255, 255, 0.18);
+  flex-shrink: 0;
 }
 
 .desktop-rail-btn {
-  width: 34px;
-  min-height: 48px;
+  width: 36px;
+  min-height: 40px;
   border: 0;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.06);
   color: #e2e8f0;
   font-weight: 700;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   letter-spacing: 0.02em;
   cursor: pointer;
   touch-action: manipulation;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.desktop-rail-btn.desktop-rail-action {
+  font-size: 1.15rem;
+  min-height: 42px;
+}
+
+.desktop-rail-btn.desktop-rail-lang {
+  font-size: 0.72rem;
+  min-height: 36px;
 }
 
 .desktop-rail-btn:hover,
@@ -3851,6 +3874,10 @@ html[data-theme='night'] option {
 .desktop-shortcut:focus-visible {
   background: rgba(13, 148, 136, 0.55);
   outline: none;
+}
+
+.desktop-shortcut.is-active {
+  background: #0d9488;
 }
 
 .desktop-chrome-body {

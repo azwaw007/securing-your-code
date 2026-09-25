@@ -546,6 +546,9 @@ export default function App() {
   return (
     <DesktopChrome
       lang={lang}
+      mode={state.settings.commerceMode}
+      family={metier.family}
+      activeScreen={screen}
       onLang={(l) => setState((s) => updateSettings(s, { language: l }))}
       onGo={(s) =>
         goTo(
@@ -559,6 +562,24 @@ export default function App() {
                 : t(lang, s === 'profits' ? 'profitsTitle' : s),
         )
       }
+      onAction={(id) => {
+        if (id === 'search') {
+          const el = document.querySelector<HTMLInputElement>(
+            '.smart-search input, .global-smart-search input, input[type="search"], .home-hero input',
+          )
+          el?.focus()
+          el?.select()
+          return
+        }
+        if (id === 'newProduct') {
+          goTo('products', vocab.product)
+          return
+        }
+        if (id === 'alerts') {
+          keepAlive('inventory')
+          goTo('inventory', t(lang, 'inventory'))
+        }
+      }}
     >
     <div
       className={`app-shell mode-${state.settings.commerceMode || 'gros'} metier-${metier.family} ${screen === 'delivery' ? 'map-mode' : ''} ${
