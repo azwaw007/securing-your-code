@@ -34,6 +34,40 @@ const TIP_DELAY_MS = 700
 
 type TipSide = 'right' | 'left' | 'bottom'
 
+type HotBinding = { key: string; id: RailActionId }
+
+/** F1…F12 dans l’ordre : barre haut → rail gauche → rail droite */
+function buildFKeyBindings(rails: {
+  top: RailAction[]
+  left: RailAction[]
+  right: RailAction[]
+}): HotBinding[] {
+  const out: HotBinding[] = []
+  let n = 1
+  for (const list of [rails.top, rails.left, rails.right]) {
+    for (const item of list) {
+      if (n > 12) return out
+      out.push({ key: `F${n}`, id: item.id })
+      n += 1
+    }
+  }
+  return out
+}
+
+function fKeyFor(
+  bindings: HotBinding[],
+  id: RailActionId,
+  occurrence: number,
+): string | undefined {
+  let seen = 0
+  for (const b of bindings) {
+    if (b.id !== id) continue
+    if (seen === occurrence) return b.key
+    seen += 1
+  }
+  return undefined
+}
+
 function DesktopTipButton({
   title,
   hint,
@@ -43,6 +77,7 @@ function DesktopTipButton({
   onClick,
   children,
   shortcutHint,
+  showKeyBadge,
 }: {
   title: string
   hint: string
@@ -52,6 +87,8 @@ function DesktopTipButton({
   onClick: () => void
   children: React.ReactNode
   shortcutHint?: string
+  /** Affiche la touche sur l’icône (ex. F1) */
+  showKeyBadge?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
@@ -106,14 +143,23 @@ function DesktopTipButton({
     >
       <button
         type="button"
-        className={`${className}${active ? ' is-active' : ''}`}
+        className={`${className}${active ? ' is-active' : ''}${
+          showKeyBadge && shortcutHint ? ' has-key-badge' : ''
+        }`}
         onClick={() => {
           clear()
           onClick()
         }}
-        aria-label={`${title}. ${hint}`}
+        aria-label={
+          shortcutHint ? `${title}. ${hint}. ${shortcutHint}` : `${title}. ${hint}`
+        }
       >
         {children}
+        {showKeyBadge && shortcutHint ? (
+          <kbd className="desktop-key-badge" aria-hidden>
+            {shortcutHint}
+          </kbd>
+        ) : null}
       </button>
       {open && hint && pos ? (
         <span
@@ -140,30 +186,48 @@ function RailButtons({
   active,
   side,
   onAction,
+  bindings,
+  occurrenceOffset,
 }: {
   items: RailAction[]
   lang: Language
   active?: Screen
   side: TipSide
   onAction: (id: RailActionId) => void
+  bindings: HotBinding[]
+  /** index de départ dans la séquence F pour ce rail */
+  occurrenceOffset: number
 }) {
   return (
     <>
-      {items.map((s) => (
-        <DesktopTipButton
-          key={s.id}
-          title={t(lang, s.labelKey)}
-          hint={railHint(lang, s.id)}
-          side={side}
-          className="desktop-rail-btn desktop-rail-action"
-          active={isScreenAction(s.id) && active === s.id}
-          onClick={() => onAction(s.id)}
-        >
-          <span aria-hidden>{s.icon}</span>
-        </DesktopTipButton>
-      ))}
+      {items.map((s, i) => {
+        const key = bindings[occurrenceOffset + i]?.key
+        return (
+          <DesktopTipButton
+            key={s.id}
+            title={t(lang, s.labelKey)}
+            hint={railHint(lang, s.id)}
+            side={side}
+            className="desktop-rail-btn desktop-rail-action"
+            active={isScreenAction(s.id) && active === s.id}
+            onClick={() => onAction(s.id)}
+            shortcutHint={key}
+            showKeyBadge={!!key}
+          >
+            <span aria-hidden>{s.icon}</span>
+          </DesktopTipButton>
+        )
+      })}
     </>
   )
+}
+
+function isTypingTarget(el: EventTarget | null): boolean {
+  if (!(el instanceof HTMLElement)) return false
+  const tag = el.tagName
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true
+  if (el.isContentEditable) return true
+  return !!el.closest('input, textarea, select, [contenteditable="true"]')
 }
 
 export function DesktopChrome({
@@ -180,7 +244,6 @@ export function DesktopChrome({
   lang: Language
   mode?: CommerceMode
   family?: MetierFamily
-  /** Préférences admin (sinon pack métier) */
   railsConfig?: DesktopRailsConfig | null
   activeScreen?: Screen
   onLang: (l: Language) => void
@@ -193,6 +256,10 @@ export function DesktopChrome({
     [family, mode, railsConfig],
   )
 
+  const bindings = useMemo(() => buildFKeyBindings(rails), [rails])
+  const leftOffset = rails.top.length
+  const rightOffset = rails.top.length + rails.left.length
+
   const handle = (id: RailActionId) => {
     if (onAction && (id === 'search' || id === 'newProduct' || id === 'alerts')) {
       onAction(id)
@@ -204,19 +271,21 @@ export function DesktopChrome({
   useEffect(() => {
     if (!isElectronDesktop()) return
     const onKey = (e: KeyboardEvent) => {
+      if (isTypingTarget(e.target)) return
+      // F1…F12
+      if (/^F([1-9]|1[0-2])$/.test(e.key)) {
+        const hit = bindings.find((b) => b.key === e.key)
+        if (hit) {
+          e.preventDefault()
+          handle(hit.id)
+          return
+        }
+      }
       if (!(e.ctrlKey || e.metaKey) || e.altKey) return
-      const top = rails.top
       if (e.key === '0') {
         e.preventDefault()
         onGo('home')
         return
-      }
-      const idx = Number(e.key)
-      if (idx >= 1 && idx <= 9 && top[idx - 1]) {
-        e.preventDefault()
-        const id = top[idx - 1]!.id
-        if (id === 'search' || id === 'newProduct' || id === 'alerts') onAction?.(id)
-        else if (isScreenAction(id)) onGo(id)
       }
       if (e.key === 'f' || e.key === 'F') {
         e.preventDefault()
@@ -229,7 +298,7 @@ export function DesktopChrome({
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onGo, onAction, rails])
+  }, [onGo, onAction, bindings, rails])
 
   if (!isElectronDesktop()) {
     return <>{children}</>
@@ -265,25 +334,31 @@ export function DesktopChrome({
           active={activeScreen}
           side="right"
           onAction={handle}
+          bindings={bindings}
+          occurrenceOffset={leftOffset}
         />
       </aside>
 
       <div className="desktop-chrome-main">
         <nav className="desktop-shortcuts" aria-label="Shortcuts">
-          {rails.top.map((s, i) => (
-            <DesktopTipButton
-              key={s.id}
-              title={t(lang, s.labelKey)}
-              hint={railHint(lang, s.id)}
-              side="bottom"
-              className="desktop-shortcut"
-              active={isScreenAction(s.id) && activeScreen === s.id}
-              onClick={() => handle(s.id)}
-              shortcutHint={`Ctrl+${i + 1}`}
-            >
-              <span aria-hidden>{s.icon}</span>
-            </DesktopTipButton>
-          ))}
+          {rails.top.map((s, i) => {
+            const key = bindings[i]?.key
+            return (
+              <DesktopTipButton
+                key={s.id}
+                title={t(lang, s.labelKey)}
+                hint={railHint(lang, s.id)}
+                side="bottom"
+                className="desktop-shortcut"
+                active={isScreenAction(s.id) && activeScreen === s.id}
+                onClick={() => handle(s.id)}
+                shortcutHint={key}
+                showKeyBadge={!!key}
+              >
+                <span aria-hidden>{s.icon}</span>
+              </DesktopTipButton>
+            )
+          })}
         </nav>
         <div className="desktop-chrome-body">{children}</div>
       </div>
@@ -306,6 +381,8 @@ export function DesktopChrome({
           active={activeScreen}
           side="left"
           onAction={handle}
+          bindings={bindings}
+          occurrenceOffset={rightOffset}
         />
       </aside>
     </div>

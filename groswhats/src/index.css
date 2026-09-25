@@ -3816,6 +3816,7 @@ html[data-theme='night'] option {
 .desktop-rail-btn.desktop-rail-action {
   font-size: 1.15rem;
   min-height: 42px;
+  position: relative;
 }
 
 .desktop-rail-btn.desktop-rail-lang {
@@ -3857,8 +3858,8 @@ html[data-theme='night'] option {
 
 .desktop-shortcut {
   flex: 0 0 auto;
-  width: 48px;
-  height: 44px;
+  width: 52px;
+  height: 48px;
   border: 0;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.08);
@@ -3868,6 +3869,7 @@ html[data-theme='night'] option {
   touch-action: manipulation;
   display: grid;
   place-items: center;
+  position: relative;
 }
 
 .desktop-shortcut:hover,
@@ -3878,6 +3880,32 @@ html[data-theme='night'] option {
 
 .desktop-shortcut.is-active {
   background: #0d9488;
+}
+
+/* Pastille F1 / F2 visible sur l’icône */
+.desktop-key-badge {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  min-width: 1.05rem;
+  padding: 0 3px;
+  border-radius: 3px;
+  background: rgba(15, 23, 42, 0.92);
+  color: #fbbf24;
+  font-size: 0.58rem;
+  font-weight: 700;
+  font-family: ui-monospace, 'Cascadia Mono', monospace;
+  line-height: 1.25;
+  letter-spacing: 0;
+  pointer-events: none;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+}
+
+.desktop-rail-btn .desktop-key-badge {
+  right: 1px;
+  bottom: 1px;
+  font-size: 0.5rem;
+  padding: 0 2px;
 }
 
 /* Info-bulle au survol (~0,7 s) — position fixed hors overflow rail */
