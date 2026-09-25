@@ -1,7 +1,7 @@
 {
   "name": "az-pos",
   "private": true,
-  "version": "1.2.4",
+  "version": "1.2.5",
   "description": "AZ POS — point de vente Algérie (web, Android, Windows)",
   "author": "AZ POS",
   "type": "module",
@@ -20,12 +20,12 @@
     "native:deps": "npm install --no-save @capacitor/core@^7.4.3 @capacitor/cli@^7.4.3 @capacitor/android@^7.4.3 electron@^37.2.6 electron-builder@^26.0.12",
     "android:sync": "npm run build:native && npx cap sync android",
     "android:open": "npx cap open android",
-    "desktop:dev": "npm run adb:vendor && npm run build:native && electron .",
-    "desktop:build": "npm run adb:vendor && npm run build:native && electron-builder --win",
-    "desktop:dir": "npm run adb:vendor && npm run build:native && electron-builder --win --dir",
-    "desktop:build:all": "npm run adb:vendor && npm run build:native && electron-builder --win --linux --mac",
-    "desktop:linux": "npm run adb:vendor && npm run build:native && electron-builder --linux",
-    "desktop:mac": "npm run adb:vendor && npm run build:native && electron-builder --mac"
+    "desktop:dev": "npm run adb:vendor && npm run build:native && node scripts/verify-native-dist.mjs && electron .",
+    "desktop:build": "npm run adb:vendor && npm run build:native && node scripts/verify-native-dist.mjs && electron-builder --win",
+    "desktop:dir": "npm run adb:vendor && npm run build:native && node scripts/verify-native-dist.mjs && electron-builder --win --dir",
+    "desktop:build:all": "npm run adb:vendor && npm run build:native && node scripts/verify-native-dist.mjs && electron-builder --win --linux --mac",
+    "desktop:linux": "npm run adb:vendor && npm run build:native && node scripts/verify-native-dist.mjs && electron-builder --linux",
+    "desktop:mac": "npm run adb:vendor && npm run build:native && node scripts/verify-native-dist.mjs && electron-builder --mac"
   },
   "dependencies": {
     "@vercel/blob": "^2.8.0",

@@ -8,10 +8,13 @@ const nativeBuild =
   process.env.ELECTRON === '1'
 
 export default defineConfig({
+  // Electron / Capacitor chargent via file:// — chemins absolus /assets cassent l’UI.
   base: nativeBuild ? './' : '/',
   plugins: [
     react(),
+    // PWA + service worker inutiles (et risqués) dans l’EXE / APK embarqué.
     VitePWA({
+      disable: nativeBuild,
       registerType: 'autoUpdate',
       includeAssets: [
         'favicon.svg',
