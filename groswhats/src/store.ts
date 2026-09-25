@@ -1356,6 +1356,92 @@ export function removeHeldSale(state: AppState, id: string): AppState {
   }
 }
 
+/** Ajoute / retire un produit catalogue sur le ticket d’une session salle. */
+export function bumpGymSessionProduct(
+  state: AppState,
+  sessionId: string,
+  productId: string,
+  delta: number,
+): AppState {
+  let next = ensureGymSessionHeld(state, sessionId)
+  const session = (next.gymSessions ?? []).find((s) => s.id === sessionId)
+  if (!session) return state
+  const product = next.products.find((p) => p.id === productId)
+  if (!product) return next
+
+  const held = (next.heldSales || []).find((h) => h.id === session.heldSaleId)
+  if (!held) return next
+
+  const key = productId
+  const cur = held.qtyMap?.[key] || 0
+  const stock = displayStock(next, product)
+  const qty = Math.max(0, Math.min(stock, +(cur + delta).toFixed(3)))
+  const qtyMap = { ...(held.qtyMap || {}) }
+  const tierMap = { ...(held.tierMap || {}) }
+  if (qty <= 0) {
+    delete qtyMap[key]
+    delete tierMap[key]
+  } else {
+    qtyMap[key] = qty
+    if (!tierMap[key]) tierMap[key] = 'piece'
+  }
+
+  return {
+    ...next,
+    heldSales: (next.heldSales || []).map((h) =>
+      h.id === held.id ? { ...h, qtyMap, tierMap } : h,
+    ),
+  }
+}
+
+/** Total ticket session (flash séance + produits catalogue). */
+export function gymSessionTicketTotal(
+  state: AppState,
+  sessionId: string,
+): { totalDa: number; productLines: number; sessionFeeDa: number } {
+  const session = (state.gymSessions ?? []).find((s) => s.id === sessionId)
+  if (!session) return { totalDa: 0, productLines: 0, sessionFeeDa: 0 }
+  const held = (state.heldSales || []).find((h) => h.id === session.heldSaleId)
+  if (!held) return { totalDa: 0, productLines: 0, sessionFeeDa: 0 }
+
+  let sessionFeeDa = 0
+  for (const f of held.flashLines || []) {
+    sessionFeeDa += (f.unitPriceDa || 0) * (f.qty || 0)
+  }
+  let productsDa = 0
+  let productLines = 0
+  for (const [pid, qty] of Object.entries(held.qtyMap || {})) {
+    if (qty <= 0) continue
+    const p = state.products.find((x) => x.id === pid)
+    if (!p) continue
+    productLines += 1
+    const tier = held.tierMap?.[pid] || 'piece'
+    const price =
+      held.priceOverrides?.[`${pid}::${tier}`] ??
+      (tier === 'gros' || tier === 'super_gros'
+        ? p.grosPriceDa || p.priceDa
+        : tier === 'demi_gros'
+          ? p.demiGrosPriceDa || p.priceDa
+          : p.priceDa)
+    productsDa += price * qty
+  }
+  let sum = sessionFeeDa + productsDa
+  const disc = held.discountPercent || 0
+  if (disc > 0) sum = sum * (1 - disc / 100)
+  if (typeof held.totalOverrideDa === 'number') {
+    return {
+      totalDa: held.totalOverrideDa,
+      productLines,
+      sessionFeeDa,
+    }
+  }
+  return {
+    totalDa: Math.round(sum),
+    productLines,
+    sessionFeeDa: Math.round(sessionFeeDa),
+  }
+}
+
 export function addClient(
   state: AppState,
   input: Omit<Client, 'id' | 'createdAt'>,

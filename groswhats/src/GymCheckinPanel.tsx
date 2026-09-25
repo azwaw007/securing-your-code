@@ -3,10 +3,13 @@ import type { AppState, Client, GymSession, Language } from './types'
 import { t } from './i18n'
 import { formatDa } from './utils/format'
 import {
+  bumpGymSessionProduct,
+  displayStock,
+  ensureGymSessionHeld,
   gymCheckInByUid,
   gymOccupancyCount,
   gymPresentClientIds,
-  markGymSessionBilling,
+  gymSessionTicketTotal,
   openGymSessions,
   startWalkInGymSession,
   toggleGymCheckIn,
@@ -45,6 +48,8 @@ export function GymCheckinPanel({
   const [lastMsg, setLastMsg] = useState('')
   const [manual, setManual] = useState('')
   const [showAdmin, setShowAdmin] = useState(false)
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
+  const [productQuery, setProductQuery] = useState('')
   const wedgeRef = useRef<HTMLInputElement>(null)
   const nfcStopRef = useRef<{ stop: () => void } | null>(null)
   const stateRef = useRef(state)
@@ -99,6 +104,10 @@ export function GymCheckinPanel({
     }
     setLastMsg(msg)
     onFlash(msg)
+    if (res.kind === 'in' && res.sessionId) {
+      setActiveSessionId(res.sessionId)
+      setProductQuery('')
+    }
   }
 
   function applyUid(raw: string, source: 'nfc' | 'wedge' | 'qr' | 'manual') {
@@ -133,12 +142,47 @@ export function GymCheckinPanel({
     playCash()
     onState(res.state)
     onFlash(t(lang, 'gymWalkInStarted').replace('{name}', res.session.clientName))
-    onOpenSession?.(res.session)
+    setActiveSessionId(res.session.id)
+    setProductQuery('')
   }
 
   function openSession(session: GymSession) {
-    onState(markGymSessionBilling(stateRef.current, session.id))
-    onOpenSession?.(session)
+    const next = ensureGymSessionHeld(stateRef.current, session.id)
+    onState(next)
+    onOpenSession?.(
+      (next.gymSessions ?? []).find((s) => s.id === session.id) || session,
+    )
+  }
+
+  function endTraining(session: GymSession) {
+    openSession(session)
+  }
+
+  function addProductToSession(sessionId: string, productId: string) {
+    const next = bumpGymSessionProduct(
+      stateRef.current,
+      sessionId,
+      productId,
+      1,
+    )
+    onState(next)
+    onFlash(t(lang, 'gymConsoAdded'))
+  }
+
+  const productsForConso = state.products
+    .filter((p) => displayStock(state, p) > 0)
+    .filter((p) => {
+      const q = productQuery.trim().toLowerCase()
+      if (!q) return true
+      return (
+        p.name.toLowerCase().includes(q) ||
+        (p.barcode || '').toLowerCase().includes(q)
+      )
+    })
+    .slice(0, 40)
+
+  function heldFor(session: GymSession) {
+    return (state.heldSales || []).find((h) => h.id === session.heldSaleId)
   }
 
   useEffect(() => {
@@ -175,29 +219,6 @@ export function GymCheckinPanel({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- focus listening toggle only
   }, [listening])
-
-  function sessionTotal(session: GymSession): number {
-    const held = (state.heldSales || []).find((h) => h.id === session.heldSaleId)
-    if (!held) return 0
-    let sum = 0
-    for (const [pid, qty] of Object.entries(held.qtyMap || {})) {
-      const p = state.products.find((x) => x.id === pid)
-      if (!p || qty <= 0) continue
-      const tier = held.tierMap?.[pid] || 'piece'
-      const price =
-        held.priceOverrides?.[`${pid}::${tier}`] ??
-        (tier === 'gros' || tier === 'super_gros'
-          ? p.grosPriceDa || p.priceDa
-          : tier === 'demi_gros'
-            ? p.demiGrosPriceDa || p.priceDa
-            : p.priceDa)
-      sum += price * qty
-    }
-    for (const f of held.flashLines || []) sum += f.unitPriceDa * f.qty
-    if (typeof held.totalOverrideDa === 'number') return held.totalOverrideDa
-    const disc = held.discountPercent || 0
-    return Math.round(sum * (1 - disc / 100))
-  }
 
   return (
     <section className="gym-checkin card">
@@ -318,39 +339,161 @@ export function GymCheckinPanel({
       ) : (
         <div className="dossier-list">
           {sessions.map((s) => {
-            const total = sessionTotal(s)
+            const totals = gymSessionTicketTotal(state, s.id)
             const disc = s.disciplineId
               ? disciplineLabel(s.disciplineId, lang === 'ar' ? 'ar' : 'fr')
               : ''
+            const expanded = activeSessionId === s.id
+            const held = heldFor(s)
+            const lines = Object.entries(held?.qtyMap || {}).filter(
+              ([, qty]) => qty > 0,
+            )
             return (
-              <div key={s.id} className="list-item">
-                <div>
-                  <strong>
-                    {s.clientName}
-                    {s.kind === 'walk_in' ? ` · ${t(lang, 'gymWalkInShort')}` : ''}
-                  </strong>
-                  <div className="muted">
-                    {disc ? `${disc} · ` : ''}
-                    {new Date(s.startedAt).toLocaleTimeString()}
-                    {total > 0 ? ` · ${formatDa(total)}` : ''}
+              <div key={s.id} className="list-item" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                  <div>
+                    <strong>
+                      {s.clientName}
+                      {s.kind === 'walk_in' ? ` · ${t(lang, 'gymWalkInShort')}` : ''}
+                    </strong>
+                    <div className="muted">
+                      {disc ? `${disc} · ` : ''}
+                      {new Date(s.startedAt).toLocaleTimeString()}
+                      {totals.sessionFeeDa > 0
+                        ? ` · ${t(lang, 'gymSessionFee')} ${formatDa(totals.sessionFeeDa)}`
+                        : ''}
+                      {totals.productLines > 0
+                        ? ` · ${totals.productLines} ${t(lang, 'gymConsoShort')}`
+                        : ''}
+                    </div>
+                    <div>
+                      <strong>
+                        {t(lang, 'gymRunningTotal')} : {formatDa(totals.totalDa)}
+                      </strong>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className={`btn secondary ${expanded ? '' : ''}`}
+                      onClick={() => {
+                        const next = ensureGymSessionHeld(stateRef.current, s.id)
+                        onState(next)
+                        setActiveSessionId(expanded ? null : s.id)
+                        setProductQuery('')
+                      }}
+                    >
+                      {expanded ? t(lang, 'gymHideConso') : t(lang, 'gymAddConso')}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => endTraining(s)}
+                    >
+                      {t(lang, 'gymEndTraining')}
+                    </button>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  <button
-                    type="button"
-                    className="btn secondary"
-                    onClick={() => openSession(s)}
-                  >
-                    {t(lang, 'gymAddConso')}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={() => openSession(s)}
-                  >
-                    {t(lang, 'gymCashOut')}
-                  </button>
-                </div>
+
+                {expanded ? (
+                  <div className="gym-session-conso">
+                    {(held?.flashLines?.length || 0) > 0 || lines.length > 0 ? (
+                      <div className="dossier-list" style={{ marginBottom: 8 }}>
+                        {(held?.flashLines || []).map((f) => (
+                          <div key={f.id} className="list-item">
+                            <div>
+                              <strong>{f.name}</strong>
+                              <div className="muted">
+                                {t(lang, 'gymSessionFee')}
+                              </div>
+                            </div>
+                            <span>{formatDa(f.unitPriceDa * f.qty)}</span>
+                          </div>
+                        ))}
+                        {lines.map(([pid, qty]) => {
+                          const p = state.products.find((x) => x.id === pid)
+                          if (!p) return null
+                          const price = p.priceDa * qty
+                          return (
+                            <div key={pid} className="list-item">
+                              <div>
+                                <strong>{p.name}</strong>
+                                <div className="muted">
+                                  {formatDa(p.priceDa)} × {qty}
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                <button
+                                  type="button"
+                                  className="btn secondary"
+                                  onClick={() =>
+                                    onState(
+                                      bumpGymSessionProduct(
+                                        stateRef.current,
+                                        s.id,
+                                        pid,
+                                        -1,
+                                      ),
+                                    )
+                                  }
+                                >
+                                  −
+                                </button>
+                                <span>{qty}</span>
+                                <button
+                                  type="button"
+                                  className="btn secondary"
+                                  onClick={() => addProductToSession(s.id, pid)}
+                                >
+                                  +
+                                </button>
+                                <span>{formatDa(price)}</span>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <p className="muted">{t(lang, 'gymConsoEmpty')}</p>
+                    )}
+
+                    <div className="field">
+                      <label>{t(lang, 'gymPickProduct')}</label>
+                      <input
+                        value={productQuery}
+                        onChange={(e) => setProductQuery(e.target.value)}
+                        placeholder={t(lang, 'searchProduct')}
+                      />
+                    </div>
+                    <div className="chip-row" style={{ maxHeight: 160, overflow: 'auto' }}>
+                      {productsForConso.length === 0 ? (
+                        <span className="muted">{t(lang, 'noProductFound')}</span>
+                      ) : (
+                        productsForConso.map((p) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            className="btn secondary"
+                            onClick={() => addProductToSession(s.id, p.id)}
+                          >
+                            + {p.name}
+                            <small style={{ marginInlineStart: 6 }}>
+                              {formatDa(p.priceDa)}
+                            </small>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className="btn block"
+                      style={{ marginTop: 8 }}
+                      onClick={() => endTraining(s)}
+                    >
+                      {t(lang, 'gymEndTraining')} · {formatDa(totals.totalDa)}
+                    </button>
+                  </div>
+                ) : null}
               </div>
             )
           })}
