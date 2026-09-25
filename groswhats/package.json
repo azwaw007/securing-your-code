@@ -1,7 +1,7 @@
 {
   "name": "az-pos",
   "private": true,
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "AZ POS — point de vente Algérie (web, Android, Windows)",
   "author": "AZ POS",
   "type": "module",
