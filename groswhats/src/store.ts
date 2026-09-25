@@ -53,6 +53,11 @@ import {
   DEFAULT_AGENT_PERMISSIONS,
   type AgentPermissions,
 } from './agent/permissions'
+import {
+  DEFAULT_VENDEUR_PERMISSIONS,
+  migrateSellerPermissions,
+  sellerCan,
+} from './sellerPermissions'
 import { APP_BRAND } from './brand'
 import { countryByCode, convertPriceDa } from './data/countries'
 import { bestForeignCatalogHit, catalogFor, catalogNameHits } from './data/catalogs'
@@ -138,11 +143,36 @@ export const DEFAULT_GAME_TARIFFS: GameTariffs = {
 
 export function defaultSellers(): PosSeller[] {
   const now = new Date().toISOString()
+  const vendeurPerms = { ...DEFAULT_VENDEUR_PERMISSIONS }
   return [
     { id: 'seller_admin', name: 'Admin', role: 'admin', pin: '', active: true, createdAt: now },
-    { id: 'seller_v1', name: 'Vendeur 1', role: 'vendeur', pin: '', active: true, createdAt: now },
-    { id: 'seller_v2', name: 'Vendeur 2', role: 'vendeur', pin: '', active: true, createdAt: now },
-    { id: 'seller_v3', name: 'Vendeur 3', role: 'vendeur', pin: '', active: true, createdAt: now },
+    {
+      id: 'seller_v1',
+      name: 'Vendeur 1',
+      role: 'vendeur',
+      pin: '',
+      active: true,
+      createdAt: now,
+      permissions: { ...vendeurPerms },
+    },
+    {
+      id: 'seller_v2',
+      name: 'Vendeur 2',
+      role: 'vendeur',
+      pin: '',
+      active: true,
+      createdAt: now,
+      permissions: { ...vendeurPerms },
+    },
+    {
+      id: 'seller_v3',
+      name: 'Vendeur 3',
+      role: 'vendeur',
+      pin: '',
+      active: true,
+      createdAt: now,
+      permissions: { ...vendeurPerms },
+    },
   ]
 }
 
@@ -2765,15 +2795,30 @@ function migrateSellers(raw: PosSeller[] | undefined): PosSeller[] {
   const list = Array.isArray(raw) ? raw : []
   const mapped = list
     .filter((s) => s && typeof s.name === 'string' && s.name.trim())
-    .map((s) => ({
-      id: s.id || uid('sel'),
-      name: s.name.trim(),
-      role: (s.role === 'admin' ? 'admin' : 'vendeur') as PosSellerRole,
-      pin: String(s.pin || '').replace(/\D/g, '').slice(0, 6),
-      active: s.active !== false,
-      createdAt: s.createdAt || new Date().toISOString(),
-      canGrantFreeMinutes: s.canGrantFreeMinutes === true,
-    }))
+    .map((s) => {
+      const role = (s.role === 'admin' ? 'admin' : 'vendeur') as PosSellerRole
+      const permissions =
+        role === 'admin'
+          ? undefined
+          : migrateSellerPermissions({
+              ...s,
+              role,
+              canGrantFreeMinutes: s.canGrantFreeMinutes === true,
+            })
+      return {
+        id: s.id || uid('sel'),
+        name: s.name.trim(),
+        role,
+        pin: String(s.pin || '').replace(/\D/g, '').slice(0, 6),
+        active: s.active !== false,
+        createdAt: s.createdAt || new Date().toISOString(),
+        canGrantFreeMinutes:
+          role === 'vendeur' &&
+          (s.canGrantFreeMinutes === true ||
+            permissions?.gameFreeMinutes === true),
+        permissions,
+      }
+    })
   return mapped.length > 0 ? mapped : defaultSellers()
 }
 
@@ -2823,13 +2868,16 @@ export function addSeller(
   const name = input.name.trim()
   if (!name) return state
   const pin = String(input.pin || '').replace(/\D/g, '').slice(0, 6)
+  const role: PosSellerRole = input.role === 'admin' ? 'admin' : 'vendeur'
   const seller: PosSeller = {
     id: uid('sel'),
     name,
-    role: input.role === 'admin' ? 'admin' : 'vendeur',
+    role,
     pin,
     active: true,
     createdAt: new Date().toISOString(),
+    permissions:
+      role === 'vendeur' ? { ...DEFAULT_VENDEUR_PERMISSIONS } : undefined,
   }
   return { ...state, sellers: [...(state.sellers || []), seller] }
 }
@@ -2841,24 +2889,49 @@ export function updateSeller(
 ): AppState {
   return {
     ...state,
-    sellers: (state.sellers || []).map((s) =>
-      s.id === id
-        ? {
-            ...s,
-            ...patch,
-            name: patch.name !== undefined ? patch.name.trim() || s.name : s.name,
-            pin:
-              patch.pin !== undefined
-                ? String(patch.pin).replace(/\D/g, '').slice(0, 6)
-                : s.pin,
-            role: patch.role === 'admin' || patch.role === 'vendeur' ? patch.role : s.role,
-            canGrantFreeMinutes:
-              patch.canGrantFreeMinutes !== undefined
-                ? patch.canGrantFreeMinutes === true
-                : s.canGrantFreeMinutes,
-          }
-        : s,
-    ),
+    sellers: (state.sellers || []).map((s) => {
+      if (s.id !== id) return s
+      const role =
+        patch.role === 'admin' || patch.role === 'vendeur' ? patch.role : s.role
+      let permissions = s.permissions
+      if (role === 'admin') {
+        permissions = undefined
+      } else if (patch.permissions !== undefined) {
+        permissions = {
+          ...DEFAULT_VENDEUR_PERMISSIONS,
+          ...s.permissions,
+          ...patch.permissions,
+        }
+      } else if (!permissions) {
+        permissions = { ...DEFAULT_VENDEUR_PERMISSIONS }
+      }
+      const freeFromPerm = permissions?.gameFreeMinutes === true
+      const canGrantFreeMinutes =
+        patch.canGrantFreeMinutes !== undefined
+          ? patch.canGrantFreeMinutes === true
+          : patch.permissions?.gameFreeMinutes !== undefined
+            ? freeFromPerm
+            : s.canGrantFreeMinutes === true || freeFromPerm
+      if (
+        role === 'vendeur' &&
+        permissions &&
+        canGrantFreeMinutes !== permissions.gameFreeMinutes
+      ) {
+        permissions = { ...permissions, gameFreeMinutes: canGrantFreeMinutes }
+      }
+      return {
+        ...s,
+        ...patch,
+        name: patch.name !== undefined ? patch.name.trim() || s.name : s.name,
+        pin:
+          patch.pin !== undefined
+            ? String(patch.pin).replace(/\D/g, '').slice(0, 6)
+            : s.pin,
+        role,
+        permissions,
+        canGrantFreeMinutes: role === 'vendeur' ? canGrantFreeMinutes : undefined,
+      }
+    }),
   }
 }
 
@@ -3221,10 +3294,7 @@ export function billGameSession(
 
 /** Admin toujours ; vendeur seulement si autorisé. */
 export function sellerCanGrantFreeMinutes(state: AppState): boolean {
-  const s = currentSeller(state)
-  if (!s) return false
-  if (s.role === 'admin') return true
-  return s.canGrantFreeMinutes === true
+  return sellerCan(state, 'gameFreeMinutes')
 }
 
 export function gameFreeMaxMinutes(state: AppState): number {
