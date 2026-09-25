@@ -6400,8 +6400,8 @@ function OrderPage({
         ) : null}
         {favorites.length > 0 ? (
           <div className="chip-row retail-fav-chips" aria-label={t(lang, 'retailFavorites')}>
-            <span className="muted" style={{ alignSelf: 'center', marginInlineEnd: 4 }}>
-              ⭐ {t(lang, 'retailFavorites')}
+            <span className="muted" style={{ alignSelf: 'center', marginInlineEnd: 4 }} aria-hidden>
+              ⭐
             </span>
             {favorites.map((p) => (
               <button
@@ -6878,7 +6878,7 @@ function OrderPage({
         ) : null}
 
         <div className="field total-override-field" style={{ marginTop: 8 }}>
-          <label>{t(lang, 'totalOverrideLabel')}</label>
+          <label className="sr-only">{t(lang, 'totalOverrideLabel')}</label>
           <div className="total-override-row">
             <input
               inputMode="decimal"
@@ -6948,9 +6948,6 @@ function OrderPage({
                 +
               </button>
             </div>
-          </div>
-          <div className="muted" style={{ marginTop: 4 }}>
-            {t(lang, 'totalOverrideHint')}
           </div>
         </div>
 
