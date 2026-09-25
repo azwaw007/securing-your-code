@@ -63,8 +63,8 @@ export const COMMERCE_MODES: Array<{
     icon: '🧰',
     nameFr: 'Services',
     nameAr: 'خدمات',
-    hintFr: 'Prestations, rendez-vous, facturation',
-    hintAr: 'خدمات، مواعيد، فوترة',
+    hintFr: 'Salle de jeux, sport, salon, prestations…',
+    hintAr: 'قاعة ألعاب، رياضة، صالون، خدمات…',
   },
 ]
 
@@ -156,6 +156,8 @@ export const DOMAINS: ShopDomain[] = [
   d('auto-lavage', 'auto', '🚿', 'Lavage auto', 'غسيل سيارات', 'lavage', CAR),
   d('auto-pneus', 'auto', '🛞', 'Pneumatiques', 'عجلات', 'pieces-auto', CAR),
 
+  // Services — Salle de jeux en tête (découvrabilité)
+  d('svc-jeux', 'services', '🎮', 'Salle de jeux / PlayStation', 'قاعة ألعاب / بلاي ستيشن', 'jeux-ps', SVC),
   d('svc-avocat', 'services', '⚖️', 'Cabinet d’avocat', 'محاماة', 'generic-service', SVC),
   /** Pas de domaine « cabinet comptable » : l’expert comptable est horizontal (tous métiers). */
   d('svc-notaire', 'services', '📜', 'Étude notariale', 'توثيق', 'generic-service', SVC),
@@ -175,7 +177,6 @@ export const DOMAINS: ShopDomain[] = [
   d('svc-securite', 'services', '🛡️', 'Sécurité / gardiennage', 'حراسة', 'generic-service', SVC),
   d('svc-transport', 'services', '🚚', 'Transport / livraison', 'نقل وتوصيل', 'transport', SVC),
   d('svc-info', 'services', '🖥️', 'Dépannage informatique', 'إعلام آلي', 'generic-service', SVC),
-  d('svc-jeux', 'services', '🎮', 'Salle de jeux / PlayStation', 'قاعة ألعاب / بلاي ستيشن', 'jeux-ps', SVC),
   d('svc-sport', 'services', '🏋️', 'Salle de sport / fitness', 'قاعة رياضة', 'sport-gym', SVC),
   d('svc-boxe', 'services', '🥊', 'Club de boxe', 'نادي ملاكمة', 'sport-boxe', SVC),
   d('svc-football', 'services', '⚽', 'Club de football', 'نادي كرة قدم', 'sport-foot', SVC),
