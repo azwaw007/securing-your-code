@@ -14,7 +14,18 @@ export type SeedSpec = {
   aisleId?: string
 }
 
-const UNITS = new Set<string>(['piece', 'carton', 'kg', 'g', 'm', 'cm', 'ml', 'L'])
+const UNITS = new Set<string>([
+  'piece',
+  'carton',
+  'kg',
+  'g',
+  'm',
+  'cm',
+  'm2',
+  'm3',
+  'ml',
+  'L',
+])
 
 function isUnit(v: string | undefined): v is Unit {
   return !!v && UNITS.has(v)
