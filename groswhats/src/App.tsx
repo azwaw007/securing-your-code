@@ -1925,7 +1925,7 @@ function SettingsPage({
               if (code) {
                 const { setReferredByCode } = await import('./license/referral')
                 setReferredByCode(code)
-                setState((s) => ({
+                onState((s) => ({
                   ...s,
                   settings: { ...s.settings, referredByCode: code },
                 }))
@@ -1944,8 +1944,8 @@ function SettingsPage({
         <ReferralPanel
           state={state}
           lang={lang}
-          onState={setState}
-          onFlash={(msg) => setToast(msg)}
+          onState={(next) => onState(() => next)}
+          onFlash={(msg) => onFlash(msg)}
           compact
         />
         <a className="btn ghost block" href="/guide.html" target="_blank" rel="noreferrer">
