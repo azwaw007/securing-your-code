@@ -4252,3 +4252,32 @@ html[data-theme='night'] option {
   color: #fff;
   border: none;
 }
+
+.digital-platform-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+.digital-platform-head h3 {
+  margin: 0;
+}
+.digital-status {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.08);
+}
+.digital-status-ok {
+  background: rgba(15, 118, 110, 0.15);
+  color: #0f766e;
+}
+.digital-status-error {
+  background: rgba(185, 28, 28, 0.12);
+  color: #b91c1c;
+}
+.digital-status-disconnected,
+.digital-status-configured {
+  color: #64748b;
+}

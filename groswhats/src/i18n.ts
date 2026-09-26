@@ -1471,7 +1471,23 @@ const fr: Dict = {
   digitalLegal:
     'Produits AZ Soft et affiliation légale uniquement — pas de comptes piratés (Netflix, etc.).',
   digitalTabShop: 'Boutique',
+  digitalTabAffiliate: 'Affilié',
+  digitalTabDropship: 'Dropshipping',
   digitalTabAds: 'Pubs',
+  digitalAffiliateTitle: 'Affiliation',
+  digitalAffiliateHint:
+    'Connecte Amazon Associates, ClickBank, Whop, Shopify… via API et importe des offres à commission.',
+  digitalDropshipTitle: 'Dropshipping',
+  digitalDropshipHint:
+    'Lie Taager, EasyOrders, AliExpress, CJ Dropshipping… : catalogue, coûts, marge, pitch WhatsApp.',
+  digitalApiProxyNote:
+    'Les clés API restent sur cet appareil. Une sync live complète peut exiger un proxy serveur (CORS).',
+  digitalImported: 'Produits importés',
+  digitalNoImported: 'Aucun produit importé — teste l’API puis synchronise le catalogue.',
+  digitalTestApi: 'Tester / lier l’API',
+  digitalSyncCatalog: 'Sync catalogue',
+  digitalDisconnect: 'Déconnecter',
+  digitalOpenDocs: 'Documentation',
   digitalTabOrganic: 'Organique',
   digitalTabResearch: 'Recherche',
   digitalTabAgents: 'Agents IA',
@@ -2995,7 +3011,23 @@ const ar: Dict = {
   digitalLegal:
     'منتجات AZ Soft وعمولة قانونية فقط — ممنوع الحسابات المقرصنة (نتفليكس وغيرها).',
   digitalTabShop: 'المتجر',
+  digitalTabAffiliate: 'عمولة',
+  digitalTabDropship: 'دروبشيبينغ',
   digitalTabAds: 'إعلانات',
+  digitalAffiliateTitle: 'التسويق بالعمولة',
+  digitalAffiliateHint:
+    'اربط Amazon Associates و ClickBank و Whop و Shopify… عبر API واستورد عروضاً بعمولة.',
+  digitalDropshipTitle: 'دروبشيبينغ',
+  digitalDropshipHint:
+    'اربط Taager و EasyOrders و AliExpress و CJ…: كتالوج، تكلفة، هامش، عرض واتساب.',
+  digitalApiProxyNote:
+    'مفاتيح API تبقى على هذا الجهاز. المزامنة الحية قد تحتاج وكيلاً على السيرفر (CORS).',
+  digitalImported: 'منتجات مستوردة',
+  digitalNoImported: 'لا منتجات مستوردة — اختبر الـ API ثم زامن الكتالوج.',
+  digitalTestApi: 'اختبر / اربط API',
+  digitalSyncCatalog: 'مزامنة الكتالوج',
+  digitalDisconnect: 'قطع الاتصال',
+  digitalOpenDocs: 'التوثيق',
   digitalTabOrganic: 'عضوي',
   digitalTabResearch: 'بحث',
   digitalTabAgents: 'وكلاء ذكاء',

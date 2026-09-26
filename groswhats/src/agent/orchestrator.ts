@@ -190,6 +190,9 @@ export function runAgentic(state: AppState, userText: string): AgenticOutcome | 
     'resume du jour',
     'خبير مبيعات',
     'خبير محاسبة',
+    'az digital',
+    'digital',
+    'lance campagne',
   ])
 
   // Sans mot d’action (organiser / thème / expert magasin), laisser le chat général répondre

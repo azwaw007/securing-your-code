@@ -35,8 +35,23 @@ import {
   type CampaignAgentResult,
 } from './agent/campaignManager'
 import { openWhatsappText } from './utils/whatsapp'
+import {
+  disconnectPlatform,
+  fieldLabel,
+  getConnection,
+  loadImportedProducts,
+  platformById,
+  platformHint,
+  platformRegion,
+  platformsForMode,
+  syncSampleCatalog,
+  testConnection,
+  whatsappCommercePitch,
+  type CommercePlatform,
+  type ImportedCommerceProduct,
+} from './digital/platforms'
 
-type TabId = 'shop' | 'ads' | 'organic' | 'research' | 'agents'
+type TabId = 'shop' | 'affiliate' | 'dropship' | 'ads' | 'organic' | 'research' | 'agents'
 
 export function DigitalCockpitPage({
   state,
@@ -62,13 +77,17 @@ export function DigitalCockpitPage({
   const [agentGoal, setAgentGoal] = useState('')
   const [agents, setAgents] = useState<MicroAgent[]>(() => loadMicroAgents())
   const [salesTick, setSalesTick] = useState(0)
+  const [importTick, setImportTick] = useState(0)
 
   const sales = useMemo(() => loadDigitalSales(), [salesTick])
+  const imported = useMemo(() => loadImportedProducts(), [importTick])
   const selected = DIGITAL_CATALOG.find((p) => p.id === selectedId)
   const channel = ADS_CHANNELS.find((c) => c.id === channelId) ?? ADS_CHANNELS[0]
 
   const tabs: Array<{ id: TabId; label: string }> = [
     { id: 'shop', label: t(lang, 'digitalTabShop') },
+    { id: 'affiliate', label: t(lang, 'digitalTabAffiliate') },
+    { id: 'dropship', label: t(lang, 'digitalTabDropship') },
     { id: 'ads', label: t(lang, 'digitalTabAds') },
     { id: 'organic', label: t(lang, 'digitalTabOrganic') },
     { id: 'research', label: t(lang, 'digitalTabResearch') },
@@ -274,6 +293,36 @@ export function DigitalCockpitPage({
         </section>
       ) : null}
 
+      {tab === 'affiliate' ? (
+        <CommerceModePanel
+          mode="affiliate"
+          lang={lang}
+          buyerName={buyerName}
+          buyerPhone={buyerPhone}
+          setBuyerName={setBuyerName}
+          setBuyerPhone={setBuyerPhone}
+          imported={imported.filter((p) => p.mode === 'affiliate')}
+          onFlash={onFlash}
+          onOutput={setOutput}
+          onImportChange={() => setImportTick((n) => n + 1)}
+        />
+      ) : null}
+
+      {tab === 'dropship' ? (
+        <CommerceModePanel
+          mode="dropship"
+          lang={lang}
+          buyerName={buyerName}
+          buyerPhone={buyerPhone}
+          setBuyerName={setBuyerName}
+          setBuyerPhone={setBuyerPhone}
+          imported={imported.filter((p) => p.mode === 'dropship')}
+          onFlash={onFlash}
+          onOutput={setOutput}
+          onImportChange={() => setImportTick((n) => n + 1)}
+        />
+      ) : null}
+
       {tab === 'ads' && channel ? (
         <section className="digital-section">
           <h2>{t(lang, 'digitalAdsTitle')}</h2>
@@ -444,6 +493,249 @@ function ChannelPanel({
       <p className="digital-tip">
         💡 {lang === 'ar' ? channel.freeTipAr : channel.freeTipFr}
       </p>
+    </div>
+  )
+}
+
+function CommerceModePanel({
+  mode,
+  lang,
+  buyerName,
+  buyerPhone,
+  setBuyerName,
+  setBuyerPhone,
+  imported,
+  onFlash,
+  onOutput,
+  onImportChange,
+}: {
+  mode: 'affiliate' | 'dropship'
+  lang: Language
+  buyerName: string
+  buyerPhone: string
+  setBuyerName: (v: string) => void
+  setBuyerPhone: (v: string) => void
+  imported: ImportedCommerceProduct[]
+  onFlash: (msg: string) => void
+  onOutput: (msg: string) => void
+  onImportChange: () => void
+}) {
+  const list = platformsForMode(mode)
+  const [platformId, setPlatformId] = useState(list[0]?.id ?? 'taager')
+  const platform = platformById(platformId) ?? list[0]
+  const existing = getConnection(platformId)
+  const [creds, setCreds] = useState<Record<string, string>>(() => ({
+    ...(existing?.credentials || {}),
+  }))
+  const [busy, setBusy] = useState(false)
+  const [pickSku, setPickSku] = useState('')
+
+  function selectPlatform(id: string) {
+    setPlatformId(id)
+    const c = getConnection(id)
+    setCreds({ ...(c?.credentials || {}) })
+  }
+
+  async function onTest() {
+    if (!platform) return
+    setBusy(true)
+    try {
+      const res = await testConnection(platform.id, creds, lang)
+      onOutput(res.message)
+      onFlash(res.ok ? (lang === 'ar' ? 'تم الربط' : 'Connecté') : res.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function onSync() {
+    const res = syncSampleCatalog(platformId, mode, lang)
+    onOutput(res.message)
+    onFlash(res.message)
+    if (res.ok) onImportChange()
+  }
+
+  function onDisconnect() {
+    disconnectPlatform(platformId)
+    setCreds({})
+    onImportChange()
+    onFlash(lang === 'ar' ? 'تم قطع الاتصال' : 'Déconnecté')
+  }
+
+  function pitchProduct(p: ImportedCommerceProduct) {
+    const msg = whatsappCommercePitch(p, lang, buyerName || undefined)
+    onOutput(msg)
+    if (buyerPhone.trim()) openWhatsappText(buyerPhone, msg)
+    onFlash(lang === 'ar' ? 'تم إرسال العرض' : 'Offre envoyée')
+  }
+
+  const status = getConnection(platformId)?.status
+
+  return (
+    <section className="digital-section">
+      <h2>
+        {mode === 'affiliate'
+          ? t(lang, 'digitalAffiliateTitle')
+          : t(lang, 'digitalDropshipTitle')}
+      </h2>
+      <p className="muted">
+        {mode === 'affiliate'
+          ? t(lang, 'digitalAffiliateHint')
+          : t(lang, 'digitalDropshipHint')}
+      </p>
+      <p className="digital-tip">{t(lang, 'digitalApiProxyNote')}</p>
+
+      <div className="digital-chip-row">
+        {list.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            className={`chip ${platformId === p.id ? 'is-on' : ''}`}
+            onClick={() => selectPlatform(p.id)}
+          >
+            {p.name}
+            {getConnection(p.id)?.status === 'ok' ? ' ✓' : ''}
+          </button>
+        ))}
+      </div>
+
+      {platform ? (
+        <PlatformConnectForm
+          platform={platform}
+          lang={lang}
+          creds={creds}
+          setCreds={setCreds}
+          status={status}
+          busy={busy}
+          onTest={() => void onTest()}
+          onSync={onSync}
+          onDisconnect={onDisconnect}
+        />
+      ) : null}
+
+      <h3>{t(lang, 'digitalImported')}</h3>
+      {imported.length === 0 ? (
+        <p className="muted">{t(lang, 'digitalNoImported')}</p>
+      ) : (
+        <>
+          <div className="digital-sell card-block">
+            <label>
+              {t(lang, 'digitalBuyer')}
+              <input
+                value={buyerName}
+                onChange={(e) => setBuyerName(e.target.value)}
+                placeholder={lang === 'ar' ? 'الاسم' : 'Nom'}
+              />
+            </label>
+            <label>
+              {t(lang, 'digitalPhone')}
+              <input
+                value={buyerPhone}
+                onChange={(e) => setBuyerPhone(e.target.value)}
+                placeholder="0555…"
+                inputMode="tel"
+              />
+            </label>
+          </div>
+          <div className="digital-grid">
+            {imported.map((p) => (
+              <article
+                key={p.id}
+                className={`digital-card static ${pickSku === p.sku ? 'is-on' : ''}`}
+              >
+                <strong onClick={() => setPickSku(p.sku)}>{p.title}</strong>
+                <span className="muted">
+                  {platformById(p.platformId)?.name} · {p.sku}
+                </span>
+                <span className="digital-price">
+                  {mode === 'affiliate'
+                    ? `${p.commissionPct ?? '—'}% ${lang === 'ar' ? 'عمولة' : 'comm.'}`
+                    : `${formatDa(p.priceDa)} · ${lang === 'ar' ? 'تكلفة' : 'coût'} ${formatDa(p.costDa)}`}
+                </span>
+                <button type="button" className="btn primary" onClick={() => pitchProduct(p)}>
+                  {t(lang, 'digitalSendWa')}
+                </button>
+              </article>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  )
+}
+
+function PlatformConnectForm({
+  platform,
+  lang,
+  creds,
+  setCreds,
+  status,
+  busy,
+  onTest,
+  onSync,
+  onDisconnect,
+}: {
+  platform: CommercePlatform
+  lang: Language
+  creds: Record<string, string>
+  setCreds: (c: Record<string, string>) => void
+  status?: string
+  busy: boolean
+  onTest: () => void
+  onSync: () => void
+  onDisconnect: () => void
+}) {
+  return (
+    <div className="digital-sell card-block">
+      <div className="digital-platform-head">
+        <div>
+          <h3>{platform.name}</h3>
+          <p className="muted">{platformRegion(platform, lang)}</p>
+        </div>
+        <span className={`digital-status digital-status-${status || 'disconnected'}`}>
+          {status === 'ok'
+            ? lang === 'ar'
+              ? 'موصول'
+              : 'Connecté'
+            : status === 'error'
+              ? lang === 'ar'
+                ? 'خطأ'
+                : 'Erreur'
+              : lang === 'ar'
+                ? 'غير موصول'
+                : 'Déconnecté'}
+        </span>
+      </div>
+      <p className="muted">{platformHint(platform, lang)}</p>
+      {platform.docsUrl ? (
+        <a href={platform.docsUrl} target="_blank" rel="noreferrer" className="btn ghost">
+          {t(lang, 'digitalOpenDocs')}
+        </a>
+      ) : null}
+      {platform.fields.map((f) => (
+        <label key={f.key}>
+          {fieldLabel(f, lang)}
+          {f.required ? ' *' : ''}
+          <input
+            type={f.secret ? 'password' : 'text'}
+            autoComplete="off"
+            value={creds[f.key] || ''}
+            placeholder={f.placeholder}
+            onChange={(e) => setCreds({ ...creds, [f.key]: e.target.value })}
+          />
+        </label>
+      ))}
+      <div className="digital-actions">
+        <button type="button" className="btn primary" disabled={busy} onClick={onTest}>
+          {t(lang, 'digitalTestApi')}
+        </button>
+        <button type="button" className="btn" disabled={busy} onClick={onSync}>
+          {t(lang, 'digitalSyncCatalog')}
+        </button>
+        <button type="button" className="btn ghost" onClick={onDisconnect}>
+          {t(lang, 'digitalDisconnect')}
+        </button>
+      </div>
     </div>
   )
 }
