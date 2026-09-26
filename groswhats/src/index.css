@@ -4281,3 +4281,38 @@ html[data-theme='night'] option {
 .digital-status-configured {
   color: #64748b;
 }
+
+.referral-hero {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.referral-code {
+  display: inline-block;
+  font-size: 1.4rem;
+  letter-spacing: 0.06em;
+  margin-inline-end: 8px;
+  color: #0f766e;
+}
+.referral-points strong {
+  font-size: 1.8rem;
+  color: #7c3aed;
+}
+.referral-bar {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+  margin: 8px 0;
+}
+.referral-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0f766e, #7c3aed);
+  border-radius: 999px;
+  transition: width 0.25s ease;
+}
+.referral-panel.is-compact h2 {
+  font-size: 1.05rem;
+}

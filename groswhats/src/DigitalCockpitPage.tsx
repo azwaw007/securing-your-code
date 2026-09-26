@@ -35,6 +35,7 @@ import {
   type CampaignAgentResult,
 } from './agent/campaignManager'
 import { openWhatsappText } from './utils/whatsapp'
+import { ReferralPanel } from './ReferralPanel'
 import {
   disconnectPlatform,
   fieldLabel,
@@ -51,17 +52,27 @@ import {
   type ImportedCommerceProduct,
 } from './digital/platforms'
 
-type TabId = 'shop' | 'affiliate' | 'dropship' | 'ads' | 'organic' | 'research' | 'agents'
+type TabId =
+  | 'shop'
+  | 'affiliate'
+  | 'dropship'
+  | 'referral'
+  | 'ads'
+  | 'organic'
+  | 'research'
+  | 'agents'
 
 export function DigitalCockpitPage({
   state,
   lang,
+  onState,
   onFlash,
   onNavigate,
   onCampaignAction,
 }: {
   state: AppState
   lang: Language
+  onState: (next: AppState) => void
   onFlash: (msg: string) => void
   onNavigate: (screen: Screen) => void
   onCampaignAction?: (res: CampaignAgentResult) => void
@@ -71,6 +82,7 @@ export function DigitalCockpitPage({
   const [busy, setBusy] = useState(false)
   const [buyerName, setBuyerName] = useState('')
   const [buyerPhone, setBuyerPhone] = useState('')
+  const [saleReferrer, setSaleReferrer] = useState('')
   const [selectedId, setSelectedId] = useState(DIGITAL_CATALOG[0]?.id ?? '')
   const [channelId, setChannelId] = useState(ADS_CHANNELS[0]?.id ?? 'meta')
   const [agentName, setAgentName] = useState('')
@@ -86,6 +98,7 @@ export function DigitalCockpitPage({
 
   const tabs: Array<{ id: TabId; label: string }> = [
     { id: 'shop', label: t(lang, 'digitalTabShop') },
+    { id: 'referral', label: t(lang, 'digitalTabReferral') },
     { id: 'affiliate', label: t(lang, 'digitalTabAffiliate') },
     { id: 'dropship', label: t(lang, 'digitalTabDropship') },
     { id: 'ads', label: t(lang, 'digitalTabAds') },
@@ -291,6 +304,15 @@ export function DigitalCockpitPage({
             </ul>
           )}
         </section>
+      ) : null}
+
+      {tab === 'referral' ? (
+        <ReferralPanel
+          state={state}
+          lang={lang}
+          onState={onState}
+          onFlash={onFlash}
+        />
       ) : null}
 
       {tab === 'affiliate' ? (

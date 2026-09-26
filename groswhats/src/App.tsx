@@ -222,6 +222,7 @@ import { MissionsPage } from './MissionsPage'
 import { CashierHome } from './CashierHome'
 import { AgentPage } from './AgentPage'
 import { DigitalCockpitPage } from './DigitalCockpitPage'
+import { ReferralPanel } from './ReferralPanel'
 import { GlobalSmartSearch, SmartSearchBar, suggestNames } from './SmartSearchBar'
 import type { SearchHit } from './utils/smartSearch'
 import {
@@ -1160,6 +1161,7 @@ export default function App() {
           <DigitalCockpitPage
             state={state}
             lang={lang}
+            onState={setState}
             onFlash={(msg) => setToast(msg)}
             onNavigate={goTo}
             onCampaignAction={(res) => {
@@ -1746,6 +1748,7 @@ function SettingsPage({
   }))
   const [useBt, setUseBt] = useState(getPreferBluetoothPrinter())
   const [licenseKey, setLicenseKey] = useState('')
+  const [referrerOnActivate, setReferrerOnActivate] = useState('')
   const [licenseInfo, setLicenseInfo] = useState('')
   const [newLocName, setNewLocName] = useState('')
   const [xferProductId, setXferProductId] = useState(
@@ -1899,14 +1902,35 @@ function SettingsPage({
             placeholder="GDZ1...."
           />
         </div>
+        <div className="field">
+          <label>{t(lang, 'referralCodeOnActivate')}</label>
+          <input
+            value={referrerOnActivate}
+            onChange={(e) => setReferrerOnActivate(e.target.value.toUpperCase())}
+            placeholder="AZ-XXXX"
+          />
+          <p className="muted" style={{ margin: '6px 0 0' }}>
+            {t(lang, 'referralCodeOnActivateHint')}
+          </p>
+        </div>
         <button
           className="btn secondary block"
           disabled={!licenseKey.trim()}
           onClick={async () => {
             const res = await activateLicense(licenseKey)
             if (res.ok) {
+              const code = referrerOnActivate.trim().toUpperCase()
+              if (code) {
+                const { setReferredByCode } = await import('./license/referral')
+                setReferredByCode(code)
+                setState((s) => ({
+                  ...s,
+                  settings: { ...s.settings, referredByCode: code },
+                }))
+              }
               setLicenseInfo(`Licence: ${res.payload.c} — expire ${res.payload.e}`)
               setLicenseKey('')
+              setReferrerOnActivate('')
               saveAll()
             } else {
               setLicenseInfo(res.error)
@@ -1915,6 +1939,13 @@ function SettingsPage({
         >
           Activer / renouveler licence
         </button>
+        <ReferralPanel
+          state={state}
+          lang={lang}
+          onState={setState}
+          onFlash={(msg) => setToast(msg)}
+          compact
+        />
         <a className="btn ghost block" href="/guide.html" target="_blank" rel="noreferrer">
           Guide d’utilisation
         </a>
