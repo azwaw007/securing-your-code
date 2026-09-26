@@ -114,7 +114,133 @@ function planTools(text: string, lang: Language): ToolCall[] {
     calls.push({ name: 'expert_advice', args: { domain: expertDomain } })
   }
 
-  // Navigation — ne pas voler « conseil vente »
+  const isBookingAsk = includesAny(n, [
+    'reservation',
+    'reserv',
+    'booking',
+    'creneau',
+    'rdv',
+    'rendez-vous',
+    'rendez vous',
+    'calendrier',
+    'agenda',
+    'disponib',
+    'disponible',
+    'libre proche',
+    'prochain creneau',
+    'حجز',
+    'موعد',
+    'رزنامة',
+    'اجندة',
+    'أجندة',
+    'متاح',
+  ])
+
+  if (isBookingAsk) {
+    const isoMatch = text.match(
+      /(\d{4}-\d{2}-\d{2})(?:[T\s](\d{1,2}):(\d{2}))?/,
+    )
+    const at = isoMatch
+      ? isoMatch[2] != null
+        ? `${isoMatch[1]}T${isoMatch[2]!.padStart(2, '0')}:${isoMatch[3]}`
+        : `${isoMatch[1]}T10:00`
+      : undefined
+    const pour =
+      text.match(
+        /(?:pour|chez|client|زبون|لـ|ل)\s+([A-Za-zÀ-ÿ\u0600-\u06FF][\wÀ-ÿ\u0600-\u06FF.'-]{1,40})/i,
+      )?.[1] || undefined
+    const optAliases: Array<{ words: string[]; id: string }> = [
+      { words: ['dj'], id: 'dj' },
+      { words: ['cuisine', 'traiteur'], id: 'cuisine' },
+      { words: ['materiel', 'matériel'], id: 'materiel' },
+      { words: ['sono'], id: 'sono' },
+      { words: ['deco', 'décor', 'decor', 'decoration'], id: 'deco' },
+      { words: ['photo', 'video', 'vidéo', 'photographe'], id: 'photo' },
+      { words: ['heure_supp', 'heure supp', 'heure supplémentaire'], id: 'heure_supp' },
+      { words: ['gateau', 'gâteau'], id: 'gateau' },
+      { words: ['urgence'], id: 'urgence' },
+      { words: ['controle', 'contrôle'], id: 'controle' },
+      { words: ['coupe'], id: 'coupe' },
+      { words: ['couleur'], id: 'couleur' },
+      { words: ['coach'], id: 'coach' },
+      { words: ['premium'], id: 'premium' },
+    ]
+    const options = optAliases
+      .filter((a) =>
+        a.words.some((w) =>
+          n.includes(w.normalize('NFD').replace(/[\u0300-\u036f]/g, '')),
+        ),
+      )
+      .map((a) => a.id)
+
+    if (
+      includesAny(n, [
+        'liste',
+        'prochaines',
+        'prochains rdv',
+        'mes rdv',
+        'قائمة',
+        'الحجوزات',
+        'مواعيدي',
+      ])
+    ) {
+      calls.push({ name: 'list_bookings' })
+    } else if (
+      includesAny(n, [
+        'evalue',
+        'evaluer',
+        'accepte',
+        'accepter',
+        'refuse',
+        'refuser',
+        'verifie',
+        'vérifie',
+        'possible',
+        'قيّم',
+        'قيم',
+        'قبول',
+        'رفض',
+        'ممكن',
+      ])
+    ) {
+      calls.push({
+        name: 'evaluate_booking',
+        args: { ...(at ? { at } : {}), ...(options.length ? { options } : {}) },
+      })
+    } else if (
+      includesAny(n, [
+        'cree',
+        'creer',
+        'reserve',
+        'reserver',
+        'book',
+        'enregistre',
+        'سجّل',
+        'سجل',
+        'احجز',
+        'حجز ل',
+      ])
+    ) {
+      calls.push({
+        name: 'create_booking',
+        args: {
+          ...(at ? { at } : {}),
+          ...(pour ? { clientName: pour } : {}),
+          ...(options.length ? { options } : {}),
+        },
+      })
+    } else {
+      calls.push({
+        name: 'suggest_booking_slots',
+        args: {
+          ...(at ? { from: at } : {}),
+          ...(options.length ? { options } : {}),
+        },
+      })
+    }
+  }
+
+  // Navigation — ne pas voler « conseil vente » ni l’agenda
   const navMap: Array<{ words: string[]; screen: string }> = [
     { words: ['vente', 'commande', 'order', 'بيع', 'طلب'], screen: 'order' },
     { words: ['historique', 'facture', 'سجل', 'فاتورة'], screen: 'history' },
@@ -133,6 +259,7 @@ function planTools(text: string, lang: Language): ToolCall[] {
 
   if (
     !isExpertAsk &&
+    !isBookingAsk &&
     includesAny(n, ['ouvre', 'va ', 'allez', 'افتح', 'روح', 'سير'])
   ) {
     for (const m of navMap) {
@@ -189,6 +316,22 @@ export function runAgentic(state: AppState, userText: string): AgenticOutcome | 
     'resume du jour',
     'خبير مبيعات',
     'خبير محاسبة',
+    'reservation',
+    'réservation',
+    'créneau',
+    'creneau',
+    'rendez-vous',
+    'rdv',
+    'calendrier',
+    'agenda',
+    'disponible',
+    'disponib',
+    'booking',
+    'حجز',
+    'موعد',
+    'أجندة',
+    'اجندة',
+    'رزنامة',
   ])
 
   // Sans mot d’action (organiser / thème / expert magasin), laisser le chat général répondre

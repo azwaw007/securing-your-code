@@ -797,6 +797,15 @@ export function migrate(raw: unknown): AppState {
       nextService: typeof c.nextService === 'string' ? c.nextService : undefined,
       licenseId: typeof c.licenseId === 'string' ? c.licenseId : undefined,
       caseRef: typeof c.caseRef === 'string' ? c.caseRef : undefined,
+      eventDate: typeof c.eventDate === 'string' ? c.eventDate : undefined,
+      eventVenue: typeof c.eventVenue === 'string' ? c.eventVenue : undefined,
+      destination: typeof c.destination === 'string' ? c.destination : undefined,
+      travelDates: typeof c.travelDates === 'string' ? c.travelDates : undefined,
+      shootType: typeof c.shootType === 'string' ? c.shootType : undefined,
+      printSpec: typeof c.printSpec === 'string' ? c.printSpec : undefined,
+      siteAddress: typeof c.siteAddress === 'string' ? c.siteAddress : undefined,
+      equipment: typeof c.equipment === 'string' ? c.equipment : undefined,
+      routes: typeof c.routes === 'string' ? c.routes : undefined,
       nfcUid:
         typeof c.nfcUid === 'string' && c.nfcUid.trim()
           ? c.nfcUid.trim().toUpperCase().replace(/[\s:.-]+/g, '')
