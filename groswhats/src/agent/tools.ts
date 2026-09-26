@@ -23,7 +23,7 @@ import { can, type AgentPermissions } from './permissions'
 import { expertAdvice, type ExpertDomain } from './expertise'
 import { evaluateBooking, suggestNearestSlots, toLocalInputValue } from '../booking/agent'
 import { bookingPackFor, optionLabel } from '../booking/packs'
-import { metierPackFor } from '../locale/metierPacks'
+import { metierFamilyFor } from '../locale/metierPacks'
 
 export type ToolName =
   | 'list_capabilities'
@@ -578,10 +578,10 @@ export const AGENT_TOOLS: ToolDef[] = [
     descriptionFr: 'Propose des créneaux libres proches',
     descriptionAr: 'يقترح مواعيد قريبة متاحة',
     run: (state, args, lang) => {
-      const family = metierPackFor(
+      const family = metierFamilyFor(
         state.settings.domainId,
         state.settings.commerceMode,
-      ).family
+      )
       const pack = bookingPackFor(family)
       const fromRaw = String(args.from || args.at || '').trim()
       const from = fromRaw ? new Date(fromRaw) : new Date()
@@ -647,10 +647,10 @@ export const AGENT_TOOLS: ToolDef[] = [
     descriptionFr: 'Évalue si une réservation est acceptée ou refusée',
     descriptionAr: 'يقيّم قبول أو رفض الحجز',
     run: (state, args, lang) => {
-      const family = metierPackFor(
+      const family = metierFamilyFor(
         state.settings.domainId,
         state.settings.commerceMode,
-      ).family
+      )
       const pack = bookingPackFor(family)
       const atRaw = String(args.at || args.when || '').trim()
       const at = atRaw ? new Date(atRaw) : null
@@ -723,10 +723,10 @@ export const AGENT_TOOLS: ToolDef[] = [
     descriptionFr: 'Crée une réservation si le créneau est libre',
     descriptionAr: 'يسجّل حجزاً إن كان الموعد متاحاً',
     run: (state, args, lang) => {
-      const family = metierPackFor(
+      const family = metierFamilyFor(
         state.settings.domainId,
         state.settings.commerceMode,
-      ).family
+      )
       const pack = bookingPackFor(family)
       const clientId = String(args.clientId || '').trim()
       const clientName = String(args.clientName || args.name || '')

@@ -2041,8 +2041,11 @@ export function metierFamilyFor(domainId: string | undefined, mode?: CommerceMod
 }
 
 export function metierPackFor(domainId: string | undefined, mode?: CommerceMode): MetierPack {
-  const family = metierFamilyFor(domainId, mode || domainById(domainId || '').mode)
-  return PACKS[family]
+  const family = metierFamilyFor(
+    domainId,
+    mode || domainById(domainId || '')?.mode,
+  )
+  return PACKS[family] ?? PACKS.generic_service
 }
 
 export function metierCopy(
