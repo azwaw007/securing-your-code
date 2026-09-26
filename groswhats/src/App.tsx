@@ -3155,9 +3155,11 @@ function HomePage({
                 ? '🚗'
                 : mode === 'services'
                   ? '🧰'
-                  : isWholesale(mode)
-                    ? '📦'
-                    : '🛒'}
+                  : mode === 'ecommerce'
+                    ? '🌐'
+                    : isWholesale(mode)
+                      ? '📦'
+                      : '🛒'}
           </span>
         </button>
         ) : null}
