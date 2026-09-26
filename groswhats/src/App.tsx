@@ -127,6 +127,7 @@ import {
   showGallery,
   showGymCheckin,
   showClinicAgenda,
+  showBookingAgent,
   showHomeScan,
   showTableService,
   showGameStations,
@@ -247,6 +248,7 @@ import { SpecialtyDossierPanel } from './SpecialtyDossierPanel'
 import { ReceptionCashQueue, SendToCashForm } from './ClinicSharePanels'
 import { GymCheckinPanel } from './GymCheckinPanel'
 import { ClinicAgendaPanel } from './ClinicAgendaPanel'
+import { BookingAgentPanel } from './BookingAgentPanel'
 import { TableFloorPanel } from './TableFloorPanel'
 import { GameStationsPanel } from './GameStationsPanel'
 import {
@@ -2998,6 +3000,15 @@ function HomePage({
           onGo('clients', t(lang, 'appClients'))
         }}
       />
+
+      {showBookingAgent(mode, domainId) ? (
+        <BookingAgentPanel
+          state={state}
+          lang={lang}
+          onState={onState}
+          onFlash={onFlash}
+        />
+      ) : null}
 
       {showClinicAgenda(mode, domainId) ? (
         <ClinicAgendaPanel

@@ -753,8 +753,12 @@ const CATALOGS: Record<string, SeedSpec[]> = {
   fete: [
     s('Location salle / soirée', 40000, 8000, '🎉', 'autre'),
     s('Traiteur / pers.', 2500, 900, '🍽️', 'alimentaire'),
+    s('Cuisine / traiteur forfait', 25000, 8000, '👨‍🍳', 'alimentaire'),
+    s('DJ / animation', 15000, 3000, '🎧', 'autre'),
     s('Décoration', 15000, 4000, '🎈', 'autre'),
     s('Sono + éclairage', 12000, 2500, '🔊', 'autre'),
+    s('Matériel chaises / tables', 8000, 1500, '🪑', 'autre'),
+    s('Heure supplémentaire', 5000, 500, '⏱️', 'autre'),
     s('Photographe mariage', 25000, 5000, '📷', 'autre'),
     s('Gâteau pièce montée', 8000, 2500, '🎂', 'alimentaire'),
   ],

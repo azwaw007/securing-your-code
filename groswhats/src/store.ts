@@ -809,6 +809,15 @@ export function migrate(raw: unknown): AppState {
       nextService: typeof c.nextService === 'string' ? c.nextService : undefined,
       licenseId: typeof c.licenseId === 'string' ? c.licenseId : undefined,
       caseRef: typeof c.caseRef === 'string' ? c.caseRef : undefined,
+      eventDate: typeof c.eventDate === 'string' ? c.eventDate : undefined,
+      eventVenue: typeof c.eventVenue === 'string' ? c.eventVenue : undefined,
+      destination: typeof c.destination === 'string' ? c.destination : undefined,
+      travelDates: typeof c.travelDates === 'string' ? c.travelDates : undefined,
+      shootType: typeof c.shootType === 'string' ? c.shootType : undefined,
+      printSpec: typeof c.printSpec === 'string' ? c.printSpec : undefined,
+      siteAddress: typeof c.siteAddress === 'string' ? c.siteAddress : undefined,
+      equipment: typeof c.equipment === 'string' ? c.equipment : undefined,
+      routes: typeof c.routes === 'string' ? c.routes : undefined,
       nfcUid:
         typeof c.nfcUid === 'string' && c.nfcUid.trim()
           ? c.nfcUid.trim().toUpperCase().replace(/[\s:.-]+/g, '')
@@ -1102,6 +1111,23 @@ export function migrate(raw: unknown): AppState {
           : [],
         remindedAt: typeof a.remindedAt === 'string' ? a.remindedAt : undefined,
         createdAt: a.createdAt || new Date().toISOString(),
+        durationMin:
+          typeof a.durationMin === 'number' && a.durationMin > 0
+            ? Math.round(a.durationMin)
+            : undefined,
+        optionIds: Array.isArray(a.optionIds)
+          ? a.optionIds.filter((x): x is string => typeof x === 'string')
+          : undefined,
+        segment: typeof a.segment === 'string' ? a.segment : undefined,
+        quoteDa:
+          typeof a.quoteDa === 'number' && a.quoteDa >= 0 ? a.quoteDa : undefined,
+        agentDecision:
+          a.agentDecision === 'accepted' ||
+          a.agentDecision === 'rejected' ||
+          a.agentDecision === 'proposed'
+            ? a.agentDecision
+            : undefined,
+        agentReason: typeof a.agentReason === 'string' ? a.agentReason : undefined,
       })),
     tables: (data.tables ?? [])
       .filter((tb) => tb && typeof tb.name === 'string')
@@ -1554,6 +1580,12 @@ export function addAppointment(
     clientId: string
     at: string
     note?: string
+    durationMin?: number
+    optionIds?: string[]
+    segment?: string
+    quoteDa?: number
+    agentDecision?: Appointment['agentDecision']
+    agentReason?: string
   },
 ): AppState {
   const client = state.clients.find((c) => c.id === input.clientId)
@@ -1568,6 +1600,18 @@ export function addAppointment(
     status: 'planned',
     remindStages: [],
     createdAt: new Date().toISOString(),
+    durationMin:
+      typeof input.durationMin === 'number' && input.durationMin > 0
+        ? Math.round(input.durationMin)
+        : undefined,
+    optionIds: input.optionIds?.length ? [...input.optionIds] : undefined,
+    segment: input.segment || undefined,
+    quoteDa:
+      typeof input.quoteDa === 'number' && input.quoteDa >= 0
+        ? +input.quoteDa.toFixed(2)
+        : undefined,
+    agentDecision: input.agentDecision,
+    agentReason: input.agentReason?.trim() || undefined,
   }
   return {
     ...state,

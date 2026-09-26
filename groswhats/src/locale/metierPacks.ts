@@ -108,6 +108,11 @@ export type MetierFeatures = {
    */
   specialtyDossier: boolean
   /**
+   * Agenda agentique : calendrier, accept/refus, créneaux proches,
+   * combinaisons d’options (DJ, cuisine, matériel…) selon le métier.
+   */
+  bookingAgent: boolean
+  /**
    * Production / recettes : MP → produit fini (boulangerie, resto, atelier…).
    */
   production: boolean
@@ -149,6 +154,7 @@ const FEAT = {
     doctorNoCash: false,
     staffHr: true,
     specialtyDossier: false,
+    bookingAgent: true,
     production: false,
   } satisfies MetierFeatures,
   depot: {
@@ -169,6 +175,7 @@ const FEAT = {
     doctorNoCash: false,
     staffHr: true,
     specialtyDossier: false,
+    bookingAgent: true,
     production: false,
   } satisfies MetierFeatures,
   clinic: {
@@ -189,6 +196,7 @@ const FEAT = {
     doctorNoCash: true,
     staffHr: true,
     specialtyDossier: true,
+    bookingAgent: true,
     production: false,
   } satisfies MetierFeatures,
   service: {
@@ -209,6 +217,7 @@ const FEAT = {
     doctorNoCash: false,
     staffHr: true,
     specialtyDossier: true,
+    bookingAgent: true,
     production: false,
   } satisfies MetierFeatures,
 }
@@ -2032,8 +2041,11 @@ export function metierFamilyFor(domainId: string | undefined, mode?: CommerceMod
 }
 
 export function metierPackFor(domainId: string | undefined, mode?: CommerceMode): MetierPack {
-  const family = metierFamilyFor(domainId, mode || domainById(domainId || '').mode)
-  return PACKS[family]
+  const family = metierFamilyFor(
+    domainId,
+    mode || domainById(domainId || '')?.mode,
+  )
+  return PACKS[family] ?? PACKS.generic_service
 }
 
 export function metierCopy(
