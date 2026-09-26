@@ -121,6 +121,11 @@ const BY_FAMILY: Partial<Record<MetierFamily, DesktopRails>> = {
     left: pick('digital', 'newProduct', 'search', 'order', 'gallery'),
     right: pick('agent', 'digital', 'history', 'alerts', 'expenses', 'payments'),
   },
+  crm: {
+    top: pick('clients', 'order', 'history', 'profits', 'expenses', 'staff', 'settings'),
+    left: pick('search', 'clients', 'order', 'debtRemind'),
+    right: pick('agent', 'clients', 'history', 'alerts', 'debtRemind', 'creditLimit', 'expenses'),
+  },
   grocery: {
     top: pick('order', 'products', 'caisse', 'inventory', 'expiry', 'history', 'expenses', 'profits', 'settings'),
     left: pick('calculator', 'newProduct', 'search', 'order', 'caisse'),
@@ -287,6 +292,11 @@ const MODE_DEFAULT: Record<CommerceMode, DesktopRails> = {
     top: pick('digital', 'order', 'clients', 'products', 'history', 'expenses', 'profits', 'settings'),
     left: pick('digital', 'newProduct', 'search', 'order', 'clients'),
     right: pick('agent', 'digital', 'history', 'alerts', 'expenses', 'payments'),
+  },
+  crm: {
+    top: pick('clients', 'order', 'history', 'profits', 'expenses', 'staff', 'settings'),
+    left: pick('search', 'clients', 'order', 'debtRemind'),
+    right: pick('agent', 'clients', 'history', 'alerts', 'debtRemind', 'expenses'),
   },
 }
 

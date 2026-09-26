@@ -125,6 +125,7 @@ import {
   showDelivery,
   showDepotTools,
   showEcommerceHub,
+  showCrmHub,
   showGallery,
   showGymCheckin,
   showClinicAgenda,
@@ -225,6 +226,7 @@ import { CashierHome } from './CashierHome'
 import { AgentPage } from './AgentPage'
 import { DigitalCockpitPage } from './DigitalCockpitPage'
 import { EcommerceToolsHub } from './EcommerceToolsHub'
+import { CrmToolsHub } from './CrmToolsHub'
 import { ReferralPanel } from './ReferralPanel'
 import { GlobalSmartSearch, SmartSearchBar, suggestNames } from './SmartSearchBar'
 import type { SearchHit } from './utils/smartSearch'
@@ -332,6 +334,15 @@ function navItems(
       { id: 'order', icon: '🛒' },
       { id: 'products', icon: '📦' },
       { id: 'clients', icon: '👥' },
+    ]
+  }
+  if (mode === 'crm') {
+    return [
+      { id: 'home', icon: '🏠' },
+      { id: 'clients', icon: '🤝' },
+      { id: 'order', icon: '📈' },
+      { id: 'history', icon: '📜' },
+      { id: 'agent', icon: '🤖' },
     ]
   }
   if (isWholesale(mode)) {
@@ -3023,6 +3034,15 @@ function HomePage({
         />
       ) : null}
 
+      {showCrmHub(mode, domainId) ? (
+        <CrmToolsHub
+          lang={lang}
+          compact
+          onNavigate={(s, label) => onGo(s, label || t(lang, 'appClients'))}
+          onFlash={onFlash}
+        />
+      ) : null}
+
       {showBookingAgent(mode, domainId) ? (
         <BookingAgentPanel
           state={state}
@@ -3157,9 +3177,11 @@ function HomePage({
                   ? '🧰'
                   : mode === 'ecommerce'
                     ? '🌐'
-                    : isWholesale(mode)
-                      ? '📦'
-                      : '🛒'}
+                    : mode === 'crm'
+                      ? '🤝'
+                      : isWholesale(mode)
+                        ? '📦'
+                        : '🛒'}
           </span>
         </button>
         ) : null}

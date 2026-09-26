@@ -58,6 +58,7 @@ export type MetierFamily =
   | 'spa'
   | 'generic_service'
   | 'ecommerce'
+  | 'crm'
 
 export type MetierTheme = {
   labelFr: string
@@ -122,6 +123,11 @@ export type MetierFeatures = {
    * Uniquement métier / catégorie e-commerce.
    */
   ecommerceHub: boolean
+  /**
+   * Hub CRM : clients, pipeline, WhatsApp, outils CRM en icônes.
+   * Uniquement métier / catégorie CRM.
+   */
+  crmHub: boolean
 }
 
 export type MetierCopy = DomainVocab & {
@@ -163,6 +169,7 @@ const FEAT = {
     bookingAgent: true,
     production: false,
     ecommerceHub: false,
+    crmHub: false,
   } satisfies MetierFeatures,
   depot: {
     medicalDossier: false,
@@ -185,6 +192,7 @@ const FEAT = {
     bookingAgent: true,
     production: false,
     ecommerceHub: false,
+    crmHub: false,
   } satisfies MetierFeatures,
   clinic: {
     medicalDossier: true,
@@ -207,6 +215,7 @@ const FEAT = {
     bookingAgent: true,
     production: false,
     ecommerceHub: false,
+    crmHub: false,
   } satisfies MetierFeatures,
   service: {
     medicalDossier: false,
@@ -229,6 +238,7 @@ const FEAT = {
     bookingAgent: true,
     production: false,
     ecommerceHub: false,
+    crmHub: false,
   } satisfies MetierFeatures,
 }
 
@@ -1938,6 +1948,7 @@ const PACKS: Record<MetierFamily, MetierPack> = {
       gallery: true,
       depot: false,
       ecommerceHub: true,
+      crmHub: false,
       bookingAgent: true,
     },
     {
@@ -1959,6 +1970,57 @@ const PACKS: Record<MetierFamily, MetierPack> = {
       homeHint: 'متجر، إعلانات، واجهات وشبكات — أدوات مجانية',
       historyLabel: 'الطلبات',
       primaryCta: 'بيع جديد',
+    },
+  ),
+  crm: pack(
+    'crm',
+    theme(
+      'CRM',
+      'إدارة الزبائن',
+      {
+        '--bg': '#f3f6fb',
+        '--bg-2': '#e2eaf4',
+        '--ink': '#0f172a',
+        '--muted': '#54708a',
+        '--card': '#f8fafc',
+        '--line': '#c5d4e4',
+        '--brand': '#1d4ed8',
+        '--brand-2': '#3b82f6',
+        '--glow': 'rgba(37, 99, 235, 0.16)',
+      },
+      'light',
+    ),
+    {
+      ...FEAT.shop,
+      homeScan: false,
+      returns: true,
+      gallery: false,
+      depot: false,
+      ecommerceHub: false,
+      crmHub: true,
+      requireClient: true,
+      bookingAgent: true,
+      staffHr: true,
+    },
+    {
+      client: 'Contact',
+      product: 'Offre',
+      sell: 'Opportunité',
+      sellHint: 'Pipeline, devis, WhatsApp',
+      homeTitle: 'CRM',
+      homeHint: 'Clients, relances, pipeline et outils CRM',
+      historyLabel: 'Historique commercial',
+      primaryCta: 'Nouvelle opportunité',
+    },
+    {
+      client: 'جهة اتصال',
+      product: 'عرض',
+      sell: 'فرصة',
+      sellHint: 'مسار، عرض سعر، واتساب',
+      homeTitle: 'CRM',
+      homeHint: 'زبائن، تذكير، مسار وأدوات CRM',
+      historyLabel: 'السجل التجاري',
+      primaryCta: 'فرصة جديدة',
     },
   ),
 }
@@ -2089,6 +2151,11 @@ const DOMAIN_FAMILY: Record<string, MetierFamily> = {
   'ecom-digital': 'ecommerce',
   'ecom-social': 'ecommerce',
   'ecom-affiliate': 'ecommerce',
+  'crm-sales': 'crm',
+  'crm-b2b': 'crm',
+  'crm-support': 'crm',
+  'crm-pipeline': 'crm',
+  'crm-whatsapp': 'crm',
 }
 
 const MODE_FALLBACK: Record<CommerceMode, MetierFamily> = {
@@ -2098,6 +2165,7 @@ const MODE_FALLBACK: Record<CommerceMode, MetierFamily> = {
   auto: 'garage',
   services: 'generic_service',
   ecommerce: 'ecommerce',
+  crm: 'crm',
 }
 
 export function metierFamilyFor(domainId: string | undefined, mode?: CommerceMode): MetierFamily {
@@ -2137,7 +2205,8 @@ export function metierVocab(
   const product =
     effectiveMode === 'gros' ||
     effectiveMode === 'detail' ||
-    effectiveMode === 'ecommerce'
+    effectiveMode === 'ecommerce' ||
+    effectiveMode === 'crm'
       ? c.product
       : lang === 'ar'
         ? 'مخزون'

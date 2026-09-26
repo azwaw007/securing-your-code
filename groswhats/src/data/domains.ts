@@ -74,6 +74,14 @@ export const COMMERCE_MODES: Array<{
     hintFr: 'Boutique en ligne, dropship, pubs, APIs & réseaux',
     hintAr: 'متجر أونلاين، دروبشيب، إعلانات، واجهات وشبكات',
   },
+  {
+    id: 'crm',
+    icon: '🤝',
+    nameFr: 'CRM',
+    nameAr: 'إدارة الزبائن',
+    hintFr: 'Clients, pipeline, WhatsApp, support & outils CRM',
+    hintAr: 'زبائن، مسار بيع، واتساب، دعم وأدوات CRM',
+  },
 ]
 
 export const DOMAINS: ShopDomain[] = [
@@ -244,6 +252,13 @@ export const DOMAINS: ShopDomain[] = [
     'ecom-aff',
     POS,
   ),
+
+  // CRM
+  d('crm-sales', 'crm', '🤝', 'CRM commercial', 'CRM مبيعات', 'crm-sales', POS),
+  d('crm-b2b', 'crm', '🏢', 'CRM B2B / grossistes', 'CRM جملة / شركات', 'crm-b2b', POS),
+  d('crm-support', 'crm', '🎧', 'CRM support client', 'CRM دعم زبائن', 'crm-support', POS),
+  d('crm-pipeline', 'crm', '📈', 'Pipeline opportunités', 'مسار الفرص', 'crm-pipe', POS),
+  d('crm-whatsapp', 'crm', '💬', 'CRM WhatsApp', 'CRM واتساب', 'crm-wa', POS),
 ]
 
 export function domainsForMode(mode: CommerceMode): ShopDomain[] {
@@ -327,6 +342,13 @@ const MODE_I18N: Record<CommerceMode, Partial<Record<Language, string>>> = {
     it: 'E-commerce',
     de: 'E-Commerce',
   },
+  crm: {
+    en: 'CRM',
+    es: 'CRM',
+    tr: 'CRM',
+    it: 'CRM',
+    de: 'CRM',
+  },
 }
 
 export function modeLabel(mode: CommerceMode, lang: Language): string {
@@ -378,6 +400,13 @@ const MODE_HINT: Record<CommerceMode, Partial<Record<Language, string>>> = {
     tr: 'Online mağaza, dropship, reklam, API',
     it: 'Negozio online, dropship, ads, API',
     de: 'Online-Shop, Dropship, Ads, APIs',
+  },
+  crm: {
+    en: 'Customers, pipeline, WhatsApp, support & CRM tools',
+    es: 'Clientes, pipeline, WhatsApp, soporte y CRM',
+    tr: 'Müşteriler, pipeline, WhatsApp, destek ve CRM',
+    it: 'Clienti, pipeline, WhatsApp, supporto e CRM',
+    de: 'Kunden, Pipeline, WhatsApp, Support & CRM',
   },
 }
 

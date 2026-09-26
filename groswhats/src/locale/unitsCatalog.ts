@@ -144,6 +144,7 @@ export const METIER_PREFERRED_UNITS: Record<MetierFamily, Unit[]> = {
   spa: ['session', 'min', 'hour', 'person', 'piece'],
   generic_service: ['hour', 'session', 'act', 'piece', 'day'],
   ecommerce: ['piece', 'pack', 'box', 'carton', 'license', 'gb', 'session'],
+  crm: ['piece', 'session', 'hour', 'day', 'month', 'person'],
 }
 
 export function unitsForMetier(family: MetierFamily | undefined): Unit[] {
