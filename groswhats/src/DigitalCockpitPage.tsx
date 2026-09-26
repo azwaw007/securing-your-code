@@ -37,6 +37,10 @@ import {
 import { openWhatsappText } from './utils/whatsapp'
 import { ReferralPanel } from './ReferralPanel'
 import {
+  creditReferralConversion,
+  ensureReferral,
+} from './license/referral'
+import {
   disconnectPlatform,
   fieldLabel,
   getConnection,
@@ -141,6 +145,28 @@ export function DigitalCockpitPage({
     setOutput(pitch)
     if (sendWa && buyerPhone.trim()) {
       openWhatsappText(buyerPhone, pitch)
+    }
+    // Licence AZ POS payante + code parrain = moi → +10 pts auto
+    if (p.firstParty && p.kind === 'license' && p.priceDa > 0) {
+      const ensured = ensureReferral(state)
+      const code = saleReferrer.trim().toUpperCase() || ensured.referral?.code
+      if (code && code === ensured.referral?.code) {
+        const credited = creditReferralConversion(ensured, {
+          buyerName: sale.buyerName,
+          buyerPhone: sale.buyerPhone,
+          planId: p.id,
+          note: 'vente_digitale_auto',
+          referrerCode: code,
+        })
+        if (credited.ok) {
+          onState(credited.state)
+          onFlash(
+            (lang === 'ar' ? credited.messageAr : credited.messageFr) +
+              (lang === 'ar' ? ' · عرض مرسل' : ' · offre envoyée'),
+          )
+          return
+        }
+      }
     }
     onFlash(
       lang === 'ar'
@@ -267,6 +293,16 @@ export function DigitalCockpitPage({
                   inputMode="tel"
                 />
               </label>
+              {selected.firstParty && selected.kind === 'license' ? (
+                <label>
+                  {t(lang, 'referralCodeOnActivate')}
+                  <input
+                    value={saleReferrer}
+                    onChange={(e) => setSaleReferrer(e.target.value.toUpperCase())}
+                    placeholder={ensureReferral(state).referral?.code || 'AZ-XXXX'}
+                  />
+                </label>
+              ) : null}
               <div className="digital-actions">
                 <button
                   type="button"
