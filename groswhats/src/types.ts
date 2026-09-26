@@ -281,6 +281,18 @@ export interface Appointment {
   remindStages: AppointmentRemindStage[]
   remindedAt?: string
   createdAt: string
+  /** Durée réservée (minutes) — agenda agentique */
+  durationMin?: number
+  /** Options / combinaison métier (dj, cuisine, matériel…) */
+  optionIds?: string[]
+  /** Segment tarifaire : weekday | weekend | peak | offpeak */
+  segment?: string
+  /** Devis estimé (DA) au moment de la réservation */
+  quoteDa?: number
+  /** Décision agent : accepted | rejected | proposed */
+  agentDecision?: 'accepted' | 'rejected' | 'proposed'
+  /** Motif court (refus / proposition) */
+  agentReason?: string
 }
 
 export interface Client {
