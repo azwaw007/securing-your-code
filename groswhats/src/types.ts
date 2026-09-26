@@ -1,6 +1,6 @@
 export type Language = 'fr' | 'ar' | 'en' | 'es' | 'tr' | 'it' | 'de'
 
-export type CommerceMode = 'gros' | 'detail' | 'sante' | 'auto' | 'services'
+export type CommerceMode = 'gros' | 'detail' | 'sante' | 'auto' | 'services' | 'ecommerce'
 
 export type Unit =
   | 'piece'

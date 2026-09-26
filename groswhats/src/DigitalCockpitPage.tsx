@@ -72,6 +72,8 @@ import {
   type SocialNetworkId,
   type SocialStore,
 } from './marketing/socialAccounts'
+import { EcommerceToolsHub } from './EcommerceToolsHub'
+import { showEcommerceHub } from './locale/adapt'
 
 type TabId =
   | 'shop'
@@ -82,6 +84,7 @@ type TabId =
   | 'organic'
   | 'research'
   | 'agents'
+  | 'tools'
 
 export function DigitalCockpitPage({
   state,
@@ -98,7 +101,11 @@ export function DigitalCockpitPage({
   onNavigate: (screen: Screen) => void
   onCampaignAction?: (res: CampaignAgentResult) => void
 }) {
-  const [tab, setTab] = useState<TabId>('shop')
+  const [tab, setTab] = useState<TabId>(() =>
+    showEcommerceHub(state.settings.commerceMode, state.settings.domainId)
+      ? 'tools'
+      : 'shop',
+  )
   const [output, setOutput] = useState('')
   const [busy, setBusy] = useState(false)
   const [buyerName, setBuyerName] = useState('')
@@ -127,8 +134,15 @@ export function DigitalCockpitPage({
   }, [socialTick])
   const selected = DIGITAL_CATALOG.find((p) => p.id === selectedId)
   const channel = ADS_CHANNELS.find((c) => c.id === channelId) ?? ADS_CHANNELS[0]
+  const ecomHub = showEcommerceHub(
+    state.settings.commerceMode,
+    state.settings.domainId,
+  )
 
   const tabs: Array<{ id: TabId; label: string }> = [
+    ...(ecomHub
+      ? [{ id: 'tools' as TabId, label: t(lang, 'digitalTabTools') }]
+      : []),
     { id: 'shop', label: t(lang, 'digitalTabShop') },
     { id: 'referral', label: t(lang, 'digitalTabReferral') },
     { id: 'affiliate', label: t(lang, 'digitalTabAffiliate') },
@@ -270,6 +284,14 @@ export function DigitalCockpitPage({
           </button>
         ))}
       </div>
+
+      {tab === 'tools' && ecomHub ? (
+        <EcommerceToolsHub
+          lang={lang}
+          onNavigate={onNavigate}
+          onFlash={onFlash}
+        />
+      ) : null}
 
       {tab === 'shop' ? (
         <section className="digital-section">

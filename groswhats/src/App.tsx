@@ -124,6 +124,7 @@ import {
   showDemiGros,
   showDelivery,
   showDepotTools,
+  showEcommerceHub,
   showGallery,
   showGymCheckin,
   showClinicAgenda,
@@ -223,6 +224,7 @@ import { MissionsPage } from './MissionsPage'
 import { CashierHome } from './CashierHome'
 import { AgentPage } from './AgentPage'
 import { DigitalCockpitPage } from './DigitalCockpitPage'
+import { EcommerceToolsHub } from './EcommerceToolsHub'
 import { ReferralPanel } from './ReferralPanel'
 import { GlobalSmartSearch, SmartSearchBar, suggestNames } from './SmartSearchBar'
 import type { SearchHit } from './utils/smartSearch'
@@ -321,6 +323,15 @@ function navItems(
       { id: 'order', icon: '🧰' },
       { id: 'clients', icon: '👥' },
       { id: 'products', icon: '📦' },
+    ]
+  }
+  if (mode === 'ecommerce') {
+    return [
+      { id: 'home', icon: '🏠' },
+      { id: 'digital', icon: '🌐' },
+      { id: 'order', icon: '🛒' },
+      { id: 'products', icon: '📦' },
+      { id: 'clients', icon: '👥' },
     ]
   }
   if (isWholesale(mode)) {
@@ -1154,7 +1165,7 @@ export default function App() {
         />
         </div>
       ) : null}
-      {isAlive('digital') && !isDriverMode ? (
+      {isAlive('digital') && !isDriverMode && showEcommerceHub(state.settings.commerceMode, state.settings.domainId) ? (
         <div
           className={`screen-pane ${screen === 'digital' ? 'is-active' : 'is-cached'}`}
           aria-hidden={screen !== 'digital'}
@@ -2931,7 +2942,9 @@ function HomePage({
       ? [{ id: 'returns' as Screen, label: t(lang, 'appReturns'), icon: '↩️', tone: 'coral' }]
       : []),
     { id: 'agent' as Screen, label: t(lang, 'appAgent'), icon: '🤖', tone: 'slate' },
-    { id: 'digital' as Screen, label: t(lang, 'appDigital'), icon: '🚀', tone: 'blue' },
+    ...(showEcommerceHub(mode, domainId)
+      ? [{ id: 'digital' as Screen, label: t(lang, 'appDigital'), icon: '🌐', tone: 'blue' }]
+      : []),
     { id: 'expenses' as Screen, label: t(lang, 'appExpenses'), icon: '💸', tone: 'rose' },
     { id: 'profits' as Screen, label: t(lang, 'appProfits'), icon: '💰', tone: 'amber' },
     { id: 'stock' as Screen, label: t(lang, 'appValue'), icon: '📈', tone: 'emerald' },
@@ -3000,6 +3013,15 @@ function HomePage({
           onGo('clients', t(lang, 'appClients'))
         }}
       />
+
+      {showEcommerceHub(mode, domainId) ? (
+        <EcommerceToolsHub
+          lang={lang}
+          compact
+          onNavigate={(s) => onGo(s, t(lang, 'appDigital'))}
+          onFlash={onFlash}
+        />
+      ) : null}
 
       {showBookingAgent(mode, domainId) ? (
         <BookingAgentPanel

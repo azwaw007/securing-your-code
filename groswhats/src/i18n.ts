@@ -1496,6 +1496,11 @@ const fr: Dict = {
     'Si un ami t’a invité, entre son code AZ-XXXX — il gagnera 10 points quand sa conversion est validée.',
   digitalTabDropship: 'Dropshipping',
   digitalTabAds: 'Pubs',
+  digitalTabTools: 'Outils e-com',
+  ecomToolsTitle: 'Outils e-commerce gratuits',
+  ecomToolsHint:
+    'APIs, apps, marketplaces, réseaux et pubs — freemium / open source. Icônes réservées au métier E-commerce.',
+  ecomToolsOpenDigital: 'AZ Digital',
   digitalBrandTitle: 'Ta marque',
   digitalBrandHint:
     'Choisis le nom de boutique et de produit utilisés dans stories, posts et pubs — pas de nom imposé.',
@@ -3108,6 +3113,11 @@ const ar: Dict = {
     'إن دعاك صديق، أدخل رمزه AZ-XXXX — سيحصل على 10 نقاط عند تأكيد التحويل.',
   digitalTabDropship: 'دروبشيبينغ',
   digitalTabAds: 'إعلانات',
+  digitalTabTools: 'أدوات التجارة',
+  ecomToolsTitle: 'أدوات تجارة إلكترونية مجانية',
+  ecomToolsHint:
+    'واجهات، تطبيقات، أسواق، شبكات وإعلانات — مجاني / مفتوح المصدر. الأيقونات لمهنة التجارة الإلكترونية فقط.',
+  ecomToolsOpenDigital: 'AZ Digital',
   digitalBrandTitle: 'علامتك',
   digitalBrandHint:
     'اختر اسم المتجر والمنتج للستوري والمنشورات والإعلانات — بلا اسم مفروض.',

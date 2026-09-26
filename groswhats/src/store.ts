@@ -516,7 +516,7 @@ export function migrate(raw: unknown): AppState {
     setupDone:
       incoming.setupDone === true || (data.products?.length ?? 0) > 0,
     countryCode: incoming.countryCode || defaults.countryCode,
-    commerceMode: (['gros', 'detail', 'sante', 'auto', 'services'] as const).includes(
+    commerceMode: (['gros', 'detail', 'sante', 'auto', 'services', 'ecommerce'] as const).includes(
       incoming.commerceMode as CommerceMode,
     )
       ? (incoming.commerceMode as CommerceMode)

@@ -60,6 +60,15 @@ export const METIER_RECOMMENDED_TOOLS: Record<MetierFamily, OptionalToolId[]> = 
   security: ['payments', 'fiscal', 'exportCompta', 'membership'],
   spa: ['payments', 'membership', 'tpe', 'fiscal', 'cashierPin'],
   generic_service: ['payments', 'fiscal', 'exportCompta', 'cashierPin'],
+  ecommerce: [
+    'payments',
+    'tpe',
+    'inventory',
+    'fiscal',
+    'cashierPin',
+    'debtRemind',
+    'exportCompta',
+  ],
 }
 
 export const PAYMENT_METHODS: PaymentMethod[] = [
