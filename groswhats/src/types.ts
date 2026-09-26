@@ -97,6 +97,7 @@ export type Screen =
   | 'tpe'
   | 'sellers'
   | 'production'
+  | 'digital'
 
 /** Mode d’encaissement DZ (outil optionnel « Paiements DZ ») */
 export type PaymentMethod = 'cash' | 'baridimob' | 'ccp' | 'card' | 'cheque'

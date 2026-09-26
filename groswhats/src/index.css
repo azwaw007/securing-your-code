@@ -4109,3 +4109,146 @@ html[data-theme='night'] option {
   white-space: nowrap;
   border: 0;
 }
+
+/* —— AZ Digital cockpit —— */
+.digital-cockpit {
+  padding: 12px 14px 88px;
+  max-width: 960px;
+  margin: 0 auto;
+}
+.digital-legal {
+  font-size: 0.85rem;
+  margin: 0 0 12px;
+}
+.digital-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.digital-tab {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: #fff;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font: inherit;
+  cursor: pointer;
+}
+.digital-tab.is-on {
+  background: #0f766e;
+  color: #fff;
+  border-color: #0f766e;
+}
+.digital-section h2 {
+  margin: 0 0 10px;
+  font-size: 1.15rem;
+}
+.digital-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.digital-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  text-align: start;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: linear-gradient(160deg, #f8fafc, #eef2ff);
+  cursor: pointer;
+  font: inherit;
+}
+.digital-card.static {
+  cursor: default;
+}
+.digital-card.is-on {
+  border-color: #0f766e;
+  box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.25);
+}
+.digital-price {
+  font-weight: 700;
+  color: #0f766e;
+}
+.digital-warn {
+  color: #b45309;
+  font-size: 0.85rem;
+}
+.digital-sell.card-block,
+.digital-channel.card-block,
+.digital-output.card-block {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 14px;
+  padding: 12px;
+  margin: 12px 0;
+  display: grid;
+  gap: 10px;
+}
+.digital-sell label {
+  display: grid;
+  gap: 4px;
+  font-size: 0.9rem;
+}
+.digital-sell input {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.15);
+  font: inherit;
+}
+.digital-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.digital-actions.wrap {
+  margin-top: 8px;
+}
+.digital-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.digital-chip-row .chip {
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  padding: 6px 12px;
+  background: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+.digital-chip-row .chip.is-on {
+  background: #312e81;
+  color: #fff;
+}
+.digital-tip {
+  background: rgba(15, 118, 110, 0.08);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+.digital-sales {
+  margin: 0;
+  padding-inline-start: 18px;
+}
+.digital-pre {
+  white-space: pre-wrap;
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  max-height: 360px;
+  overflow: auto;
+}
+.digital-output-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.btn.accent {
+  background: #7c3aed;
+  color: #fff;
+  border: none;
+}

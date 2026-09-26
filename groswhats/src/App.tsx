@@ -221,6 +221,7 @@ import { DeliveryMapPage } from './DeliveryMapPage'
 import { MissionsPage } from './MissionsPage'
 import { CashierHome } from './CashierHome'
 import { AgentPage } from './AgentPage'
+import { DigitalCockpitPage } from './DigitalCockpitPage'
 import { GlobalSmartSearch, SmartSearchBar, suggestNames } from './SmartSearchBar'
 import type { SearchHit } from './utils/smartSearch'
 import {
@@ -1148,6 +1149,38 @@ export default function App() {
             setAgentSeed(null)
           }}
         />
+        </div>
+      ) : null}
+      {isAlive('digital') && !isDriverMode ? (
+        <div
+          className={`screen-pane ${screen === 'digital' ? 'is-active' : 'is-cached'}`}
+          aria-hidden={screen !== 'digital'}
+          inert={screen !== 'digital' ? true : undefined}
+        >
+          <DigitalCockpitPage
+            state={state}
+            lang={lang}
+            onFlash={(msg) => setToast(msg)}
+            onNavigate={goTo}
+            onCampaignAction={(res) => {
+              if (res.action?.type === 'open_whatsapp') {
+                openWhatsappText(res.action.phone, res.action.message)
+              }
+              if (res.action?.type === 'broadcast_prospects') {
+                res.action.items.forEach((item, i) => {
+                  window.setTimeout(
+                    () => openWhatsappText(item.phone, item.message),
+                    i * 700,
+                  )
+                })
+              }
+              if (res.action?.type === 'navigate') {
+                goTo(
+                  res.action.screen === 'agent' ? 'digital' : res.action.screen,
+                )
+              }
+            }}
+          />
         </div>
       ) : null}
       {isAlive('arrivages') ? (
@@ -2865,6 +2898,7 @@ function HomePage({
       ? [{ id: 'returns' as Screen, label: t(lang, 'appReturns'), icon: '↩️', tone: 'coral' }]
       : []),
     { id: 'agent' as Screen, label: t(lang, 'appAgent'), icon: '🤖', tone: 'slate' },
+    { id: 'digital' as Screen, label: t(lang, 'appDigital'), icon: '🚀', tone: 'blue' },
     { id: 'expenses' as Screen, label: t(lang, 'appExpenses'), icon: '💸', tone: 'rose' },
     { id: 'profits' as Screen, label: t(lang, 'appProfits'), icon: '💰', tone: 'amber' },
     { id: 'stock' as Screen, label: t(lang, 'appValue'), icon: '📈', tone: 'emerald' },

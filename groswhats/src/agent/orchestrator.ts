@@ -129,6 +129,7 @@ function planTools(text: string, lang: Language): ToolCall[] {
     { words: ['caisse', 'صندوق'], screen: 'caisse' },
     { words: ['retour', 'مرتجع'], screen: 'returns' },
     { words: ['achat', 'fournisseur', 'مورد', 'شراء'], screen: 'purchases' },
+    { words: ['digital', 'az digital', 'marketing', 'campagne', 'رقمي'], screen: 'digital' },
   ]
 
   if (

@@ -42,6 +42,7 @@ const CATALOG: Record<string, RailAction> = {
   calculator: { id: 'calculator', icon: '🧮', labelKey: 'calculator' },
   search: { id: 'search', icon: '🔍', labelKey: 'searchProduct' },
   agent: { id: 'agent', icon: '🆘', labelKey: 'agent' },
+  digital: { id: 'digital', icon: '🚀', labelKey: 'appDigital' },
   alerts: { id: 'alerts', icon: '🔔', labelKey: 'stockAlertTitle' },
   inventory: { id: 'inventory', icon: '📋', labelKey: 'inventory' },
   expiry: { id: 'expiry', icon: '⏳', labelKey: 'expiry' },
@@ -108,12 +109,12 @@ const BY_FAMILY: Partial<Record<MetierFamily, DesktopRails>> = {
   wholesale: {
     top: pick('order', 'clients', 'products', 'arrivages', 'delivery', 'stock', 'history', 'profits', 'settings'),
     left: pick('calculator', 'newProduct', 'search', 'order', 'purchases'),
-    right: pick('agent', 'history', 'alerts', 'supplierDebts', 'debtRemind', 'expenses'),
+    right: pick('agent', 'digital', 'history', 'alerts', 'supplierDebts', 'debtRemind', 'expenses'),
   },
   retail: {
     top: pick('order', 'products', 'clients', 'caisse', 'inventory', 'history', 'expenses', 'profits', 'settings'),
     left: pick('calculator', 'newProduct', 'search', 'order', 'gallery'),
-    right: pick('agent', 'history', 'alerts', 'expiry', 'inventory', 'expenses'),
+    right: pick('agent', 'digital', 'history', 'alerts', 'expiry', 'inventory', 'expenses'),
   },
   grocery: {
     top: pick('order', 'products', 'caisse', 'inventory', 'expiry', 'history', 'expenses', 'profits', 'settings'),
@@ -373,6 +374,11 @@ const HINTS: Record<string, { fr: string; ar: string; en: string }> = {
     fr: 'Aide AZ POS — questions et conseils',
     ar: 'مساعدة AZ POS — أسئلة ونصائح',
     en: 'AZ POS help — questions and tips',
+  },
+  digital: {
+    fr: 'AZ Digital — vente logicielle, pubs, agents IA',
+    ar: 'AZ Digital — بيع برمجيات، إعلانات، وكلاء ذكاء',
+    en: 'AZ Digital — software sales, ads, AI agents',
   },
   alerts: {
     fr: 'Alertes stock bas / ruptures',
