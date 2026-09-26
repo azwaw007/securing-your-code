@@ -30,7 +30,7 @@ const LANGS: Array<{ id: Language; label: string }> = [
   { id: 'ar', label: 'ع' },
 ]
 
-const TIP_DELAY_MS = 700
+const TIP_DELAY_MS = 280
 
 type TipSide = 'right' | 'left' | 'bottom'
 
@@ -98,7 +98,7 @@ function DesktopTipButton({
     const el = wrapRef.current
     if (!el) return
     const r = el.getBoundingClientRect()
-    const gap = 10
+    const gap = 12
     if (side === 'right') {
       setPos({ top: r.top + r.height / 2, left: r.right + gap })
     } else if (side === 'left') {
@@ -117,6 +117,9 @@ function DesktopTipButton({
   }
 
   useEffect(() => () => clear(), [])
+
+  const tipBody = hint.trim()
+  const hasTip = !!(title || tipBody)
 
   return (
     <span
@@ -137,7 +140,11 @@ function DesktopTipButton({
           onClick()
         }}
         aria-label={
-          shortcutHint ? `${title}. ${hint}. ${shortcutHint}` : `${title}. ${hint}`
+          shortcutHint
+            ? `${title}. ${tipBody}. ${shortcutHint}`
+            : tipBody
+              ? `${title}. ${tipBody}`
+              : title
         }
       >
         {children}
@@ -147,7 +154,7 @@ function DesktopTipButton({
           </kbd>
         ) : null}
       </button>
-      {open && hint && pos ? (
+      {open && hasTip && pos ? (
         <span
           className={`desktop-tip desktop-tip-fixed desktop-tip-fixed-${side}`}
           role="tooltip"
@@ -159,7 +166,7 @@ function DesktopTipButton({
               <kbd className="desktop-tip-kbd">{shortcutHint}</kbd>
             ) : null}
           </strong>
-          <span className="desktop-tip-body">{hint}</span>
+          {tipBody ? <span className="desktop-tip-body">{tipBody}</span> : null}
         </span>
       ) : null}
     </span>
@@ -188,10 +195,11 @@ function RailButtons({
     <>
       {items.map((s, i) => {
         const key = bindings[occurrenceOffset + i]?.key
+        const label = t(lang, s.labelKey)
         return (
           <DesktopTipButton
             key={s.id}
-            title={t(lang, s.labelKey)}
+            title={label}
             hint={railHint(lang, s.id)}
             side={side}
             className="desktop-rail-btn desktop-rail-action"
@@ -200,7 +208,10 @@ function RailButtons({
             shortcutHint={key}
             showKeyBadge={!!key}
           >
-            <span aria-hidden>{s.icon}</span>
+            <span className="desktop-rail-icon" aria-hidden>
+              {s.icon}
+            </span>
+            <span className="desktop-rail-caption">{label}</span>
           </DesktopTipButton>
         )
       })}
