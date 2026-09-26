@@ -1166,6 +1166,24 @@ export default function App() {
             onState={setState}
             onFlash={(msg) => setToast(msg)}
             onNavigate={goTo}
+            onCampaignAction={(res) => {
+              if (res.action?.type === 'open_whatsapp') {
+                openWhatsappText(res.action.phone, res.action.message)
+              }
+              if (res.action?.type === 'broadcast_prospects') {
+                res.action.items.forEach((item, i) => {
+                  window.setTimeout(
+                    () => openWhatsappText(item.phone, item.message),
+                    i * 700,
+                  )
+                })
+              }
+              if (res.action?.type === 'navigate') {
+                goTo(
+                  res.action.screen === 'agent' ? 'digital' : res.action.screen,
+                )
+              }
+            }}
           />
         </div>
       ) : null}

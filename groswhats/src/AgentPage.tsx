@@ -40,6 +40,7 @@ const SUGGESTIONS_FR = [
   'organise l’app',
   'thème nuit',
   'conseil vente',
+  'lance campagne',
   'az digital',
 ]
 
@@ -53,6 +54,7 @@ const SUGGESTIONS_AR = [
   'نظّم التطبيق',
   'ثيم الليل',
   'خبير مبيعات',
+  'ابدأ حملة',
   'az digital',
 ]
 

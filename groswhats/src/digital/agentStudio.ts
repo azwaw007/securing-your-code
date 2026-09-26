@@ -78,8 +78,8 @@ export function defaultAgents(): MicroAgent[] {
     },
     {
       id: 'ag_sales',
-      name: 'Closer licences AZ POS',
-      goal: 'Pitchs WhatsApp + upsell Pro',
+      name: 'Closer ventes digitales',
+      goal: 'Pitchs WhatsApp + upsell offre Pro',
       kind: 'sales',
       createdAt: now,
       campaignCommand: 'devis 3 magasins',
@@ -105,9 +105,9 @@ export function defaultAgents(): MicroAgent[] {
           titleFr: 'Landing 1 page',
           titleAr: 'صفحة هبوط',
           detailFr:
-            'Hero marque + prix + CTA WhatsApp + démo. Héberger sur Vercel (déjà AZ POS).',
+            'Hero marque + prix + CTA WhatsApp + démo. Héberger sur Vercel ou ton domaine.',
           detailAr:
-            'عنوان + سعر + واتساب + تجربة. استضافة Vercel (مثل AZ POS).',
+            'عنوان + سعر + واتساب + تجربة. استضافة Vercel أو نطاقك.',
         },
         {
           id: 'd2',

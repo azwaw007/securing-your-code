@@ -18,7 +18,7 @@ export function defaultMetaConfig(): MetaConfig {
     pageId: '',
     igUserId: '',
     accessToken: '',
-    defaultImageUrl: 'https://az-pos-dz.vercel.app/icons/icon-512.png',
+    defaultImageUrl: '',
   }
 }
 
