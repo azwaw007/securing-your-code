@@ -5,14 +5,15 @@
 
 import type { AppState, Language } from '../types'
 import {
-  AUTO_REPLIES,
-  SELLER_BRAND,
+  buildPosts,
   buildSalesPitch,
   matchAutoReply,
   storyForToday,
-  POSTS,
+  SELLER_BRAND,
+  AUTO_REPLIES,
 } from '../marketing/campaignPack'
 import {
+  brandFromCampaignState,
   loadCampaignState,
   markQueueItem,
   nextActionsSummary,
@@ -54,12 +55,29 @@ function isAr(lang: Language): boolean {
   return lang === 'ar'
 }
 
+/** Aligne boutique / ville avec le magasin app si champs marque vides */
+export function syncBrandFromApp(state: AppState): void {
+  const camp = loadCampaignState()
+  const patch: Partial<typeof camp> = {}
+  if (!camp.boutiqueName.trim() && state.settings.shopName?.trim()) {
+    patch.boutiqueName = state.settings.shopName.trim()
+  }
+  if (!camp.city.trim() && state.settings.city?.trim()) {
+    patch.city = state.settings.city.trim()
+  }
+  if (!camp.whatsappPhone.trim() && state.settings.phone?.trim()) {
+    patch.whatsappPhone = state.settings.phone.replace(/\D/g, '')
+  }
+  if (Object.keys(patch).length) saveCampaignState(patch)
+}
+
 /** Répond à un message prospect (collé ou inbox) */
 export function autoReplyToLead(
   message: string,
   lang: Language,
 ): CampaignAgentResult {
   const state = loadCampaignState()
+  const brand = brandFromCampaignState(state)
   if (!state.autoReplyEnabled) {
     return {
       reply: isAr(lang)
@@ -67,19 +85,19 @@ export function autoReplyToLead(
         : 'Réponses auto désactivées. Écris : « active réponses auto ».',
     }
   }
-  const hit = matchAutoReply(message, isAr(lang) ? 'ar' : 'fr')
+  const hit = matchAutoReply(message, isAr(lang) ? 'ar' : 'fr', brand)
   if (!hit) {
     return {
       reply: isAr(lang)
-        ? `لم أجد قاعدة. رد عام:\n\nالسلام، شكرا على رسالتك بخصوص ${SELLER_BRAND.produit}. شحال من محل عندك؟ نرسل العرض.\nتجربة: ${SELLER_BRAND.demoUrl}`
-        : `Pas de règle exacte. Brouillon générique :\n\nSalam, merci pour ton message sur ${SELLER_BRAND.produit}. Combien de magasins as-tu ? Je t’envoie un devis.\nDémo : ${SELLER_BRAND.demoUrl}`,
+        ? `لم أجد قاعدة. رد عام:\n\nالسلام، شكرا على رسالتك بخصوص ${brand.produit}. أي عرض تريد؟ نرسل التفاصيل.\nتجربة: ${brand.demoUrl}`
+        : `Pas de règle exacte. Brouillon générique :\n\nSalam, merci pour ton message sur ${brand.produit}. Quelle offre t’intéresse ? Je t’envoie les détails.\nDémo : ${brand.demoUrl}`,
       action: state.whatsappPhone
         ? {
             type: 'open_whatsapp',
             phone: state.whatsappPhone,
             message: isAr(lang)
-              ? `السلام، بخصوص ${SELLER_BRAND.produit} — شحال من محل؟`
-              : `Salam, pour ${SELLER_BRAND.produit} — combien de magasins ?`,
+              ? `السلام، بخصوص ${brand.produit} — أي عرض يناسبك؟`
+              : `Salam, pour ${brand.produit} — quelle offre te convient ?`,
           }
         : { type: 'none' },
     }
@@ -93,12 +111,13 @@ export function autoReplyToLead(
 }
 
 export function launchCampaignWeek(lang: Language): CampaignAgentResult {
+  const brand = brandFromCampaignState()
   const items = seedWeekQueue(isAr(lang) ? 'ar' : 'fr')
   const due = pendingDue()
   return {
     reply: isAr(lang)
-      ? `🚀 حملة ${SELLER_BRAND.boutique} انطلقت.\n${items.length} مهمة في الطابور.\n${due.length} جاهزة الآن.\n\n${nextActionsSummary('ar')}\n\nانشر الستوري يدوياً ثم اكتب «story faite».`
-      : `🚀 Campagne ${SELLER_BRAND.boutique} lancée.\n${items.length} tâches en file.\n${due.length} à faire maintenant.\n\n${nextActionsSummary('fr')}\n\nPublie la story à la main puis écris « story faite ».`,
+      ? `🚀 حملة ${brand.boutique} (${brand.produit}) انطلقت.\n${items.length} مهمة في الطابور.\n${due.length} جاهزة الآن.\n\n${nextActionsSummary('ar')}\n\nانشر الستوري يدوياً ثم اكتب «story faite».`
+      : `🚀 Campagne ${brand.boutique} (${brand.produit}) lancée.\n${items.length} tâches en file.\n${due.length} à faire maintenant.\n\n${nextActionsSummary('fr')}\n\nPublie la story à la main puis écris « story faite ».`,
   }
 }
 
@@ -126,7 +145,8 @@ export function campaignStatus(lang: Language): CampaignAgentResult {
 }
 
 export function todaysStory(lang: Language): CampaignAgentResult {
-  const story = storyForToday()
+  const brand = brandFromCampaignState()
+  const story = storyForToday(undefined, 'matin', brand)
   const body = isAr(lang) ? story.ar : story.fr
   return {
     reply: isAr(lang)
@@ -136,7 +156,8 @@ export function todaysStory(lang: Language): CampaignAgentResult {
 }
 
 export function todaysPost(lang: Language): CampaignAgentResult {
-  const post = POSTS[0]
+  const brand = brandFromCampaignState()
+  const post = buildPosts(brand)[0]
   const body = isAr(lang) ? post.bodyAr : post.bodyFr
   return {
     reply: isAr(lang)
@@ -173,10 +194,12 @@ export function pitchForShops(
   city: string,
   lang: Language,
 ): CampaignAgentResult {
+  const brand = brandFromCampaignState()
   const text = buildSalesPitch({
     shops,
     city,
     lang: isAr(lang) ? 'ar' : 'fr',
+    brand,
   })
   const st = loadCampaignState()
   return {
@@ -189,12 +212,48 @@ export function pitchForShops(
 
 /** Routeur texte → actions campagne */
 export function runCampaignCommand(
-  _state: AppState,
+  state: AppState,
   text: string,
   lang: Language,
 ): CampaignAgentResult | null {
+  syncBrandFromApp(state)
   const t = text.trim().toLowerCase()
   if (!t) return null
+
+  // Marque produit : « marque MonApp » / « brand MonApp »
+  const brandSet = text.match(
+    /(?:marque|brand|منتج|اسم المنتج)\s*[:=]?\s+(.+)/i,
+  )
+  if (brandSet && !/(strategie|stratégie|خطة)/i.test(t)) {
+    const name = brandSet[1].trim().slice(0, 80)
+    if (name.length >= 2) {
+      saveCampaignState({
+        productName: name,
+        productProName: `${name} Pro`,
+      })
+      return {
+        reply: isAr(lang)
+          ? `✅ اسم العلامة: ${name} (و ${name} Pro)`
+          : `✅ Marque enregistrée : ${name} (et ${name} Pro)`,
+      }
+    }
+  }
+  const boutiqueSet = text.match(
+    /(?:boutique|متجر)\s*[:=]?\s+(.+)/i,
+  )
+  if (boutiqueSet && boutiqueSet[1].trim().length >= 2) {
+    saveCampaignState({ boutiqueName: boutiqueSet[1].trim().slice(0, 80) })
+    return {
+      reply: isAr(lang)
+        ? `✅ اسم البوتيك: ${boutiqueSet[1].trim()}`
+        : `✅ Boutique : ${boutiqueSet[1].trim()}`,
+    }
+  }
+  const demoSet = text.match(/(?:demo|démo|lien)\s*[:=]?\s+(https?:\/\/\S+)/i)
+  if (demoSet) {
+    saveCampaignState({ demoUrl: demoSet[1].trim() })
+    return { reply: `Démo URL : ${demoSet[1].trim()}` }
+  }
 
   if (
     /(lance campagne|démarrer campagne|ابدأ حملة|شغّل حملة|start campaign)/i.test(
@@ -300,25 +359,28 @@ export function runCampaignCommand(
   }
 
   if (/(strat[eé]gie|خطة تسويق|marketing plan)/i.test(t)) {
+    const brand = brandFromCampaignState()
     return {
       reply: isAr(lang)
         ? [
-            `🏪 البوتيك: ${SELLER_BRAND.boutique}`,
-            `المنتج: ${SELLER_BRAND.produit} / ${SELLER_BRAND.produitPro}`,
+            `🏪 البوتيك: ${brand.boutique}`,
+            `المنتج: ${brand.produit} / ${brand.produitPro}`,
+            'غيّر الاسم: «marque MonProduit» أو من AZ Digital',
             '1) بلا CSV: «زيد prospect اسم,0555…,ولاية» أو «الصق prospects»',
             '2) يومياً: ستوري (story du jour)',
             '3) «relance prospects 5» — واتساب (≈20/يوم كحد)',
             '4) رد آلي: «رد → رسالة»',
-            `نموذج لاحقاً: /seller/prospects-modele.csv`,
+            '5) اربط الشبكات في AZ Digital → منشور / إعلان',
           ].join('\n')
         : [
-            `🏪 Boutique : ${SELLER_BRAND.boutique}`,
-            `Produit : ${SELLER_BRAND.produit} / ${SELLER_BRAND.produitPro}`,
-            '1) Sans CSV : « ajoute prospect Nom,0555…,Ville » ou « colle prospects » + lignes',
+            `🏪 Boutique : ${brand.boutique}`,
+            `Produit : ${brand.produit} / ${brand.produitPro}`,
+            'Change le nom : « marque MonProduit » ou dans AZ Digital',
+            '1) Sans CSV : « ajoute prospect Nom,0555…,Ville » ou « colle prospects »',
             '2) Chaque jour : story (« story du jour »)',
             '3) « relance prospects 5 » — WhatsApp (max ~20/jour)',
             '4) Réponses : « réponds → message »',
-            `Modèle si tu veux Excel plus tard : /seller/prospects-modele.csv`,
+            '5) Connecte tes réseaux dans AZ Digital → publier / pubs',
           ].join('\n'),
     }
   }
@@ -435,7 +497,8 @@ export async function runMetaPublishCommand(
   const isFb = /(publie facebook|publish facebook|انشر فيسبوك|publie meta)/i.test(t)
   if (!isIg && !isFb) return null
 
-  const post = POSTS[0]
+  const brand = brandFromCampaignState()
+  const post = buildPosts(brand)[0]
   const message = isAr(lang) ? post.bodyAr : post.bodyFr
   const channel = isIg ? 'instagram' : 'facebook'
   const res = await publishMetaPost({ channel, message })

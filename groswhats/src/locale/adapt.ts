@@ -58,6 +58,15 @@ const VOCAB: Record<
     it: { client: 'Cliente', product: 'Scorte', sell: 'Fattura', sellHint: 'Incassa un servizio' },
     de: { client: 'Kunde', product: 'Lager', sell: 'Berechnen', sellHint: 'Leistung kassieren' },
   },
+  ecommerce: {
+    fr: { client: 'Client', product: 'Catalogue', sell: 'Vendre', sellHint: 'Commande en ligne / WhatsApp' },
+    ar: { client: 'زبون', product: 'كتالوج', sell: 'بيع', sellHint: 'طلب أونلاين / واتساب' },
+    en: { client: 'Customer', product: 'Catalog', sell: 'Sell', sellHint: 'Online / WhatsApp order' },
+    es: { client: 'Cliente', product: 'Catálogo', sell: 'Vender', sellHint: 'Pedido online / WhatsApp' },
+    tr: { client: 'Müşteri', product: 'Katalog', sell: 'Sat', sellHint: 'Online / WhatsApp sipariş' },
+    it: { client: 'Cliente', product: 'Catalogo', sell: 'Vendi', sellHint: 'Ordine online / WhatsApp' },
+    de: { client: 'Kunde', product: 'Katalog', sell: 'Verkaufen', sellHint: 'Online / WhatsApp-Bestellung' },
+  },
 }
 
 export function vocabLang(lang: Language): keyof (typeof VOCAB)['gros'] {
@@ -96,7 +105,19 @@ export function isWholesale(mode: CommerceMode | undefined): boolean {
 }
 
 export function isShopRetail(mode: CommerceMode | undefined): boolean {
-  return mode === 'detail'
+  return mode === 'detail' || mode === 'ecommerce'
+}
+
+export function isEcommerce(mode: CommerceMode | undefined): boolean {
+  return mode === 'ecommerce'
+}
+
+export function showEcommerceHub(
+  mode: CommerceMode | undefined,
+  domainId?: string,
+): boolean {
+  if (domainId) return featuresFor(domainId, mode).ecommerceHub
+  return isEcommerce(mode)
 }
 
 export function showWholesaleTiers(

@@ -57,6 +57,7 @@ export type MetierFamily =
   | 'security'
   | 'spa'
   | 'generic_service'
+  | 'ecommerce'
 
 export type MetierTheme = {
   labelFr: string
@@ -116,6 +117,11 @@ export type MetierFeatures = {
    * Production / recettes : MP → produit fini (boulangerie, resto, atelier…).
    */
   production: boolean
+  /**
+   * Hub e-commerce : outils gratuits (APIs, apps, réseaux) en icônes.
+   * Uniquement métier / catégorie e-commerce.
+   */
+  ecommerceHub: boolean
 }
 
 export type MetierCopy = DomainVocab & {
@@ -156,6 +162,7 @@ const FEAT = {
     specialtyDossier: false,
     bookingAgent: true,
     production: false,
+    ecommerceHub: false,
   } satisfies MetierFeatures,
   depot: {
     medicalDossier: false,
@@ -177,6 +184,7 @@ const FEAT = {
     specialtyDossier: false,
     bookingAgent: true,
     production: false,
+    ecommerceHub: false,
   } satisfies MetierFeatures,
   clinic: {
     medicalDossier: true,
@@ -198,6 +206,7 @@ const FEAT = {
     specialtyDossier: true,
     bookingAgent: true,
     production: false,
+    ecommerceHub: false,
   } satisfies MetierFeatures,
   service: {
     medicalDossier: false,
@@ -219,6 +228,7 @@ const FEAT = {
     specialtyDossier: true,
     bookingAgent: true,
     production: false,
+    ecommerceHub: false,
   } satisfies MetierFeatures,
 }
 
@@ -1903,6 +1913,54 @@ const PACKS: Record<MetierFamily, MetierPack> = {
       primaryCta: 'فوترة',
     },
   ),
+  ecommerce: pack(
+    'ecommerce',
+    theme(
+      'E-commerce',
+      'تجارة إلكترونية',
+      {
+        '--bg': '#eef6fb',
+        '--bg-2': '#d5e8f5',
+        '--ink': '#0c1a24',
+        '--muted': '#4a6474',
+        '--card': '#f7fbfe',
+        '--line': '#b8d0e0',
+        '--brand': '#0369a1',
+        '--brand-2': '#0ea5e9',
+        '--glow': 'rgba(14, 165, 233, 0.18)',
+      },
+      'light',
+    ),
+    {
+      ...FEAT.shop,
+      homeScan: true,
+      returns: true,
+      gallery: true,
+      depot: false,
+      ecommerceHub: true,
+      bookingAgent: true,
+    },
+    {
+      client: 'Client',
+      product: 'Catalogue',
+      sell: 'Vendre',
+      sellHint: 'Commande en ligne / WhatsApp',
+      homeTitle: 'E-commerce',
+      homeHint: 'Boutique, pubs, APIs et réseaux — outils gratuits',
+      historyLabel: 'Commandes',
+      primaryCta: 'Nouvelle vente',
+    },
+    {
+      client: 'زبون',
+      product: 'كتالوج',
+      sell: 'بيع',
+      sellHint: 'طلب أونلاين / واتساب',
+      homeTitle: 'تجارة إلكترونية',
+      homeHint: 'متجر، إعلانات، واجهات وشبكات — أدوات مجانية',
+      historyLabel: 'الطلبات',
+      primaryCta: 'بيع جديد',
+    },
+  ),
 }
 
 /** Mapping domaine → famille métier */
@@ -2025,6 +2083,12 @@ const DOMAIN_FAMILY: Record<string, MetierFamily> = {
   'svc-clim': 'artisan',
   'svc-menage': 'pressing',
   'svc-transport': 'transport',
+  'ecom-boutique': 'ecommerce',
+  'ecom-dropship': 'ecommerce',
+  'ecom-marketplace': 'ecommerce',
+  'ecom-digital': 'ecommerce',
+  'ecom-social': 'ecommerce',
+  'ecom-affiliate': 'ecommerce',
 }
 
 const MODE_FALLBACK: Record<CommerceMode, MetierFamily> = {
@@ -2033,6 +2097,7 @@ const MODE_FALLBACK: Record<CommerceMode, MetierFamily> = {
   sante: 'medical',
   auto: 'garage',
   services: 'generic_service',
+  ecommerce: 'ecommerce',
 }
 
 export function metierFamilyFor(domainId: string | undefined, mode?: CommerceMode): MetierFamily {
@@ -2070,7 +2135,9 @@ export function metierVocab(
    * Services, santé, auto : toujours « Stock » pour ajouter / modifier les articles.
    */
   const product =
-    effectiveMode === 'gros' || effectiveMode === 'detail'
+    effectiveMode === 'gros' ||
+    effectiveMode === 'detail' ||
+    effectiveMode === 'ecommerce'
       ? c.product
       : lang === 'ar'
         ? 'مخزون'

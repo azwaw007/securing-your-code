@@ -124,6 +124,7 @@ import {
   showDemiGros,
   showDelivery,
   showDepotTools,
+  showEcommerceHub,
   showGallery,
   showGymCheckin,
   showClinicAgenda,
@@ -222,6 +223,9 @@ import { DeliveryMapPage } from './DeliveryMapPage'
 import { MissionsPage } from './MissionsPage'
 import { CashierHome } from './CashierHome'
 import { AgentPage } from './AgentPage'
+import { DigitalCockpitPage } from './DigitalCockpitPage'
+import { EcommerceToolsHub } from './EcommerceToolsHub'
+import { ReferralPanel } from './ReferralPanel'
 import { GlobalSmartSearch, SmartSearchBar, suggestNames } from './SmartSearchBar'
 import type { SearchHit } from './utils/smartSearch'
 import {
@@ -319,6 +323,15 @@ function navItems(
       { id: 'order', icon: '🧰' },
       { id: 'clients', icon: '👥' },
       { id: 'products', icon: '📦' },
+    ]
+  }
+  if (mode === 'ecommerce') {
+    return [
+      { id: 'home', icon: '🏠' },
+      { id: 'digital', icon: '🌐' },
+      { id: 'order', icon: '🛒' },
+      { id: 'products', icon: '📦' },
+      { id: 'clients', icon: '👥' },
     ]
   }
   if (isWholesale(mode)) {
@@ -1152,6 +1165,39 @@ export default function App() {
         />
         </div>
       ) : null}
+      {isAlive('digital') && !isDriverMode && showEcommerceHub(state.settings.commerceMode, state.settings.domainId) ? (
+        <div
+          className={`screen-pane ${screen === 'digital' ? 'is-active' : 'is-cached'}`}
+          aria-hidden={screen !== 'digital'}
+          inert={screen !== 'digital' ? true : undefined}
+        >
+          <DigitalCockpitPage
+            state={state}
+            lang={lang}
+            onState={setState}
+            onFlash={(msg) => setToast(msg)}
+            onNavigate={goTo}
+            onCampaignAction={(res) => {
+              if (res.action?.type === 'open_whatsapp') {
+                openWhatsappText(res.action.phone, res.action.message)
+              }
+              if (res.action?.type === 'broadcast_prospects') {
+                res.action.items.forEach((item, i) => {
+                  window.setTimeout(
+                    () => openWhatsappText(item.phone, item.message),
+                    i * 700,
+                  )
+                })
+              }
+              if (res.action?.type === 'navigate') {
+                goTo(
+                  res.action.screen === 'agent' ? 'digital' : res.action.screen,
+                )
+              }
+            }}
+          />
+        </div>
+      ) : null}
       {isAlive('arrivages') ? (
         <div
           className={`screen-pane ${screen === 'arrivages' ? 'is-active' : 'is-cached'}`}
@@ -1715,6 +1761,7 @@ function SettingsPage({
   }))
   const [useBt, setUseBt] = useState(getPreferBluetoothPrinter())
   const [licenseKey, setLicenseKey] = useState('')
+  const [referrerOnActivate, setReferrerOnActivate] = useState('')
   const [licenseInfo, setLicenseInfo] = useState('')
   const [newLocName, setNewLocName] = useState('')
   const [xferProductId, setXferProductId] = useState(
@@ -1868,14 +1915,35 @@ function SettingsPage({
             placeholder="GDZ1...."
           />
         </div>
+        <div className="field">
+          <label>{t(lang, 'referralCodeOnActivate')}</label>
+          <input
+            value={referrerOnActivate}
+            onChange={(e) => setReferrerOnActivate(e.target.value.toUpperCase())}
+            placeholder="AZ-XXXX"
+          />
+          <p className="muted" style={{ margin: '6px 0 0' }}>
+            {t(lang, 'referralCodeOnActivateHint')}
+          </p>
+        </div>
         <button
           className="btn secondary block"
           disabled={!licenseKey.trim()}
           onClick={async () => {
             const res = await activateLicense(licenseKey)
             if (res.ok) {
+              const code = referrerOnActivate.trim().toUpperCase()
+              if (code) {
+                const { setReferredByCode } = await import('./license/referral')
+                setReferredByCode(code)
+                onState((s) => ({
+                  ...s,
+                  settings: { ...s.settings, referredByCode: code },
+                }))
+              }
               setLicenseInfo(`Licence: ${res.payload.c} — expire ${res.payload.e}`)
               setLicenseKey('')
+              setReferrerOnActivate('')
               saveAll()
             } else {
               setLicenseInfo(res.error)
@@ -1884,6 +1952,13 @@ function SettingsPage({
         >
           Activer / renouveler licence
         </button>
+        <ReferralPanel
+          state={state}
+          lang={lang}
+          onState={(next) => onState(() => next)}
+          onFlash={(msg) => onFlash(msg)}
+          compact
+        />
         <a className="btn ghost block" href="/guide.html" target="_blank" rel="noreferrer">
           Guide d’utilisation
         </a>
@@ -2867,6 +2942,9 @@ function HomePage({
       ? [{ id: 'returns' as Screen, label: t(lang, 'appReturns'), icon: '↩️', tone: 'coral' }]
       : []),
     { id: 'agent' as Screen, label: t(lang, 'appAgent'), icon: '🤖', tone: 'slate' },
+    ...(showEcommerceHub(mode, domainId)
+      ? [{ id: 'digital' as Screen, label: t(lang, 'appDigital'), icon: '🌐', tone: 'blue' }]
+      : []),
     { id: 'expenses' as Screen, label: t(lang, 'appExpenses'), icon: '💸', tone: 'rose' },
     { id: 'profits' as Screen, label: t(lang, 'appProfits'), icon: '💰', tone: 'amber' },
     { id: 'stock' as Screen, label: t(lang, 'appValue'), icon: '📈', tone: 'emerald' },
@@ -2935,6 +3013,15 @@ function HomePage({
           onGo('clients', t(lang, 'appClients'))
         }}
       />
+
+      {showEcommerceHub(mode, domainId) ? (
+        <EcommerceToolsHub
+          lang={lang}
+          compact
+          onNavigate={(s) => onGo(s, t(lang, 'appDigital'))}
+          onFlash={onFlash}
+        />
+      ) : null}
 
       {showBookingAgent(mode, domainId) ? (
         <BookingAgentPanel
@@ -3068,9 +3155,11 @@ function HomePage({
                 ? '🚗'
                 : mode === 'services'
                   ? '🧰'
-                  : isWholesale(mode)
-                    ? '📦'
-                    : '🛒'}
+                  : mode === 'ecommerce'
+                    ? '🌐'
+                    : isWholesale(mode)
+                      ? '📦'
+                      : '🛒'}
           </span>
         </button>
         ) : null}

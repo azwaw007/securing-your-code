@@ -1,9 +1,11 @@
 /** File d’automatisation locale : posts / stories / relances (sans Meta API). */
 
 import {
-  POSTS,
-  STORY_WEEK,
+  buildPosts,
+  buildStoryWeek,
+  resolveSellerBrand,
   type PostChannel,
+  type SellerBrand,
   type StorySlot,
 } from './campaignPack'
 
@@ -26,6 +28,12 @@ export interface QueueItem {
 
 export interface CampaignState {
   boutiqueName: string
+  /** Nom de marque / produit digital (choix utilisateur) */
+  productName: string
+  productProName: string
+  demoUrl: string
+  prixDetail: string
+  prixPro: string
   whatsappPhone: string
   city: string
   startedAt: string
@@ -40,7 +48,12 @@ function uid(prefix: string): string {
 
 export function defaultCampaignState(): CampaignState {
   return {
-    boutiqueName: 'AZ Soft',
+    boutiqueName: '',
+    productName: '',
+    productProName: '',
+    demoUrl: '',
+    prixDetail: '',
+    prixPro: '',
     whatsappPhone: '',
     city: 'Algérie',
     startedAt: new Date().toISOString(),
@@ -48,6 +61,21 @@ export function defaultCampaignState(): CampaignState {
     autoReplyEnabled: true,
     autoQueueEnabled: true,
   }
+}
+
+/** Marque effective pour texts campagne / stories / pitches */
+export function brandFromCampaignState(
+  st?: CampaignState | null,
+): SellerBrand {
+  const s = st || loadCampaignState()
+  return resolveSellerBrand({
+    boutique: s.boutiqueName,
+    produit: s.productName,
+    produitPro: s.productProName,
+    demoUrl: s.demoUrl,
+    prixDetail: s.prixDetail || undefined,
+    prixPro: s.prixPro || undefined,
+  })
 }
 
 export function loadCampaignState(): CampaignState {
@@ -94,13 +122,16 @@ function dueDateFor(dayOffset: number, hour: number): string {
   return d.toISOString()
 }
 
-/** Génère la file 7 jours (stories + posts) */
+/** Génère la file 7 jours (stories + posts) — textes selon marque utilisateur */
 export function seedWeekQueue(lang: 'fr' | 'ar' = 'fr'): QueueItem[] {
+  const brand = brandFromCampaignState()
+  const stories = buildStoryWeek(brand)
+  const posts = buildPosts(brand)
   const existing = loadQueue().filter((q) => q.status === 'pending')
   const items: QueueItem[] = [...existing]
   const now = new Date().toISOString()
 
-  for (const story of STORY_WEEK) {
+  for (const story of stories) {
     const dayOffset = Math.max(0, story.day - 1)
     items.push({
       id: uid('story'),
@@ -114,7 +145,7 @@ export function seedWeekQueue(lang: 'fr' | 'ar' = 'fr'): QueueItem[] {
     })
   }
 
-  POSTS.forEach((post, i) => {
+  posts.forEach((post, i) => {
     items.push({
       id: uid('post'),
       kind: 'post',

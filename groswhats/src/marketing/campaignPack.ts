@@ -1,23 +1,56 @@
 /**
- * Pack campagne vente AZ POS / AZ POS Pro (FR + AR).
- * Boutique vendeur : AZ Soft — produit : AZ POS.
+ * Pack campagne marketing digital (FR + AR).
+ * La marque (boutique / produit) est choisie par l’utilisateur — pas de nom figé.
  */
 
-export const SELLER_BRAND = {
-  boutique: 'AZ Soft',
-  produit: 'AZ POS',
-  produitPro: 'AZ POS Pro',
-  slogan: 'La caisse simple pour l’Algérie',
-  sloganPro: 'Plusieurs magasins. Un seul logiciel.',
-  demoUrl: 'https://az-pos-dz.vercel.app',
+export type SellerBrand = {
+  boutique: string
+  produit: string
+  produitPro: string
+  slogan: string
+  sloganPro: string
+  demoUrl: string
+  proUrl: string
+  campagneUrl: string
+  defaultWhatsapp: string
+  prixDetail: string
+  prixPro: string
+}
+
+/** Valeurs par défaut génériques — l’utilisateur les remplace dans AZ Digital. */
+export const DEFAULT_SELLER_BRAND: SellerBrand = {
+  boutique: 'Ma boutique',
+  produit: 'Mon produit',
+  produitPro: 'Mon produit Pro',
+  slogan: 'Ton offre digitale, claire et simple',
+  sloganPro: 'Plusieurs points de vente. Une seule offre.',
+  demoUrl: 'https://exemple.dz',
   proUrl: '/seller/pro.html',
   campagneUrl: '/seller/campagne.html',
-  /** WhatsApp vendeur — à personnaliser dans la campagne */
   defaultWhatsapp: '',
-  prixDetail: '12 000 DA / an (1 poste)',
-  prixPro:
-    'Pro 3 postes 25 000 DA · Pro 10 postes 70 000 DA · Pro Max illimité 90 000 DA / an',
-} as const
+  prixDetail: 'Prix à définir (offre standard)',
+  prixPro: 'Prix Pro à définir (multi-postes / multi-offres)',
+}
+
+/** @deprecated préférer resolveSellerBrand — alias pour imports existants */
+export const SELLER_BRAND = DEFAULT_SELLER_BRAND
+
+export function resolveSellerBrand(
+  partial?: Partial<SellerBrand> | null,
+): SellerBrand {
+  return {
+    ...DEFAULT_SELLER_BRAND,
+    ...(partial || {}),
+    boutique: (partial?.boutique || '').trim() || DEFAULT_SELLER_BRAND.boutique,
+    produit: (partial?.produit || '').trim() || DEFAULT_SELLER_BRAND.produit,
+    produitPro:
+      (partial?.produitPro || '').trim() ||
+      ((partial?.produit || '').trim()
+        ? `${(partial?.produit || '').trim()} Pro`
+        : DEFAULT_SELLER_BRAND.produitPro),
+    demoUrl: (partial?.demoUrl || '').trim() || DEFAULT_SELLER_BRAND.demoUrl,
+  }
+}
 
 export type StorySlot = 'matin' | 'midi' | 'soir'
 export type PostChannel = 'whatsapp_status' | 'facebook' | 'instagram' | 'whatsapp_groupe'
@@ -46,198 +79,228 @@ export interface AutoReplyRule {
   replyAr: string
 }
 
-/** Calendrier 7 jours — stories / statuts */
-export const STORY_WEEK: StoryScript[] = [
-  {
-    id: 'd1-matin',
-    day: 1,
-    slot: 'matin',
-    fr: '🌅 Nouveau jour, nouvelle caisse.\nAZ POS — stock, crédit, WhatsApp.\nEssai gratuit → lien en bio',
-    ar: '🌅 يوم جديد وكاش جديد.\nAZ POS — مخزون، دين، واتساب.\nتجربة مجانية',
-  },
-  {
-    id: 'd1-soir',
-    day: 1,
-    slot: 'soir',
-    fr: '📊 Fin de journée : tu sais ce que tu as vendu ?\nAvec AZ POS, caisse claire en 1 tap.',
-    ar: '📊 نهاية اليوم: شحال بعت؟\nمع AZ POS الصندوق واضح.',
-  },
-  {
-    id: 'd2-matin',
-    day: 2,
-    slot: 'matin',
-    fr: '🏪 2 magasins = 2 stocks.\nAZ POS Pro : multi-dépôts + transfert.\nDemande un devis WhatsApp.',
-    ar: '🏪 محلّين = مخزونين.\nAZ POS Pro: عدة مخازن + تحويل.\nاطلب عرض سعر واتساب.',
-  },
-  {
-    id: 'd3-midi',
-    day: 3,
-    slot: 'midi',
-    fr: '⚡ Vente en 10 secondes.\nClient → produit → cash ou crédit.\nPas Excel. Pas cahier.',
-    ar: '⚡ بيع في ثواني.\nزبون → منتج → نقد أو دين.\nبلا إكسيل.',
-  },
-  {
-    id: 'd4-soir',
-    day: 4,
-    slot: 'soir',
-    fr: '🚚 Livreurs sur leur téléphone.\nToi tu vois la tournée. Eux ils livrent.\nMulti-poste AZ POS.',
-    ar: '🚚 السائق على هاتفه.\nأنت تشوف الجولة وهو يسلّم.\nAZ POS متعدد الأجهزة.',
-  },
-  {
-    id: 'd5-matin',
-    day: 5,
-    slot: 'matin',
-    fr: '💬 « Bchhal Pro ? »\nRéponse : selon le nombre de magasins — devis en 2 min sur WhatsApp.',
-    ar: '💬 « بصحال Pro؟ »\nالجواب: حسب عدد المحلات — عرض في دقيقتين واتساب.',
-  },
-  {
-    id: 'd6-midi',
-    day: 6,
-    slot: 'midi',
-    fr: '📱 Marche sur téléphone + PC.\nDonnées chez toi. Pas de clé USB.',
-    ar: '📱 يخدم على التليفون والحاسوب.\nالبيانات عندك.',
-  },
-  {
-    id: 'd7-soir',
-    day: 7,
-    slot: 'soir',
-    fr: '✅ Semaine Pro : qui veut une démo demain ?\nRéponds DÉMO — on t’envoie le lien.',
-    ar: '✅ نهاية الأسبوع: من يريد عرض غدوة؟\nرد DÉMO — نرسل الرابط.',
-  },
-]
+function storiesFor(brand: SellerBrand): StoryScript[] {
+  const { produit, produitPro } = brand
+  return [
+    {
+      id: 'd1-matin',
+      day: 1,
+      slot: 'matin',
+      fr: `🌅 Nouveau jour, nouvelle offre.\n${produit} — simple, claire, WhatsApp.\nEssai → lien en bio`,
+      ar: `🌅 يوم جديد وعرض جديد.\n${produit} — بسيط، واضح، واتساب.\nتجربة → الرابط في البايو`,
+    },
+    {
+      id: 'd1-soir',
+      day: 1,
+      slot: 'soir',
+      fr: `📊 Fin de journée : ton prospect a-t-il ton lien ?\nAvec ${produit}, pitch prêt en 1 tap.`,
+      ar: `📊 نهاية اليوم: هل عند الزبون رابطك؟\nمع ${produit} العرض جاهز بضغطة.`,
+    },
+    {
+      id: 'd2-matin',
+      day: 2,
+      slot: 'matin',
+      fr: `🏪 Plusieurs points de vente ?\n${produitPro} : multi-offres + suivi.\nDemande un devis WhatsApp.`,
+      ar: `🏪 عدة نقاط بيع؟\n${produitPro}: عروض متعددة + متابعة.\nاطلب عرض سعر واتساب.`,
+    },
+    {
+      id: 'd3-midi',
+      day: 3,
+      slot: 'midi',
+      fr: `⚡ Proposition en 10 secondes.\nClient → offre → WhatsApp.\nPas Excel. Pas cahier.`,
+      ar: `⚡ عرض في ثواني.\nزبون → عرض → واتساب.\nبلا إكسيل.`,
+    },
+    {
+      id: 'd4-soir',
+      day: 4,
+      slot: 'soir',
+      fr: `🚚 Relance prospects sur ton téléphone.\nToi tu suis la file. Eux ils répondent.\nCampagne ${produit}.`,
+      ar: `🚚 راسل prospects من هاتفك.\nأنت تتابع والطابور يرد.\nحملة ${produit}.`,
+    },
+    {
+      id: 'd5-matin',
+      day: 5,
+      slot: 'matin',
+      fr: `💬 « Bchhal ? »\nRéponse : selon l’offre — devis en 2 min sur WhatsApp.`,
+      ar: `💬 « بصحال؟ »\nالجواب: حسب العرض — عرض في دقيقتين واتساب.`,
+    },
+    {
+      id: 'd6-midi',
+      day: 6,
+      slot: 'midi',
+      fr: `📱 Marche sur téléphone + PC.\nTon catalogue digital, ton CTA.`,
+      ar: `📱 يخدم على التليفون والحاسوب.\nكتالوجك الرقمي وزر الشراء.`,
+    },
+    {
+      id: 'd7-soir',
+      day: 7,
+      slot: 'soir',
+      fr: `✅ Semaine marketing : qui veut une démo demain ?\nRéponds DÉMO — on t’envoie le lien.`,
+      ar: `✅ نهاية الأسبوع: من يريد عرض غدوة؟\nرد DÉMO — نرسل الرابط.`,
+    },
+  ]
+}
 
-export const POSTS: CampaignCopy[] = [
-  {
-    id: 'post-lancement',
-    channel: 'facebook',
-    titleFr: 'Lancement AZ POS',
-    bodyFr: `Les commerçants algériens méritent une caisse simple.
+function postsFor(brand: SellerBrand): CampaignCopy[] {
+  const { produit, produitPro, demoUrl, prixPro } = brand
+  return [
+    {
+      id: 'post-lancement',
+      channel: 'facebook',
+      titleFr: `Lancement ${produit}`,
+      bodyFr: `Les clients méritent une offre claire.
 
-${SELLER_BRAND.produit} — stock, clients, crédit, WhatsApp, caisse du jour.
-${SELLER_BRAND.produitPro} — plusieurs magasins, stock séparé, transferts.
+${produit} — digital, WhatsApp, suivi simple.
+${produitPro} — plusieurs offres / points de vente.
 
-Créé pour le terrain (gros, détail, dépôt).
-Essai : ${SELLER_BRAND.demoUrl}`,
-    bodyAr: `التاجر الجزائري يستاهل كاش بسيط.
+Créé pour ton marché.
+Essai : ${demoUrl}`,
+      bodyAr: `الزبون يستاهل عرض واضح.
 
-${SELLER_BRAND.produit} — مخزون، زبائن، دين، واتساب.
-${SELLER_BRAND.produitPro} — عدة محلات ومخزون منفصل.
+${produit} — رقمي، واتساب، متابعة بسيطة.
+${produitPro} — عدة عروض / نقاط بيع.
 
-تجربة: ${SELLER_BRAND.demoUrl}`,
-    ctaFr: 'Commente DÉMO ou envoie WhatsApp',
-  },
-  {
-    id: 'post-pro',
-    channel: 'instagram',
-    titleFr: 'Pourquoi Pro',
-    bodyFr: `Tu as un dépôt + un magasin ?
-Ou 3 points de vente ?
+مصمم لسوقك.
+تجربة: ${demoUrl}`,
+      ctaFr: 'Commente DÉMO ou envoie WhatsApp',
+    },
+    {
+      id: 'post-pro',
+      channel: 'instagram',
+      titleFr: 'Pourquoi Pro',
+      bodyFr: `Tu as plusieurs canaux ou points de vente ?
 
-${SELLER_BRAND.produitPro} :
-• stock par magasin
-• magasin actif à la caisse
-• transfert entre dépôts
+${produitPro} :
+• offres séparées
+• suivi prospects
+• relances WhatsApp
 
-Prix : ${SELLER_BRAND.prixPro}`,
-    bodyAr: `${SELLER_BRAND.produitPro}:
-• مخزون لكل محل
-• محل نشط في الصندوق
-• تحويل بين المخازن
+Prix : ${prixPro}`,
+      bodyAr: `${produitPro}:
+• عروض منفصلة
+• متابعة prospects
+• رسائل واتساب
 
-السعر: ${SELLER_BRAND.prixPro}`,
-    ctaFr: 'Lien Pro en bio / story',
-  },
-  {
-    id: 'wa-groupe',
-    channel: 'whatsapp_groupe',
-    titleFr: 'Message groupe commerçants',
-    bodyFr: `Salam 👋
-Je propose ${SELLER_BRAND.produit} — application caisse + stock + WhatsApp pour commerçants DZ.
+السعر: ${prixPro}`,
+      ctaFr: 'Lien Pro en bio / story',
+    },
+    {
+      id: 'wa-groupe',
+      channel: 'whatsapp_groupe',
+      titleFr: 'Message groupe',
+      bodyFr: `Salam 👋
+Je propose ${produit} — offre digitale + WhatsApp.
 
-Version Pro = multi-magasins.
-Démo gratuite : ${SELLER_BRAND.demoUrl}
+Version Pro = multi-offres.
+Démo : ${demoUrl}
 Réponds PRO si tu veux un devis.`,
-    bodyAr: `السلام 👋
-نقترح ${SELLER_BRAND.produit} — تطبيق كاش + مخزون + واتساب للتجار.
+      bodyAr: `السلام 👋
+نقترح ${produit} — عرض رقمي + واتساب.
 
-النسخة Pro = عدة محلات.
-تجربة: ${SELLER_BRAND.demoUrl}
+النسخة Pro = عروض متعددة.
+تجربة: ${demoUrl}
 رد PRO للعرض.`,
-    ctaFr: 'Envoyer dans 2–3 groupes max / jour',
-  },
-]
+      ctaFr: 'Envoyer dans 2–3 groupes max / jour',
+    },
+  ]
+}
 
-/** Réponses auto aux messages vente (inbox / WhatsApp collé) */
-export const AUTO_REPLIES: AutoReplyRule[] = [
-  {
-    id: 'prix',
-    match: /(prix|tarif|bchhal|بصحال|كم السعر|سعر|devis|عرض)/i,
-    replyFr: `Salam 👋 Merci pour ton message.
-${SELLER_BRAND.produit} (1 magasin) : ${SELLER_BRAND.prixDetail}.
-${SELLER_BRAND.produitPro} (multi-magasins) : ${SELLER_BRAND.prixPro}.
+function autoRepliesFor(brand: SellerBrand): AutoReplyRule[] {
+  const { produit, produitPro, demoUrl, prixDetail, prixPro } = brand
+  return [
+    {
+      id: 'prix',
+      match: /(prix|tarif|bchhal|بصحال|كم السعر|سعر|devis|عرض)/i,
+      replyFr: `Salam 👋 Merci pour ton message.
+${produit} (offre standard) : ${prixDetail}.
+${produitPro} (multi) : ${prixPro}.
 
-Dis-moi : combien de magasins / dépôts ?
-Démo : ${SELLER_BRAND.demoUrl}`,
-    replyAr: `السلام 👋 شكرا على الرسالة.
-${SELLER_BRAND.produit} (محل واحد): ${SELLER_BRAND.prixDetail}.
-${SELLER_BRAND.produitPro} (عدة محلات): ${SELLER_BRAND.prixPro}.
+Dis-moi : quelle offre te convient ?
+Démo : ${demoUrl}`,
+      replyAr: `السلام 👋 شكرا على الرسالة.
+${produit} (عرض عادي): ${prixDetail}.
+${produitPro} (متعدد): ${prixPro}.
 
-قولي: شحال من محل / مخزن؟
-تجربة: ${SELLER_BRAND.demoUrl}`,
-  },
-  {
-    id: 'demo',
-    match: /(demo|démo|essai|تجربة|رابط|link)/i,
-    replyFr: `Voici la démo ${SELLER_BRAND.produit} :
-${SELLER_BRAND.demoUrl}
+قولي: أي عرض يناسبك؟
+تجربة: ${demoUrl}`,
+    },
+    {
+      id: 'demo',
+      match: /(demo|démo|essai|تجربة|رابط|link)/i,
+      replyFr: `Voici la démo ${produit} :
+${demoUrl}
 
-Tu peux tester stock + vente tout de suite.
-Si tu as 2+ magasins → regarde Pro : ${SELLER_BRAND.demoUrl.replace(/\/$/, '')}/seller/pro.html`,
-    replyAr: `رابط التجربة ${SELLER_BRAND.produit}:
-${SELLER_BRAND.demoUrl}
+Tu peux tester tout de suite.
+Si tu as plusieurs points de vente → ${produitPro}.`,
+      replyAr: `رابط التجربة ${produit}:
+${demoUrl}
 
-جرّب المخزون والبيع مباشرة.
-إذا عندك محلّين أو أكثر → Pro.`,
-  },
-  {
-    id: 'multi',
-    match: /(multi|magasin|d[eé]p[oô]t|عدة|محلات|مخزن|usine|usine|pro)/i,
-    replyFr: `${SELLER_BRAND.produitPro} gère plusieurs dépôts :
-• stock séparé par magasin
-• magasin actif à la caisse
-• transfert A → B
+جرّب مباشرة.
+إذا عندك عدة نقاط بيع → ${produitPro}.`,
+    },
+    {
+      id: 'multi',
+      match: /(multi|magasin|d[eé]p[oô]t|عدة|محلات|مخزن|usine|pro)/i,
+      replyFr: `${produitPro} gère plusieurs offres / points de vente :
+• suivi séparé
+• relances WhatsApp
+• pitchs prêts
 
-Dis-moi le nombre de points de vente → devis WhatsApp.`,
-    replyAr: `${SELLER_BRAND.produitPro} يدير عدة مخازن:
-• مخزون منفصل
-• محل نشط في الصندوق
-• تحويل بين المخازن
+Dis-moi ton besoin → devis WhatsApp.`,
+      replyAr: `${produitPro} يدير عدة عروض / نقاط بيع:
+• متابعة منفصلة
+• رسائل واتساب
+• عروض جاهزة
 
-قول عدد نقاط البيع → نرسل العرض.`,
-  },
-  {
-    id: 'whatsapp',
-    match: /(whatsapp|واتس|واتساب)/i,
-    replyFr: `Oui — ${SELLER_BRAND.produit} envoie factures et arrivages sur WhatsApp (wa.me).
-Les données restent sur ton téléphone.`,
-    replyAr: `نعم — ${SELLER_BRAND.produit} يرسل الفواتير والوصول عبر واتساب.
-البيانات تبقى على هاتفك.`,
-  },
-]
+قول احتياجك → نرسل العرض.`,
+    },
+    {
+      id: 'whatsapp',
+      match: /(whatsapp|واتس|واتساب)/i,
+      replyFr: `Oui — ${produit} envoie offres et relances sur WhatsApp (wa.me).
+Tes prospects restent chez toi.`,
+      replyAr: `نعم — ${produit} يرسل العروض والتذكير عبر واتساب.
+الـ prospects تبقى عندك.`,
+    },
+  ]
+}
+
+/** Calendrier 7 jours — stories / statuts (marque utilisateur) */
+export function buildStoryWeek(brand?: Partial<SellerBrand> | null): StoryScript[] {
+  return storiesFor(resolveSellerBrand(brand))
+}
+
+export function buildPosts(brand?: Partial<SellerBrand> | null): CampaignCopy[] {
+  return postsFor(resolveSellerBrand(brand))
+}
+
+export function buildAutoReplies(
+  brand?: Partial<SellerBrand> | null,
+): AutoReplyRule[] {
+  return autoRepliesFor(resolveSellerBrand(brand))
+}
+
+/** Compat : snapshots avec marque par défaut (éviter crash imports) */
+export const STORY_WEEK: StoryScript[] = buildStoryWeek()
+export const POSTS: CampaignCopy[] = buildPosts()
+export const AUTO_REPLIES: AutoReplyRule[] = buildAutoReplies()
 
 export function storyForToday(
   dayOfCampaign = ((Math.floor(Date.now() / 86400000) % 7) + 1) as number,
   slot: StorySlot = 'matin',
+  brand?: Partial<SellerBrand> | null,
 ): StoryScript {
-  const list = STORY_WEEK.filter((s) => s.day === dayOfCampaign && s.slot === slot)
-  return list[0] || STORY_WEEK[0]
+  const week = buildStoryWeek(brand)
+  const list = week.filter((s) => s.day === dayOfCampaign && s.slot === slot)
+  return list[0] || week[0]
 }
 
 export function matchAutoReply(
   message: string,
   lang: 'fr' | 'ar' = 'fr',
+  brand?: Partial<SellerBrand> | null,
 ): { ruleId: string; reply: string } | null {
-  for (const rule of AUTO_REPLIES) {
+  for (const rule of buildAutoReplies(brand)) {
     if (rule.match.test(message)) {
       return {
         ruleId: rule.id,
@@ -252,15 +315,17 @@ export function buildSalesPitch(opts: {
   shops?: number
   city?: string
   lang?: 'fr' | 'ar'
+  brand?: Partial<SellerBrand> | null
 }): string {
+  const brand = resolveSellerBrand(opts.brand)
   const shops = opts.shops && opts.shops > 1 ? opts.shops : 1
   const city = opts.city?.trim() || 'Algérie'
   if (opts.lang === 'ar') {
     return shops > 1
-      ? `عرض ${SELLER_BRAND.produitPro} لـ ${shops} نقاط بيع (${city}). مخزون منفصل + تحويل. تجربة: ${SELLER_BRAND.demoUrl}`
-      : `عرض ${SELLER_BRAND.produit} — كاش ومخزون وواتساب (${city}). تجربة: ${SELLER_BRAND.demoUrl}`
+      ? `عرض ${brand.produitPro} لـ ${shops} نقاط (${city}). تجربة: ${brand.demoUrl}`
+      : `عرض ${brand.produit} (${city}). تجربة: ${brand.demoUrl}`
   }
   return shops > 1
-    ? `Offre ${SELLER_BRAND.produitPro} pour ${shops} points de vente (${city}). Stock séparé + transferts. Démo : ${SELLER_BRAND.demoUrl}`
-    : `Offre ${SELLER_BRAND.produit} — caisse, stock, WhatsApp (${city}). Démo : ${SELLER_BRAND.demoUrl}`
+    ? `Offre ${brand.produitPro} pour ${shops} points (${city}). Démo : ${brand.demoUrl}`
+    : `Offre ${brand.produit} (${city}). Démo : ${brand.demoUrl}`
 }

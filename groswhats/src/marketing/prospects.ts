@@ -1,9 +1,10 @@
 /**
- * Prospects campagne AZ Soft — import CSV (nom, téléphone, ville, email).
+ * Prospects campagne digitale — import CSV (nom, téléphone, ville, email).
  * Pas de scrape : uniquement listes que tu fournis.
  */
 
-import { SELLER_BRAND, buildSalesPitch } from './campaignPack'
+import { buildSalesPitch } from './campaignPack'
+import { brandFromCampaignState } from './scheduler'
 
 const PROSPECTS_KEY = 'az-pos-prospects-v1'
 
@@ -235,19 +236,20 @@ export function outreachMessage(
   p: Prospect,
   lang: 'fr' | 'ar' = 'fr',
 ): string {
+  const brand = brandFromCampaignState()
   if (lang === 'ar') {
     return `السلام ${p.name} 👋
-أنا من ${SELLER_BRAND.boutique}.
-نقترح ${SELLER_BRAND.produit} — كاش + مخزون + واتساب للتجار في الجزائر.
-إذا عندك عدة محلات: ${SELLER_BRAND.produitPro}.
-تجربة مجانية: ${SELLER_BRAND.demoUrl}
+أنا من ${brand.boutique}.
+نقترح ${brand.produit} — عرض رقمي + واتساب.
+إذا عندك عدة نقاط بيع: ${brand.produitPro}.
+تجربة: ${brand.demoUrl}
 رد DÉMO أو PRO.`
   }
   return `Salam ${p.name} 👋
-Je suis ${SELLER_BRAND.boutique}.
-On propose ${SELLER_BRAND.produit} — caisse + stock + WhatsApp pour commerçants en Algérie${p.city ? ` (${p.city})` : ''}.
-Plusieurs magasins → ${SELLER_BRAND.produitPro}.
-Essai gratuit : ${SELLER_BRAND.demoUrl}
+Je suis ${brand.boutique}.
+On propose ${brand.produit} — offre digitale + WhatsApp${p.city ? ` (${p.city})` : ''}.
+Plusieurs points de vente → ${brand.produitPro}.
+Essai : ${brand.demoUrl}
 Réponds DÉMO ou PRO pour un devis.`
 }
 

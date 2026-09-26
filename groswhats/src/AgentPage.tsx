@@ -40,7 +40,8 @@ const SUGGESTIONS_FR = [
   'organise l’app',
   'thème nuit',
   'conseil vente',
-  'conseil compta',
+  'lance campagne',
+  'az digital',
 ]
 
 const SUGGESTIONS_AR = [
@@ -53,7 +54,8 @@ const SUGGESTIONS_AR = [
   'نظّم التطبيق',
   'ثيم الليل',
   'خبير مبيعات',
-  'خبير محاسبة',
+  'ابدأ حملة',
+  'az digital',
 ]
 
 export function AgentPage({

@@ -1,6 +1,6 @@
 export type Language = 'fr' | 'ar' | 'en' | 'es' | 'tr' | 'it' | 'de'
 
-export type CommerceMode = 'gros' | 'detail' | 'sante' | 'auto' | 'services'
+export type CommerceMode = 'gros' | 'detail' | 'sante' | 'auto' | 'services' | 'ecommerce'
 
 export type Unit =
   | 'piece'
@@ -97,6 +97,7 @@ export type Screen =
   | 'tpe'
   | 'sellers'
   | 'production'
+  | 'digital'
 
 /** Mode d’encaissement DZ (outil optionnel « Paiements DZ ») */
 export type PaymentMethod = 'cash' | 'baridimob' | 'ccp' | 'card' | 'cheque'
@@ -883,6 +884,13 @@ export interface ShopSettings {
   fiscalAi?: string
   /** Permissions système agentic (optionnel — défauts complets) */
   agentPermissions?: Partial<AgentPermissionFlags>
+  /**
+   * Fin d’accès offerte par parrainage (YYYY-MM-DD) —
+   * cumulable avec la licence payante.
+   */
+  referralBonusExpiresAt?: string
+  /** Code parrain saisi à l’activation (ami qui a invité) */
+  referredByCode?: string
   /** Multi-magasin / multi-dépôts (AZ POS Pro lean) */
   multiLocationEnabled?: boolean
   /** Magasin actif à la caisse / stock */
@@ -1145,6 +1153,8 @@ export interface AppState {
   recipes: Recipe[]
   /** Historique des fabrications */
   productionRuns: ProductionRun[]
+  /** Parrainage AZ POS — points / conversions / récompenses */
+  referral?: import('./license/referral').ReferralAccount
 }
 
 /** Lien mémorisé entre un libellé facture et un produit stock. */

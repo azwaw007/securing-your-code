@@ -104,6 +104,12 @@ function accountingSectionTips(
           'عربون عند الحجز · الباقي عند التسليم.',
           'تتبّع الساعات إن كان التسعير بالساعة.',
         ]
+      case 'ecommerce':
+        return [
+          'تجارة إلكترونية: تتبّع تكلفة الإعلان مقابل هامش المنتج.',
+          'اربط الشبكات المجانية قبل الميزانية المدفوعة.',
+          'الدروبشيب: احسب التوصيل + الإرجاع في السعر.',
+        ]
       default:
         return ['سجّل المصاريف يومياً · افصل النقد عن الدين.']
     }
@@ -138,6 +144,12 @@ function accountingSectionTips(
         'Services : facture à la mission ou à la séance.',
         'Acompte à la réservation · solde à la livraison.',
         'Si tarif horaire : note les heures réellement faites.',
+      ]
+    case 'ecommerce':
+      return [
+        'E-commerce : suis le coût pub vs marge produit.',
+        'Branchez d’abord les outils gratuits (réseaux, analytics) avant le budget ads.',
+        'Dropship : intègre livraison + retours dans le prix.',
       ]
     default:
       return ['Note les dépenses chaque jour · sépare cash / crédit.']

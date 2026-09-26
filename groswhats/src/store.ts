@@ -66,6 +66,7 @@ import {
 } from './sellerPermissions'
 import { APP_BRAND } from './brand'
 import { getCachedSeatLimit } from './license/license'
+import { emptyReferralAccount, migrateReferral } from './license/referral'
 import { countryByCode, convertPriceDa } from './data/countries'
 import { bestForeignCatalogHit, catalogFor, catalogNameHits } from './data/catalogs'
 import { domainById } from './data/domains'
@@ -465,6 +466,7 @@ function seedState(): AppState {
     invoiceAliases: [],
     recipes: [],
     productionRuns: [],
+    referral: emptyReferralAccount(),
   }
 }
 
@@ -499,6 +501,7 @@ export function migrate(raw: unknown): AppState {
     invoiceAliases?: InvoiceProductAlias[]
     recipes?: Recipe[]
     productionRuns?: ProductionRun[]
+    referral?: unknown
   }
   const incoming = data.settings ?? {}
   const defaults = defaultSettings()
@@ -513,7 +516,7 @@ export function migrate(raw: unknown): AppState {
     setupDone:
       incoming.setupDone === true || (data.products?.length ?? 0) > 0,
     countryCode: incoming.countryCode || defaults.countryCode,
-    commerceMode: (['gros', 'detail', 'sante', 'auto', 'services'] as const).includes(
+    commerceMode: (['gros', 'detail', 'sante', 'auto', 'services', 'ecommerce'] as const).includes(
       incoming.commerceMode as CommerceMode,
     )
       ? (incoming.commerceMode as CommerceMode)
@@ -603,6 +606,15 @@ export function migrate(raw: unknown): AppState {
       ...DEFAULT_AGENT_PERMISSIONS,
       ...(incoming.agentPermissions as Partial<AgentPermissions> | undefined),
     },
+    referralBonusExpiresAt:
+      typeof incoming.referralBonusExpiresAt === 'string' &&
+      /^\d{4}-\d{2}-\d{2}/.test(incoming.referralBonusExpiresAt)
+        ? incoming.referralBonusExpiresAt.slice(0, 10)
+        : undefined,
+    referredByCode:
+      typeof incoming.referredByCode === 'string' && incoming.referredByCode.trim()
+        ? incoming.referredByCode.trim().toUpperCase()
+        : undefined,
     multiLocationEnabled: incoming.multiLocationEnabled === true,
     activeLocationId:
       typeof incoming.activeLocationId === 'string' && incoming.activeLocationId
@@ -1172,6 +1184,14 @@ export function migrate(raw: unknown): AppState {
       : [],
     recipes: migrateRecipes(data.recipes),
     productionRuns: migrateProductionRuns(data.productionRuns),
+    referral: migrateReferral(data.referral) ?? emptyReferralAccount(settings.shopName),
+  }
+  if (settings.referralBonusExpiresAt) {
+    try {
+      localStorage.setItem('gdz-referral-bonus-expires', settings.referralBonusExpiresAt)
+    } catch {
+      /* ignore */
+    }
   }
   return ensureDefaultLocation(base)
 }

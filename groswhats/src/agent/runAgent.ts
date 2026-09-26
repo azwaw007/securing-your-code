@@ -28,6 +28,7 @@ import { executeTool } from './tools'
 
 import { runAgentic } from './orchestrator'
 import { answerAnything } from './chat'
+import { runCampaignCommand } from './campaignManager'
 
 export type AgentAction =
   | { type: 'none' }
@@ -531,17 +532,30 @@ export async function runAgent(state: AppState, userText: string): Promise<Agent
   const taught = tryTeachCommand(state, raw, lang)
   if (taught) return taught
 
-  // Ancienne campagne / stories / Meta : retirée (pas de vraie publication).
+  // Campagne / stories / Meta → cockpit AZ Digital + commandes locales
   if (
-    /(lance campagne|démarrer campagne|ابدأ حملة|story du jour|ستوري اليوم|post du jour|منشور اليوم|statut campagne|حالة الحملة|relance prospects|ajoute prospect|زيد prospect|colle prospects|prospects statut|meta (on|off|token|page|ig|setup)|publie (facebook|instagram))/i.test(
+    /(lance campagne|démarrer campagne|ابدأ حملة|story du jour|ستوري اليوم|post du jour|منشور اليوم|statut campagne|حالة الحملة|relance prospects|ajoute prospect|زيد prospect|colle prospects|prospects statut|strategie|stratégie|meta (on|off|token|page|ig|setup)|publie (facebook|instagram)|marque |brand |az digital|cockpit digital)/i.test(
       raw,
     )
   ) {
+    const camp = runCampaignCommand(state, raw, lang)
+    if (camp) {
+      return {
+        reply: camp.reply,
+        action:
+          camp.action?.type === 'navigate'
+            ? { type: 'navigate', screen: camp.action.screen === 'agent' ? 'digital' : camp.action.screen }
+            : camp.action?.type === 'open_whatsapp'
+              ? { type: 'open_whatsapp', phone: camp.action.phone, message: camp.action.message }
+              : { type: 'navigate', screen: 'digital' },
+      }
+    }
     return {
       reply:
         lang === 'ar'
-          ? 'تم سحب وكيل الحملة / الستوري (ما كانش ينشر فعلياً).\nأنا وكيل الصندوق فقط: مخزون، بيع، زبائن، تنظيم التطبيق.'
-          : 'L’agent campagne / stories a été retiré (il ne publiait pas vraiment).\nJe reste l’agent caisse : stock, vente, clients, organise l’app.',
+          ? 'افتح AZ Digital للأزرار التسويقية والشبكات والمنتجات الرقمية.'
+          : 'Ouvre AZ Digital pour les pubs, réseaux sociaux et produits digitaux.',
+      action: { type: 'navigate', screen: 'digital' },
     }
   }
 

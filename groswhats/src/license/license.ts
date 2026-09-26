@@ -350,6 +350,56 @@ export async function activateLicense(
   return verified
 }
 
+function effectiveAccessFromBonus(
+  licensed: Extract<AccessStatus, { ok: true; mode: 'licensed' }> | null,
+  trial: Extract<AccessStatus, { ok: true; mode: 'trial' }> | null,
+): AccessStatus | null {
+  let bonus: string | null = null
+  try {
+    bonus = localStorage.getItem('gdz-referral-bonus-expires')
+  } catch {
+    bonus = null
+  }
+  if (!bonus || !/^\d{4}-\d{2}-\d{2}/.test(bonus)) return null
+  const exp = new Date(bonus + 'T23:59:59')
+  const left = daysBetween(startOfToday(), exp)
+  if (left < 0) return null
+  if (licensed) {
+    const licExp = new Date(licensed.expiresAt + 'T23:59:59')
+    if (exp <= licExp) return null
+    return {
+      ...licensed,
+      expiresAt: bonus,
+      daysLeft: left,
+      planLabel: `${licensed.planLabel} + parrainage`,
+    }
+  }
+  if (trial) {
+    return {
+      ok: true,
+      mode: 'licensed',
+      customer: 'Parrainage (1 an offert)',
+      expiresAt: bonus,
+      daysLeft: left,
+      seats: trial.seats,
+      planId: trial.planId,
+      maxLocations: trial.maxLocations,
+      planLabel: 'Abonnement parrainage — 1 an',
+    }
+  }
+  return {
+    ok: true,
+    mode: 'licensed',
+    customer: 'Parrainage (1 an offert)',
+    expiresAt: bonus,
+    daysLeft: left,
+    seats: 1,
+    planId: 'standard',
+    maxLocations: 1,
+    planLabel: 'Abonnement parrainage — 1 an',
+  }
+}
+
 export async function getAccessStatus(): Promise<AccessStatus> {
   const key = getStoredLicenseKey()
   if (key) {
@@ -367,6 +417,8 @@ export async function getAccessStatus(): Promise<AccessStatus> {
     const exp = new Date(verified.payload.e + 'T23:59:59')
     const left = daysBetween(startOfToday(), exp)
     if (left < 0) {
+      const bonusOnly = effectiveAccessFromBonus(null, null)
+      if (bonusOnly) return bonusOnly
       return {
         ok: false,
         reason: 'license_expired',
@@ -382,7 +434,7 @@ export async function getAccessStatus(): Promise<AccessStatus> {
       boundDeviceId: seats === 1 ? deviceId : undefined,
     })
 
-    return {
+    const licensed: Extract<AccessStatus, { ok: true; mode: 'licensed' }> = {
       ok: true,
       mode: 'licensed',
       customer: verified.payload.c,
@@ -393,6 +445,7 @@ export async function getAccessStatus(): Promise<AccessStatus> {
       maxLocations: maxLocationsForSeats(seats),
       planLabel: LICENSE_PLANS[planId].labelFr,
     }
+    return effectiveAccessFromBonus(licensed, null) ?? licensed
   }
 
   const started = ensureTrialStarted()
@@ -401,13 +454,15 @@ export async function getAccessStatus(): Promise<AccessStatus> {
   end.setDate(end.getDate() + TRIAL_DAYS)
   const left = daysBetween(startOfToday(), end)
   if (left < 0) {
+    const bonusOnly = effectiveAccessFromBonus(null, null)
+    if (bonusOnly) return bonusOnly
     return {
       ok: false,
       reason: 'trial_expired',
       message: `Essai de ${TRIAL_DAYS} jours terminé. Activez une licence annuelle.`,
     }
   }
-  return {
+  const trial: Extract<AccessStatus, { ok: true; mode: 'trial' }> = {
     ok: true,
     mode: 'trial',
     daysLeft: left,
@@ -416,6 +471,7 @@ export async function getAccessStatus(): Promise<AccessStatus> {
     planId: 'pro3',
     maxLocations: 3,
   }
+  return effectiveAccessFromBonus(null, trial) ?? trial
 }
 
 /** Date + 365 jours (licence annuelle) */

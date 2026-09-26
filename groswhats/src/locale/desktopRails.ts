@@ -42,6 +42,7 @@ const CATALOG: Record<string, RailAction> = {
   calculator: { id: 'calculator', icon: '🧮', labelKey: 'calculator' },
   search: { id: 'search', icon: '🔍', labelKey: 'searchProduct' },
   agent: { id: 'agent', icon: '🆘', labelKey: 'agent' },
+  digital: { id: 'digital', icon: '🚀', labelKey: 'appDigital' },
   alerts: { id: 'alerts', icon: '🔔', labelKey: 'stockAlertTitle' },
   inventory: { id: 'inventory', icon: '📋', labelKey: 'inventory' },
   expiry: { id: 'expiry', icon: '⏳', labelKey: 'expiry' },
@@ -108,12 +109,17 @@ const BY_FAMILY: Partial<Record<MetierFamily, DesktopRails>> = {
   wholesale: {
     top: pick('order', 'clients', 'products', 'arrivages', 'delivery', 'stock', 'history', 'profits', 'settings'),
     left: pick('calculator', 'newProduct', 'search', 'order', 'purchases'),
-    right: pick('agent', 'history', 'alerts', 'supplierDebts', 'debtRemind', 'expenses'),
+    right: pick('agent', 'digital', 'history', 'alerts', 'supplierDebts', 'debtRemind', 'expenses'),
   },
   retail: {
     top: pick('order', 'products', 'clients', 'caisse', 'inventory', 'history', 'expenses', 'profits', 'settings'),
     left: pick('calculator', 'newProduct', 'search', 'order', 'gallery'),
-    right: pick('agent', 'history', 'alerts', 'expiry', 'inventory', 'expenses'),
+    right: pick('agent', 'digital', 'history', 'alerts', 'expiry', 'inventory', 'expenses'),
+  },
+  ecommerce: {
+    top: pick('digital', 'order', 'products', 'clients', 'caisse', 'history', 'expenses', 'profits', 'settings'),
+    left: pick('digital', 'newProduct', 'search', 'order', 'gallery'),
+    right: pick('agent', 'digital', 'history', 'alerts', 'expenses', 'payments'),
   },
   grocery: {
     top: pick('order', 'products', 'caisse', 'inventory', 'expiry', 'history', 'expenses', 'profits', 'settings'),
@@ -277,6 +283,11 @@ const MODE_DEFAULT: Record<CommerceMode, DesktopRails> = {
     left: pick('calculator', 'newProduct', 'search', 'order', 'clients'),
     right: pick('agent', 'history', 'alerts', 'expenses', 'payments'),
   },
+  ecommerce: {
+    top: pick('digital', 'order', 'clients', 'products', 'history', 'expenses', 'profits', 'settings'),
+    left: pick('digital', 'newProduct', 'search', 'order', 'clients'),
+    right: pick('agent', 'digital', 'history', 'alerts', 'expenses', 'payments'),
+  },
 }
 
 const FALLBACK: DesktopRails = MODE_DEFAULT.detail
@@ -373,6 +384,11 @@ const HINTS: Record<string, { fr: string; ar: string; en: string }> = {
     fr: 'Assistant AZ POS : pose une question (vente, stock, réglages…).',
     ar: 'مساعد AZ POS: اطرح سؤالاً (بيع، مخزون، إعدادات…).',
     en: 'AZ POS assistant: ask about sales, stock, settings…',
+  },
+  digital: {
+    fr: 'AZ Digital — vente logicielle, pubs, agents IA',
+    ar: 'AZ Digital — بيع برمجيات، إعلانات، وكلاء ذكاء',
+    en: 'AZ Digital — software sales, ads, AI agents',
   },
   alerts: {
     fr: 'Produits en stock bas ou en rupture — à commander tout de suite.',

@@ -66,6 +66,14 @@ export const COMMERCE_MODES: Array<{
     hintFr: 'Salle de jeux, sport, salon, prestations…',
     hintAr: 'قاعة ألعاب، رياضة، صالون، خدمات…',
   },
+  {
+    id: 'ecommerce',
+    icon: '🌐',
+    nameFr: 'E-commerce',
+    nameAr: 'تجارة إلكترونية',
+    hintFr: 'Boutique en ligne, dropship, pubs, APIs & réseaux',
+    hintAr: 'متجر أونلاين، دروبشيب، إعلانات، واجهات وشبكات',
+  },
 ]
 
 export const DOMAINS: ShopDomain[] = [
@@ -180,6 +188,62 @@ export const DOMAINS: ShopDomain[] = [
   d('svc-sport', 'services', '🏋️', 'Salle de sport', 'قاعة رياضة', 'sport-gym', SVC),
   d('svc-creche', 'services', '🍼', 'Crèche', 'حضانة', 'formation', SVC),
   d('svc-spa', 'services', '🧖', 'Spa / hammam', 'حمام / سبا', 'salon', SVC),
+
+  // E-commerce
+  d(
+    'ecom-boutique',
+    'ecommerce',
+    '🛍️',
+    'Boutique en ligne',
+    'متجر إلكتروني',
+    'ecom-shop',
+    POS,
+  ),
+  d(
+    'ecom-dropship',
+    'ecommerce',
+    '🚚',
+    'Dropshipping',
+    'دروبشيبينغ',
+    'ecom-drop',
+    POS,
+  ),
+  d(
+    'ecom-marketplace',
+    'ecommerce',
+    '🏪',
+    'Vendeur marketplace',
+    'بائع سوق إلكتروني',
+    'ecom-market',
+    POS,
+  ),
+  d(
+    'ecom-digital',
+    'ecommerce',
+    '💿',
+    'Produits digitaux',
+    'منتجات رقمية',
+    'ecom-digital',
+    POS,
+  ),
+  d(
+    'ecom-social',
+    'ecommerce',
+    '📱',
+    'Social commerce',
+    'تجارة اجتماعية',
+    'ecom-social',
+    POS,
+  ),
+  d(
+    'ecom-affiliate',
+    'ecommerce',
+    '🔗',
+    'Affiliation',
+    'التسويق بالعمولة',
+    'ecom-aff',
+    POS,
+  ),
 ]
 
 export function domainsForMode(mode: CommerceMode): ShopDomain[] {
@@ -256,6 +320,13 @@ const MODE_I18N: Record<CommerceMode, Partial<Record<Language, string>>> = {
   sante: { en: 'Health', es: 'Salud', tr: 'Sağlık', it: 'Salute', de: 'Gesundheit' },
   auto: { en: 'Auto', es: 'Auto', tr: 'Oto', it: 'Auto', de: 'Auto' },
   services: { en: 'Services', es: 'Servicios', tr: 'Hizmetler', it: 'Servizi', de: 'Dienstleistungen' },
+  ecommerce: {
+    en: 'E-commerce',
+    es: 'E-commerce',
+    tr: 'E-ticaret',
+    it: 'E-commerce',
+    de: 'E-Commerce',
+  },
 }
 
 export function modeLabel(mode: CommerceMode, lang: Language): string {
@@ -300,6 +371,13 @@ const MODE_HINT: Record<CommerceMode, Partial<Record<Language, string>>> = {
     tr: 'Hizmet ve randevu',
     it: 'Prestazioni e appuntamenti',
     de: 'Leistungen und Termine',
+  },
+  ecommerce: {
+    en: 'Online store, dropship, ads, APIs & social',
+    es: 'Tienda online, dropship, anuncios, APIs',
+    tr: 'Online mağaza, dropship, reklam, API',
+    it: 'Negozio online, dropship, ads, API',
+    de: 'Online-Shop, Dropship, Ads, APIs',
   },
 }
 
