@@ -28,7 +28,6 @@ import { executeTool } from './tools'
 
 import { runAgentic } from './orchestrator'
 import { answerAnything } from './chat'
-import { runCampaignCommand } from './campaignManager'
 
 export type AgentAction =
   | { type: 'none' }
@@ -532,29 +531,27 @@ export async function runAgent(state: AppState, userText: string): Promise<Agent
   const taught = tryTeachCommand(state, raw, lang)
   if (taught) return taught
 
-  // Campagne / stories / Meta → cockpit AZ Digital + commandes locales
+  // Publication / pubs / stratégie vente AZ POS : hors logiciel (site vendeur seulement)
   if (
-    /(lance campagne|démarrer campagne|ابدأ حملة|story du jour|ستوري اليوم|post du jour|منشور اليوم|statut campagne|حالة الحملة|relance prospects|ajoute prospect|زيد prospect|colle prospects|prospects statut|strategie|stratégie|meta (on|off|token|page|ig|setup)|publie (facebook|instagram)|az digital|cockpit digital)/i.test(
+    /(lance campagne|démarrer campagne|ابدأ حملة|story du jour|ستوري اليوم|post du jour|منشور اليوم|statut campagne|حالة الحملة|relance prospects|ajoute prospect|زيد prospect|colle prospects|prospects statut|strategie|stratégie|meta (on|off|token|page|ig|setup)|publie (facebook|instagram)|campagne az|pub az pos)/i.test(
       raw,
     )
   ) {
-    const camp = runCampaignCommand(state, raw, lang)
-    if (camp) {
-      return {
-        reply: camp.reply,
-        action:
-          camp.action?.type === 'navigate'
-            ? { type: 'navigate', screen: camp.action.screen === 'agent' ? 'digital' : camp.action.screen }
-            : camp.action?.type === 'open_whatsapp'
-              ? { type: 'open_whatsapp', phone: camp.action.phone, message: camp.action.message }
-              : { type: 'navigate', screen: 'digital' },
-      }
-    }
     return {
       reply:
         lang === 'ar'
-          ? 'افتح AZ Digital للأزرار التسويقية والمنتجات الرقمية.'
-          : 'Ouvre AZ Digital pour les boutons marketing et produits digitaux.',
+          ? 'النشر والإعلانات واستراتيجية بيع AZ POS ليست داخل البرنامج.\nفي AZ Digital: متجر رقمي، دعوة أصدقاء، عمولة، دروبشيبينغ فقط.'
+          : 'Publication, publicité et stratégie de vente AZ POS ne sont pas dans le logiciel.\nDans AZ Digital : boutique digitale, parrainage, affilié, dropshipping uniquement.',
+      action: { type: 'navigate', screen: 'digital' },
+    }
+  }
+
+  if (/(az digital|cockpit digital)/i.test(raw)) {
+    return {
+      reply:
+        lang === 'ar'
+          ? 'أفتح AZ Digital (متجر، دعوة، عمولة، دروبشيبينغ).'
+          : 'J’ouvre AZ Digital (boutique, parrainage, affilié, dropshipping).',
       action: { type: 'navigate', screen: 'digital' },
     }
   }

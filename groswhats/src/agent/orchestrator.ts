@@ -319,7 +319,6 @@ export function runAgentic(state: AppState, userText: string): AgenticOutcome | 
     'خبير محاسبة',
     'az digital',
     'digital',
-    'lance campagne',
     'reservation',
     'réservation',
     'créneau',

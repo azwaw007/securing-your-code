@@ -12,28 +12,6 @@ import {
   whatsappPitch,
   type DigitalProduct,
 } from './digital/catalog'
-import {
-  ADS_CHANNELS,
-  ORGANIC_ACTIONS,
-  WINNING_IDEAS,
-  actionLabel,
-  channelTitle,
-  ideaNiche,
-  type AdsChannelGuide,
-} from './digital/playbooks'
-import {
-  createMicroAgent,
-  loadMicroAgents,
-  runMicroAgent,
-  saveMicroAgents,
-  spawnChildAgent,
-  type MicroAgent,
-} from './digital/agentStudio'
-import {
-  runCampaignCommand,
-  runMetaPublishCommand,
-  type CampaignAgentResult,
-} from './agent/campaignManager'
 import { openWhatsappText } from './utils/whatsapp'
 import { ReferralPanel } from './ReferralPanel'
 import {
@@ -56,15 +34,7 @@ import {
   type ImportedCommerceProduct,
 } from './digital/platforms'
 
-type TabId =
-  | 'shop'
-  | 'affiliate'
-  | 'dropship'
-  | 'referral'
-  | 'ads'
-  | 'organic'
-  | 'research'
-  | 'agents'
+type TabId = 'shop' | 'affiliate' | 'dropship' | 'referral'
 
 export function DigitalCockpitPage({
   state,
@@ -72,63 +42,32 @@ export function DigitalCockpitPage({
   onState,
   onFlash,
   onNavigate,
-  onCampaignAction,
 }: {
   state: AppState
   lang: Language
   onState: (next: AppState) => void
   onFlash: (msg: string) => void
   onNavigate: (screen: Screen) => void
-  onCampaignAction?: (res: CampaignAgentResult) => void
 }) {
   const [tab, setTab] = useState<TabId>('shop')
   const [output, setOutput] = useState('')
-  const [busy, setBusy] = useState(false)
   const [buyerName, setBuyerName] = useState('')
   const [buyerPhone, setBuyerPhone] = useState('')
   const [saleReferrer, setSaleReferrer] = useState('')
   const [selectedId, setSelectedId] = useState(DIGITAL_CATALOG[0]?.id ?? '')
-  const [channelId, setChannelId] = useState(ADS_CHANNELS[0]?.id ?? 'meta')
-  const [agentName, setAgentName] = useState('')
-  const [agentGoal, setAgentGoal] = useState('')
-  const [agents, setAgents] = useState<MicroAgent[]>(() => loadMicroAgents())
   const [salesTick, setSalesTick] = useState(0)
   const [importTick, setImportTick] = useState(0)
 
   const sales = useMemo(() => loadDigitalSales(), [salesTick])
   const imported = useMemo(() => loadImportedProducts(), [importTick])
   const selected = DIGITAL_CATALOG.find((p) => p.id === selectedId)
-  const channel = ADS_CHANNELS.find((c) => c.id === channelId) ?? ADS_CHANNELS[0]
 
   const tabs: Array<{ id: TabId; label: string }> = [
     { id: 'shop', label: t(lang, 'digitalTabShop') },
     { id: 'referral', label: t(lang, 'digitalTabReferral') },
     { id: 'affiliate', label: t(lang, 'digitalTabAffiliate') },
     { id: 'dropship', label: t(lang, 'digitalTabDropship') },
-    { id: 'ads', label: t(lang, 'digitalTabAds') },
-    { id: 'organic', label: t(lang, 'digitalTabOrganic') },
-    { id: 'research', label: t(lang, 'digitalTabResearch') },
-    { id: 'agents', label: t(lang, 'digitalTabAgents') },
   ]
-
-  async function runCommand(cmd: string) {
-    setBusy(true)
-    try {
-      const pub = await runMetaPublishCommand(cmd, lang)
-      const res = pub ?? runCampaignCommand(state, cmd, lang)
-      if (!res) {
-        setOutput(lang === 'ar' ? 'أمر غير معروف' : 'Commande inconnue')
-        return
-      }
-      setOutput(res.reply)
-      onCampaignAction?.(res)
-      onFlash(lang === 'ar' ? 'تم التنفيذ' : 'Exécuté')
-    } catch (e) {
-      setOutput(String(e))
-    } finally {
-      setBusy(false)
-    }
-  }
 
   function sellProduct(p: DigitalProduct, sendWa: boolean) {
     const sale = addDigitalSale({
@@ -146,7 +85,6 @@ export function DigitalCockpitPage({
     if (sendWa && buyerPhone.trim()) {
       openWhatsappText(buyerPhone, pitch)
     }
-    // Licence AZ POS payante + code parrain = moi → +10 pts auto
     if (p.firstParty && p.kind === 'license' && p.priceDa > 0) {
       const ensured = ensureReferral(state)
       const code = saleReferrer.trim().toUpperCase() || ensured.referral?.code
@@ -174,45 +112,6 @@ export function DigitalCockpitPage({
         : `✅ Offre ${sale.productName}`,
     )
   }
-
-  function onCreateAgent() {
-    if (!agentGoal.trim()) {
-      onFlash(lang === 'ar' ? 'اكتب هدفاً' : 'Écris un objectif')
-      return
-    }
-    const a = createMicroAgent({ name: agentName || 'Agent', goal: agentGoal })
-    setAgents(loadMicroAgents())
-    setAgentName('')
-    setAgentGoal('')
-    const { report, campaignCommand } = runMicroAgent(a, lang)
-    setOutput(report)
-    if (campaignCommand) void runCommand(campaignCommand)
-    onFlash(lang === 'ar' ? 'تم إنشاء الوكيل' : 'Agent créé')
-  }
-
-  function onRunAgent(a: MicroAgent) {
-    const { report, campaignCommand } = runMicroAgent(a, lang)
-    setOutput(report)
-    if (campaignCommand) void runCommand(campaignCommand)
-  }
-
-  function onSpawnChild(a: MicroAgent) {
-    const focus =
-      agentGoal.trim() ||
-      (lang === 'ar' ? `${a.goal} — تفصيل` : `${a.goal} — focus`)
-    const child = spawnChildAgent(a, focus)
-    setAgents(loadMicroAgents())
-    setOutput(runMicroAgent(child, lang).report)
-    onFlash(lang === 'ar' ? 'وكيل فرعي جاهز' : 'Sous-agent prêt')
-  }
-
-  function resetAgents() {
-    saveMicroAgents([])
-    setAgents(loadMicroAgents())
-    onFlash(lang === 'ar' ? 'وكلاء افتراضيون' : 'Agents par défaut')
-  }
-
-  void state
 
   return (
     <div className="page digital-cockpit">
@@ -381,141 +280,6 @@ export function DigitalCockpitPage({
         />
       ) : null}
 
-      {tab === 'ads' && channel ? (
-        <section className="digital-section">
-          <h2>{t(lang, 'digitalAdsTitle')}</h2>
-          <div className="digital-chip-row">
-            {ADS_CHANNELS.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                className={`chip ${channelId === c.id ? 'is-on' : ''}`}
-                onClick={() => setChannelId(c.id)}
-              >
-                {channelTitle(c, lang)}
-              </button>
-            ))}
-          </div>
-          <ChannelPanel channel={channel} lang={lang} />
-        </section>
-      ) : null}
-
-      {tab === 'organic' ? (
-        <section className="digital-section">
-          <h2>{t(lang, 'digitalOrganicTitle')}</h2>
-          <p className="muted">{t(lang, 'digitalOrganicHint')}</p>
-          <div className="digital-actions wrap">
-            {ORGANIC_ACTIONS.map((a) => (
-              <button
-                key={a.id}
-                type="button"
-                className={`btn ${a.tone === 'primary' ? 'primary' : a.tone === 'accent' ? 'accent' : ''}`}
-                disabled={busy}
-                onClick={() => void runCommand(a.command)}
-              >
-                {actionLabel(a, lang)}
-              </button>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {tab === 'research' ? (
-        <section className="digital-section">
-          <h2>{t(lang, 'digitalResearchTitle')}</h2>
-          <p className="muted">{t(lang, 'digitalResearchHint')}</p>
-          <div className="digital-grid">
-            {WINNING_IDEAS.map((idea) => (
-              <article key={idea.id} className="digital-card static">
-                <strong>
-                  {ideaNiche(idea, lang)}{' '}
-                  <span className="muted">
-                    {idea.type === 'digital' ? '💻' : '📦'} {idea.score}/100
-                  </span>
-                </strong>
-                <p>{lang === 'ar' ? idea.whyAr : idea.whyFr}</p>
-                <ul>
-                  {(lang === 'ar' ? idea.strategyAr : idea.strategyFr).map((s) => (
-                    <li key={s}>{s}</li>
-                  ))}
-                </ul>
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => {
-                    const a = createMicroAgent({
-                      name: ideaNiche(idea, lang),
-                      goal: lang === 'ar' ? idea.whyAr : idea.whyFr,
-                      kind: 'research',
-                    })
-                    setAgents(loadMicroAgents())
-                    setOutput(runMicroAgent(a, lang).report)
-                    setTab('agents')
-                  }}
-                >
-                  {t(lang, 'digitalMakeAgent')}
-                </button>
-              </article>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {tab === 'agents' ? (
-        <section className="digital-section">
-          <h2>{t(lang, 'digitalAgentsTitle')}</h2>
-          <p className="muted">{t(lang, 'digitalAgentsHint')}</p>
-          <div className="digital-sell card-block">
-            <label>
-              {t(lang, 'digitalAgentName')}
-              <input
-                value={agentName}
-                onChange={(e) => setAgentName(e.target.value)}
-                placeholder={lang === 'ar' ? 'مثال: وكيل تيك توك' : 'Ex. Agent TikTok'}
-              />
-            </label>
-            <label>
-              {t(lang, 'digitalAgentGoal')}
-              <input
-                value={agentGoal}
-                onChange={(e) => setAgentGoal(e.target.value)}
-                placeholder={
-                  lang === 'ar'
-                    ? 'أريد بيع تراخيص AZ POS بالولايات'
-                    : 'Je veux vendre des licences AZ POS par wilaya'
-                }
-              />
-            </label>
-            <div className="digital-actions">
-              <button type="button" className="btn primary" onClick={onCreateAgent}>
-                {t(lang, 'digitalCreateAgent')}
-              </button>
-              <button type="button" className="btn ghost" onClick={resetAgents}>
-                {t(lang, 'digitalResetAgents')}
-              </button>
-            </div>
-          </div>
-          <div className="digital-grid">
-            {agents.map((a) => (
-              <article key={a.id} className="digital-card static">
-                <strong>{a.name}</strong>
-                <span className="muted">
-                  {a.kind} · {a.goal}
-                </span>
-                <div className="digital-actions">
-                  <button type="button" className="btn primary" onClick={() => onRunAgent(a)}>
-                    {t(lang, 'digitalRunAgent')}
-                  </button>
-                  <button type="button" className="btn" onClick={() => onSpawnChild(a)}>
-                    {t(lang, 'digitalSpawnAgent')}
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
       {output ? (
         <section className="digital-output card-block">
           <div className="digital-output-head">
@@ -527,30 +291,6 @@ export function DigitalCockpitPage({
           <pre className="digital-pre">{output}</pre>
         </section>
       ) : null}
-    </div>
-  )
-}
-
-function ChannelPanel({
-  channel,
-  lang,
-}: {
-  channel: AdsChannelGuide
-  lang: Language
-}) {
-  const steps = lang === 'ar' ? channel.stepsAr : channel.stepsFr
-  return (
-    <div className="digital-channel card-block">
-      <h3>{channelTitle(channel, lang)}</h3>
-      <p>{lang === 'ar' ? channel.summaryAr : channel.summaryFr}</p>
-      <ol>
-        {steps.map((s) => (
-          <li key={s}>{s}</li>
-        ))}
-      </ol>
-      <p className="digital-tip">
-        💡 {lang === 'ar' ? channel.freeTipAr : channel.freeTipFr}
-      </p>
     </div>
   )
 }

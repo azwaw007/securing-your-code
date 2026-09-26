@@ -1467,9 +1467,9 @@ const fr: Dict = {
   prodTitle: 'Production',
   digitalTitle: 'AZ Digital',
   digitalHint:
-    'Vends logiciels & licences, pilote pubs (Meta, Google, TikTok, AdSense) et agents IA en un clic.',
+    'Boutique digitale, parrainage, affilié et dropshipping — sans pubs ni campagnes AZ POS dans l’app.',
   digitalLegal:
-    'Produits AZ Soft et affiliation légale uniquement — pas de comptes piratés (Netflix, etc.).',
+    'Produits AZ Soft et affiliation légale uniquement — pas de comptes piratés (Netflix, etc.). Publication / pubs AZ POS : hors logiciel.',
   digitalTabShop: 'Boutique',
   digitalTabReferral: 'Parrainage',
   digitalTabAffiliate: 'Affilié',
@@ -3056,9 +3056,9 @@ const ar: Dict = {
   prodTitle: 'الإنتاج',
   digitalTitle: 'AZ Digital',
   digitalHint:
-    'بيع برمجيات وتراخيص، إدارة إعلانات (ميتا، جوجل، تيك توك، أدسنس) ووكلاء ذكاء بضغطة.',
+    'متجر رقمي، دعوة أصدقاء، عمولة ودروبشيبينغ — بلا إعلانات أو حملات AZ POS داخل التطبيق.',
   digitalLegal:
-    'منتجات AZ Soft وعمولة قانونية فقط — ممنوع الحسابات المقرصنة (نتفليكس وغيرها).',
+    'منتجات AZ Soft وعمولة قانونية فقط — ممنوع الحسابات المقرصنة. النشر/إعلانات AZ POS خارج البرنامج.',
   digitalTabShop: 'المتجر',
   digitalTabReferral: 'دعوة أصدقاء',
   digitalTabAffiliate: 'عمولة',
