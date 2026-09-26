@@ -456,9 +456,9 @@ const HINTS: Record<string, { fr: string; ar: string; en: string }> = {
     en: 'Supplier debts: amounts owed and payments to plan.',
   },
   payments: {
-    fr: 'Modes de paiement DZ : espèce, BaridiMob, CCP, carte, chèque.',
-    ar: 'طرق الدفع في الجزائر: نقد، بريدي موب، CCP، بطاقة، شيك.',
-    en: 'DZ payment methods: cash, BaridiMob, CCP, card, cheque.',
+    fr: 'Paiements adaptés au pays (BaridiMob, Wave, Flouci, Mada…).',
+    ar: 'طرق دفع مناسبة للبلد (بريدي موب، ويف، فلوسي، مدى…).',
+    en: 'Payment methods adapted to your country.',
   },
   exportCompta: {
     fr: 'Exporte ventes et dépenses (CSV) pour ton comptable.',

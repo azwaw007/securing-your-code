@@ -209,7 +209,7 @@ import {
   OPTIONAL_TOOLS,
   toolsForMetier,
   OPTIONAL_TOOL_SCREENS,
-  PAYMENT_METHODS,
+  paymentMethodsForCountry,
   isCashierUnlocked,
   isToolEnabled,
   paymentMethodEmoji,
@@ -6058,6 +6058,9 @@ function OrderPage({
   const paymentsOn = isToolEnabled(state.settings, 'payments')
   const tpeOn = isToolEnabled(state.settings, 'tpe')
   const creditLimitOn = isToolEnabled(state.settings, 'creditLimit')
+  const countryPayMethods = paymentMethodsForCountry(
+    state.settings.countryCode || 'DZ',
+  )
 
   const isQuick = clientId === QUICK
   const favorites = useMemo(() => {
@@ -7417,7 +7420,7 @@ function OrderPage({
               <>
             {paymentsOn ? (
               <div className="btn-row" style={{ flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
-                {PAYMENT_METHODS.map((m) => (
+                {countryPayMethods.map((m) => (
                   <button
                     key={m}
                     type="button"
