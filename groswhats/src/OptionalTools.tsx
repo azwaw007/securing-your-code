@@ -32,7 +32,7 @@ import {
   type OptionalToolId,
   type PaymentMethod,
   OPTIONAL_TOOLS,
-  PAYMENT_METHODS,
+  paymentMethodsForCountry,
   isToolEnabled,
   paymentMethodEmoji,
   paymentMethodLabel,
@@ -205,6 +205,7 @@ export function OptionalToolPage({
 }
 
 function PaymentsTool({ state, lang }: { state: AppState; lang: Language }) {
+  const methods = paymentMethodsForCountry(state.settings.countryCode || 'DZ')
   const today = useMemo(() => {
     const start = new Date()
     start.setHours(0, 0, 0, 0)
@@ -217,38 +218,38 @@ function PaymentsTool({ state, lang }: { state: AppState; lang: Language }) {
   }, [state.orders])
 
   const byMethod = useMemo(() => {
-    const map: Record<PaymentMethod, number> = {
-      cash: 0,
-      baridimob: 0,
-      ccp: 0,
-      card: 0,
-      cheque: 0,
-    }
+    const map: Partial<Record<PaymentMethod, number>> = {}
+    for (const m of methods) map[m] = 0
     for (const o of today) {
       const m = (o.paymentMethod || 'cash') as PaymentMethod
-      if (map[m] != null) map[m] += o.paidDa || 0
-      else map.cash += o.paidDa || 0
+      if (map[m] != null) map[m]! += o.paidDa || 0
+      else if (map.cash != null) map.cash += o.paidDa || 0
     }
     return map
-  }, [today])
+  }, [today, methods])
 
   return (
     <div className="card">
       <h2>{lang === 'ar' ? 'اليوم حسب طريقة الدفع' : 'Aujourd’hui par mode'}</h2>
-      {PAYMENT_METHODS.map((m) => (
+      <p className="muted" style={{ marginTop: 0 }}>
+        {lang === 'ar'
+          ? `طرق الدفع لـ ${state.settings.countryCode || 'DZ'}`
+          : `Méthodes pour ${state.settings.countryCode || 'DZ'}`}
+      </p>
+      {methods.map((m) => (
         <div className="list-item" key={m}>
           <div>
             <strong>
               {paymentMethodEmoji(m)} {paymentMethodLabel(m, lang)}
             </strong>
           </div>
-          <strong>{formatDa(byMethod[m])}</strong>
+          <strong>{formatDa(byMethod[m] || 0)}</strong>
         </div>
       ))}
       <div className="notice" style={{ marginTop: 12 }}>
         {lang === 'ar'
-          ? 'عند الدفع في الصندوق اختر الطريقة (نقد، بريدي موب…).'
-          : 'À la caisse, choisis le mode (espèce, BaridiMob…).'}
+          ? 'عند الدفع في الصندوق اختر الطريقة المناسبة لبلدك.'
+          : 'À la caisse, choisis le mode adapté à ton pays.'}
       </div>
     </div>
   )

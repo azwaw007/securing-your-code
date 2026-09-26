@@ -74,6 +74,8 @@ import {
 } from './marketing/socialAccounts'
 import { EcommerceToolsHub } from './EcommerceToolsHub'
 import { showEcommerceHub } from './locale/adapt'
+import { DeliveryCarriersPanel } from './DeliveryCarriersPanel'
+import { LeadLandingPanel } from './LeadLandingPanel'
 
 type TabId =
   | 'shop'
@@ -85,6 +87,8 @@ type TabId =
   | 'research'
   | 'agents'
   | 'tools'
+  | 'shipping'
+  | 'landing'
 
 export function DigitalCockpitPage({
   state,
@@ -147,6 +151,8 @@ export function DigitalCockpitPage({
     { id: 'referral', label: t(lang, 'digitalTabReferral') },
     { id: 'affiliate', label: t(lang, 'digitalTabAffiliate') },
     { id: 'dropship', label: t(lang, 'digitalTabDropship') },
+    { id: 'shipping', label: t(lang, 'digitalTabShipping') },
+    { id: 'landing', label: t(lang, 'digitalTabLanding') },
     { id: 'ads', label: t(lang, 'digitalTabAds') },
     { id: 'organic', label: t(lang, 'digitalTabOrganic') },
     { id: 'research', label: t(lang, 'digitalTabResearch') },
@@ -428,6 +434,25 @@ export function DigitalCockpitPage({
           onFlash={onFlash}
           onOutput={setOutput}
           onImportChange={() => setImportTick((n) => n + 1)}
+        />
+      ) : null}
+
+      {tab === 'shipping' ? (
+        <DeliveryCarriersPanel
+          lang={lang}
+          onFlash={onFlash}
+          onOutput={setOutput}
+        />
+      ) : null}
+
+      {tab === 'landing' ? (
+        <LeadLandingPanel
+          lang={lang}
+          countryCode={state.settings.countryCode || 'DZ'}
+          shopName={state.settings.shopName || ''}
+          shopPhone={state.settings.phone || ''}
+          onFlash={onFlash}
+          onOutput={setOutput}
         />
       ) : null}
 

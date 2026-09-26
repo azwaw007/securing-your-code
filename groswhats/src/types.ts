@@ -100,7 +100,28 @@ export type Screen =
   | 'digital'
 
 /** Mode d’encaissement DZ (outil optionnel « Paiements DZ ») */
-export type PaymentMethod = 'cash' | 'baridimob' | 'ccp' | 'card' | 'cheque'
+export type PaymentMethod =
+  | 'cash'
+  | 'baridimob'
+  | 'ccp'
+  | 'card'
+  | 'cheque'
+  | 'chargily'
+  | 'transfer'
+  | 'orange_money'
+  | 'wave'
+  | 'moov_money'
+  | 'mtn_momo'
+  | 'flouci'
+  | 'd17'
+  | 'cih'
+  | 'cmi'
+  | 'paypal'
+  | 'stripe'
+  | 'apple_pay'
+  | 'google_pay'
+  | 'mada'
+  | 'stc_pay'
 
 /** Outils cochables dans Réglages → affichés sur l’accueil */
 export type OptionalToolId =
