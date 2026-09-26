@@ -281,6 +281,18 @@ export interface Appointment {
   remindStages: AppointmentRemindStage[]
   remindedAt?: string
   createdAt: string
+  /** Durée réservée (minutes) — agenda agentique */
+  durationMin?: number
+  /** Options / combinaison métier (dj, cuisine, matériel…) */
+  optionIds?: string[]
+  /** Segment tarifaire : weekday | weekend | peak | offpeak */
+  segment?: string
+  /** Devis estimé (DA) au moment de la réservation */
+  quoteDa?: number
+  /** Décision agent : accepted | rejected | proposed */
+  agentDecision?: 'accepted' | 'rejected' | 'proposed'
+  /** Motif court (refus / proposition) */
+  agentReason?: string
 }
 
 export interface Client {
@@ -364,6 +376,24 @@ export interface Client {
   licenseId?: string
   /** Avocat — réf affaire */
   caseRef?: string
+  /** Salle des fêtes / événement — date YYYY-MM-DD */
+  eventDate?: string
+  /** Salle des fêtes — lieu / salle */
+  eventVenue?: string
+  /** Voyage — destination */
+  destination?: string
+  /** Voyage — dates (texte libre) */
+  travelDates?: string
+  /** Photo — type de séance */
+  shootType?: string
+  /** Impression — specs */
+  printSpec?: string
+  /** Artisan / IT — adresse chantier */
+  siteAddress?: string
+  /** Artisan / IT / sécurité — équipements */
+  equipment?: string
+  /** Transport — trajets habituels */
+  routes?: string
   createdAt: string
   /** Dernière mutation fiche (sync multi-poste) */
   updatedAt?: string

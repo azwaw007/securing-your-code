@@ -1,5 +1,6 @@
 import type { AppState, FontScale, Language, Screen, ThemePreset } from '../types'
 import {
+  addAppointment,
   addClient,
   addZakatRecord,
   annualNetProfitDa,
@@ -13,12 +14,16 @@ import {
   stockValueDa,
   todayCashDa,
   todayOrders,
+  upcomingAppointments,
   updateSettings,
 } from '../store'
 import { formatDa } from '../utils/format'
 import { applyUiTheme, parseFontFromText, parseThemeFromText, themeLabel } from '../utils/theme'
 import { can, type AgentPermissions } from './permissions'
 import { expertAdvice, type ExpertDomain } from './expertise'
+import { evaluateBooking, suggestNearestSlots, toLocalInputValue } from '../booking/agent'
+import { bookingPackFor, optionLabel } from '../booking/packs'
+import { metierFamilyFor } from '../locale/metierPacks'
 
 export type ToolName =
   | 'list_capabilities'
@@ -37,6 +42,10 @@ export type ToolName =
   | 'calc_zakat'
   | 'open_screen_help'
   | 'expert_advice'
+  | 'suggest_booking_slots'
+  | 'evaluate_booking'
+  | 'create_booking'
+  | 'list_bookings'
 
 export interface ToolCall {
   name: ToolName
@@ -109,6 +118,7 @@ export const AGENT_TOOLS: ToolDef[] = [
               '• تنظيم الواجهة: وضع سهل، ثيم، خط، إظهار/إخفاء أيقونات',
               '• نصائح خبير: مبيعات، محاسبة، تسويق، تسيير، معلوماتية، مطور',
               '• إضافة زبون، حساب الزكاة',
+              '• أجندة ذكية: اقتراح مواعيد، تقييم حجز، تسجيل حجز',
               '❌ لا أعدّل كود السيرفر ولا أحذف كل البيانات',
               `الثيم الحالي: ${themeLabel(lang, p.themePreset)} · سهل: ${p.easyMode !== false ? 'نعم' : 'لا'}`,
             ]
@@ -119,6 +129,7 @@ export const AGENT_TOOLS: ToolDef[] = [
               '• Organiser l’UI : mode facile, thème, police, icônes',
               '• Conseils expert : vente, compta, marketing, gestion, info, dév',
               '• Ajouter client, calculer zakat',
+              '• Agenda agentique : créneaux proches, évaluer, créer une réservation',
               '❌ Je ne réécris pas le code serveur ni ne vide toutes les données',
               `Thème: ${themeLabel(lang, p.themePreset)} · Facile: ${p.easyMode !== false ? 'oui' : 'non'}`,
             ]
@@ -559,6 +570,292 @@ export const AGENT_TOOLS: ToolDef[] = [
         ar: 'اكتب «نظّم التطبيق» لترتيب الواجهة، أو «خبير مبيعات» لنصيحة.',
       }
       return { ok: true, message: lang === 'ar' ? tip.ar : tip.fr, navigateTo: screen as Screen }
+    },
+  },
+  {
+    name: 'suggest_booking_slots',
+    permission: 'readBusiness',
+    descriptionFr: 'Propose des créneaux libres proches',
+    descriptionAr: 'يقترح مواعيد قريبة متاحة',
+    run: (state, args, lang) => {
+      const family = metierFamilyFor(
+        state.settings.domainId,
+        state.settings.commerceMode,
+      )
+      const pack = bookingPackFor(family)
+      const fromRaw = String(args.from || args.at || '').trim()
+      const from = fromRaw ? new Date(fromRaw) : new Date()
+      if (!Number.isFinite(from.getTime())) {
+        return {
+          ok: false,
+          message: lang === 'ar' ? 'تاريخ غير صالح' : 'Date invalide',
+        }
+      }
+      const optionIds = Array.isArray(args.options)
+        ? args.options.map(String)
+        : typeof args.options === 'string'
+          ? String(args.options)
+              .split(/[,+ ]+/)
+              .map((s) => s.trim())
+              .filter(Boolean)
+          : []
+      const durationMin =
+        Number(args.durationMin) > 0
+          ? Number(args.durationMin)
+          : pack.defaultDurationMin
+      const slots = suggestNearestSlots(state, family, {
+        from,
+        durationMin,
+        optionIds,
+        count: 5,
+      })
+      if (slots.length === 0) {
+        return {
+          ok: true,
+          message:
+            lang === 'ar'
+              ? 'لا مواعيد متاحة قريباً (3 أسابيع).'
+              : 'Aucun créneau libre sur les 3 prochaines semaines.',
+        }
+      }
+      const lines = slots.map((s, i) => {
+        const when = s.at.toLocaleString(lang === 'ar' ? 'ar-DZ' : 'fr-DZ', {
+          weekday: 'short',
+          day: '2-digit',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+        const price =
+          s.quoteDa > 0
+            ? ` · ≈ ${formatDa(s.quoteDa)}`
+            : ''
+        return `${i + 1}. ${when}${price}`
+      })
+      return {
+        ok: true,
+        navigateTo: 'home',
+        message:
+          (lang === 'ar' ? 'مواعيد قريبة متاحة:\n' : 'Créneaux proches libres :\n') +
+          lines.join('\n'),
+      }
+    },
+  },
+  {
+    name: 'evaluate_booking',
+    permission: 'readBusiness',
+    descriptionFr: 'Évalue si une réservation est acceptée ou refusée',
+    descriptionAr: 'يقيّم قبول أو رفض الحجز',
+    run: (state, args, lang) => {
+      const family = metierFamilyFor(
+        state.settings.domainId,
+        state.settings.commerceMode,
+      )
+      const pack = bookingPackFor(family)
+      const atRaw = String(args.at || args.when || '').trim()
+      const at = atRaw ? new Date(atRaw) : null
+      if (!at || !Number.isFinite(at.getTime())) {
+        return {
+          ok: false,
+          message:
+            lang === 'ar'
+              ? 'أعط تاريخاً (مثال 2026-10-05T18:00)'
+              : 'Donne une date (ex. 2026-10-05T18:00)',
+        }
+      }
+      const optionIds = Array.isArray(args.options)
+        ? args.options.map(String)
+        : typeof args.options === 'string'
+          ? String(args.options)
+              .split(/[,+ ]+/)
+              .map((s) => s.trim())
+              .filter(Boolean)
+          : []
+      const durationMin =
+        Number(args.durationMin) > 0
+          ? Number(args.durationMin)
+          : pack.defaultDurationMin
+      const v = evaluateBooking(state, family, {
+        at,
+        durationMin,
+        optionIds,
+      })
+      const decision =
+        v.decision === 'accepted'
+          ? lang === 'ar'
+            ? 'مقبول'
+            : 'Accepté'
+          : v.decision === 'proposed'
+            ? lang === 'ar'
+              ? 'اقتراح بديل'
+              : 'Proposition'
+            : lang === 'ar'
+              ? 'مرفوض'
+              : 'Refusé'
+      const reasons = (lang === 'ar' ? v.reasonsAr : v.reasons).join('\n• ')
+      const alts =
+        v.alternatives.length > 0
+          ? '\n' +
+            (lang === 'ar' ? 'بدائل:\n' : 'Alternatives :\n') +
+            v.alternatives
+              .slice(0, 3)
+              .map(
+                (s) =>
+                  `• ${s.at.toLocaleString(lang === 'ar' ? 'ar-DZ' : 'fr-DZ', {
+                    weekday: 'short',
+                    day: '2-digit',
+                    month: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}`,
+              )
+              .join('\n')
+          : ''
+      return {
+        ok: true,
+        message: `${decision}\n• ${reasons}${alts}`,
+      }
+    },
+  },
+  {
+    name: 'create_booking',
+    permission: 'mutateBusiness',
+    descriptionFr: 'Crée une réservation si le créneau est libre',
+    descriptionAr: 'يسجّل حجزاً إن كان الموعد متاحاً',
+    run: (state, args, lang) => {
+      const family = metierFamilyFor(
+        state.settings.domainId,
+        state.settings.commerceMode,
+      )
+      const pack = bookingPackFor(family)
+      const clientId = String(args.clientId || '').trim()
+      const clientName = String(args.clientName || args.name || '')
+        .trim()
+        .toLowerCase()
+      const client =
+        state.clients.find((c) => c.id === clientId) ||
+        state.clients.find((c) => c.name.toLowerCase().includes(clientName))
+      if (!client) {
+        return {
+          ok: false,
+          message:
+            lang === 'ar'
+              ? 'زبون غير موجود — أعط الاسم أو أضفه أولاً'
+              : 'Client introuvable — donne le nom ou ajoute-le d’abord',
+        }
+      }
+      const atRaw = String(args.at || args.when || '').trim()
+      const at = atRaw ? new Date(atRaw) : null
+      if (!at || !Number.isFinite(at.getTime())) {
+        return {
+          ok: false,
+          message:
+            lang === 'ar' ? 'تاريخ الحجز مطلوب' : 'Date de réservation requise',
+        }
+      }
+      const optionIds = Array.isArray(args.options)
+        ? args.options.map(String)
+        : typeof args.options === 'string'
+          ? String(args.options)
+              .split(/[,+ ]+/)
+              .map((s) => s.trim())
+              .filter(Boolean)
+          : []
+      const durationMin =
+        Number(args.durationMin) > 0
+          ? Number(args.durationMin)
+          : pack.defaultDurationMin
+      const v = evaluateBooking(state, family, {
+        at,
+        durationMin,
+        optionIds,
+      })
+      if (v.decision !== 'accepted') {
+        const alts = v.alternatives
+          .slice(0, 3)
+          .map((s) => toLocalInputValue(s.at))
+          .join(', ')
+        return {
+          ok: false,
+          message:
+            (lang === 'ar'
+              ? `الحجز غير مقبول. ${v.reasonsAr.join(' ')}`
+              : `Réservation refusée. ${v.reasons.join(' ')}`) +
+            (alts
+              ? lang === 'ar'
+                ? `\nجرّب: ${alts}`
+                : `\nEssaie : ${alts}`
+              : ''),
+        }
+      }
+      const optLabels = v.optionIds
+        .map((id) => {
+          const o = pack.options.find((x) => x.id === id)
+          return o ? optionLabel(o, lang) : id
+        })
+        .filter(Boolean)
+      const noteExtra = optLabels.length
+        ? `${String(args.note || '').trim()} · ${optLabels.join(', ')}`.trim()
+        : String(args.note || '').trim()
+      const next = addAppointment(state, {
+        clientId: client.id,
+        at: at.toISOString(),
+        note: noteExtra.replace(/^\s*·\s*/, ''),
+        durationMin: v.durationMin,
+        optionIds: v.optionIds,
+        segment: v.segment,
+        quoteDa: v.quoteDa,
+        agentDecision: 'accepted',
+        agentReason: (lang === 'ar' ? v.reasonsAr : v.reasons).join(' · '),
+      })
+      return {
+        ok: true,
+        nextState: next,
+        navigateTo: 'home',
+        message:
+          lang === 'ar'
+            ? `✅ حجز لـ ${client.name} — ${formatDa(v.quoteDa)}`
+            : `✅ Réservation pour ${client.name} — ${formatDa(v.quoteDa)}`,
+      }
+    },
+  },
+  {
+    name: 'list_bookings',
+    permission: 'readBusiness',
+    descriptionFr: 'Liste les prochaines réservations',
+    descriptionAr: 'يعرض الحجوزات القادمة',
+    run: (state, _a, lang) => {
+      const list = upcomingAppointments(state, 10)
+      if (list.length === 0) {
+        return {
+          ok: true,
+          message:
+            lang === 'ar' ? 'لا حجوزات قادمة.' : 'Aucune réservation à venir.',
+        }
+      }
+      const lines = list.map((a, i) => {
+        const when = new Date(a.at).toLocaleString(
+          lang === 'ar' ? 'ar-DZ' : 'fr-DZ',
+          {
+            weekday: 'short',
+            day: '2-digit',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit',
+          },
+        )
+        const q =
+          typeof a.quoteDa === 'number' && a.quoteDa > 0
+            ? ` · ${formatDa(a.quoteDa)}`
+            : ''
+        return `${i + 1}. ${a.clientName} — ${when}${q}`
+      })
+      return {
+        ok: true,
+        message:
+          (lang === 'ar' ? 'الحجوزات القادمة:\n' : 'Prochaines réservations :\n') +
+          lines.join('\n'),
+      }
     },
   },
 ]

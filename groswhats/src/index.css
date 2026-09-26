@@ -4073,6 +4073,124 @@ html[data-theme='night'] option {
   min-height: 100%;
 }
 
+/* —— Agenda agentique multi-métier —— */
+.booking-agent-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.booking-agent-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.book-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.book-option-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.book-option-chip input {
+  margin: 0;
+}
+
+.book-option-chip em {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--brand, #0d9488);
+}
+
+.book-verdict {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+}
+
+.book-verdict ul {
+  margin: 6px 0 0;
+  padding-inline-start: 1.1rem;
+  font-size: 0.88rem;
+}
+
+.book-verdict.is-ok {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.book-verdict.is-propose {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+.book-verdict.is-reject {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.book-quote {
+  margin-top: 6px;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.book-alts-title {
+  margin: 8px 0 4px;
+  font-size: 0.85rem;
+}
+
+.book-alt-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.book-alt-chip {
+  font-size: 0.78rem !important;
+  padding: 6px 10px !important;
+}
+
+.booking-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.booking-list-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.03);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.book-item-opts {
+  font-size: 0.8rem;
+}
+
 /* Accueil / caisse : CTA iconiques sans texte */
 .home-hero .scan-cta,
 .home-hero .sell-cta,

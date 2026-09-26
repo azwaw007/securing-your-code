@@ -203,7 +203,17 @@ export function showClinicAgenda(
   mode: CommerceMode | undefined,
   domainId?: string,
 ): boolean {
-  return featuresFor(domainId, mode).clinicAgenda
+  const f = featuresFor(domainId, mode)
+  // L’agenda agentique remplace l’agenda clinique simple
+  if (f.bookingAgent) return false
+  return f.clinicAgenda
+}
+
+export function showBookingAgent(
+  mode: CommerceMode | undefined,
+  domainId?: string,
+): boolean {
+  return featuresFor(domainId, mode).bookingAgent
 }
 
 export function showTableService(
