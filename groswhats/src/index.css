@@ -4554,3 +4554,20 @@ html[data-theme='night'] option {
     grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
   }
 }
+
+.crm-tools-hub {
+  background: linear-gradient(165deg, #eff6ff 0%, #dbeafe 55%, #f8fafc 100%);
+  border-color: rgba(29, 78, 216, 0.2);
+}
+.crm-tools-hub h2,
+.crm-tools-hub h3 {
+  color: #1e3a8a;
+}
+.crm-tools-hub .ecom-tool-badge {
+  color: #1d4ed8;
+}
+.crm-tools-hub .ecom-tool-icon:hover,
+.crm-tools-hub .ecom-tool-icon:focus-visible {
+  border-color: #2563eb;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.15);
+}

@@ -110,6 +110,12 @@ function accountingSectionTips(
           'اربط الشبكات المجانية قبل الميزانية المدفوعة.',
           'الدروبشيب: احسب التوصيل + الإرجاع في السعر.',
         ]
+      case 'crm':
+        return [
+          'CRM: لكل جهة اتصال متابعة قادمة (واتساب / اتصال).',
+          'المسار: لا تترك فرصة بلا خطوة تالية.',
+          'تذكير الديون جزء من CRM — إيقاع ثابت بلا إزعاج.',
+        ]
       default:
         return ['سجّل المصاريف يومياً · افصل النقد عن الدين.']
     }
@@ -150,6 +156,12 @@ function accountingSectionTips(
         'E-commerce : suis le coût pub vs marge produit.',
         'Branchez d’abord les outils gratuits (réseaux, analytics) avant le budget ads.',
         'Dropship : intègre livraison + retours dans le prix.',
+      ]
+    case 'crm':
+      return [
+        'CRM : chaque contact a un prochain suivi (WhatsApp / appel).',
+        'Pipeline : ne laisse pas une opportunité sans prochaine action.',
+        'Relances dettes = partie du CRM — rythme constant, pas de spam.',
       ]
     default:
       return ['Note les dépenses chaque jour · sépare cash / crédit.']

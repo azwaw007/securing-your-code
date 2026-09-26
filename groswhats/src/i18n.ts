@@ -1501,6 +1501,10 @@ const fr: Dict = {
   ecomToolsHint:
     'APIs, apps, marketplaces, réseaux et pubs — freemium / open source. Icônes réservées au métier E-commerce.',
   ecomToolsOpenDigital: 'AZ Digital',
+  crmToolsTitle: 'Hub CRM',
+  crmToolsHint:
+    'Contacts, pipeline, WhatsApp, support et CRM gratuits — icônes réservées au métier CRM.',
+  crmToolsOpenClients: 'Contacts',
   digitalBrandTitle: 'Ta marque',
   digitalBrandHint:
     'Choisis le nom de boutique et de produit utilisés dans stories, posts et pubs — pas de nom imposé.',
@@ -3118,6 +3122,10 @@ const ar: Dict = {
   ecomToolsHint:
     'واجهات، تطبيقات، أسواق، شبكات وإعلانات — مجاني / مفتوح المصدر. الأيقونات لمهنة التجارة الإلكترونية فقط.',
   ecomToolsOpenDigital: 'AZ Digital',
+  crmToolsTitle: 'مركز CRM',
+  crmToolsHint:
+    'جهات اتصال، مسار بيع، واتساب، دعم وCRM مجاني — الأيقونات لمهنة CRM فقط.',
+  crmToolsOpenClients: 'جهات الاتصال',
   digitalBrandTitle: 'علامتك',
   digitalBrandHint:
     'اختر اسم المتجر والمنتج للستوري والمنشورات والإعلانات — بلا اسم مفروض.',

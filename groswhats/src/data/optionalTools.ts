@@ -69,6 +69,14 @@ export const METIER_RECOMMENDED_TOOLS: Record<MetierFamily, OptionalToolId[]> = 
     'debtRemind',
     'exportCompta',
   ],
+  crm: [
+    'payments',
+    'debtRemind',
+    'creditLimit',
+    'fiscal',
+    'exportCompta',
+    'cashierPin',
+  ],
 }
 
 export const PAYMENT_METHODS: PaymentMethod[] = [
